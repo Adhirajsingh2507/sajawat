@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm -v)",
+      "Bash(echo \"npm: $\\(npm -v 2>/dev/null || echo 'NOT INSTALLED'\\)\")",
+      "Bash(pnpm -v)",
+      "Bash(echo \"pnpm: $\\(pnpm -v 2>/dev/null || echo 'NOT INSTALLED'\\)\")",
+      "Bash(corepack -v)",
+      "Bash(command -v nvm)",
+      "Bash([ -s \"$HOME/.nvm/nvm.sh\" ])",
+      "Bash(command -v fnm)",
+      "Bash(echo \"fnm: $\\(command -v fnm || echo 'NOT FOUND'\\)\")",
+      "Bash(command -v n)",
+      "Bash(corepack enable *)",
+      "Bash(corepack prepare *)",
+      "Bash(echo \"pnpm: $\\(pnpm -v\\)\")",
+      "Bash(git init *)",
+      "Bash(git branch *)",
+      "Bash(git add *)",
+      "Bash(git -c 'user.name=Sajawat Dev' -c user.email=techadhiraj07@gmail.com commit -q -m 'chore\\(phase-0\\): milestone 0.1 monorepo skeleton *)"
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@sajawat/config",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./prettier": "./prettier/index.js"
+  },
+  "scripts": {
+    "lint": "echo \"@sajawat/config: lint configured in milestone 0.3\" && exit 0",
+    "typecheck": "echo \"@sajawat/config: typecheck configured in milestone 0.2\" && exit 0",
+    "build": "echo \"@sajawat/config: no build step\" && exit 0"
+  }
+}

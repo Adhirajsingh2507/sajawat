@@ -1,0 +1,15 @@
+# Dependencies & build output
+node_modules/
+.next/
+dist/
+build/
+out/
+.turbo/
+coverage/
+
+# Lockfiles
+pnpm-lock.yaml
+
+# Hand-authored specification docs use a deliberate vertical layout —
+# Prettier must not reflow them.
+**/*.md

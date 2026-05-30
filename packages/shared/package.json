@@ -1,0 +1,12 @@
+{
+  "name": "@sajawat/shared",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "echo \"@sajawat/shared: lint configured in milestone 0.3\" && exit 0",
+    "typecheck": "echo \"@sajawat/shared: typecheck configured in milestone 0.2\" && exit 0",
+    "build": "echo \"@sajawat/shared: no build step\" && exit 0"
+  }
+}
