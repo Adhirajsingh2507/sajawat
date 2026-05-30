@@ -2,12 +2,21 @@
   "name": "@sajawat/api",
   "version": "0.0.0",
   "private": true,
-  "main": "./src/index.ts",
+  "type": "module",
+  "main": "./dist/index.js",
   "scripts": {
     "dev": "echo \"@sajawat/api: dev server configured in milestone 0.4\" && exit 0",
     "lint": "echo \"@sajawat/api: lint configured in milestone 0.3\" && exit 0",
-    "typecheck": "echo \"@sajawat/api: typecheck configured in milestone 0.2\" && exit 0",
-    "build": "echo \"@sajawat/api: build configured in milestone 0.4\" && exit 0",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "echo \"@sajawat/api: tests configured in milestone 0.9\" && exit 0"
+  },
+  "dependencies": {
+    "@sajawat/shared": "workspace:*",
+    "@sajawat/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@sajawat/config": "workspace:*",
+    "@types/node": "^22",
+    "typescript": "^5.7.2"
   }
 }

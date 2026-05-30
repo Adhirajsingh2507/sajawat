@@ -2,11 +2,19 @@
   "name": "@sajawat/types",
   "version": "0.0.0",
   "private": true,
-  "main": "./src/index.ts",
+  "type": "module",
   "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts"
+    }
+  },
   "scripts": {
     "lint": "echo \"@sajawat/types: lint configured in milestone 0.3\" && exit 0",
-    "typecheck": "echo \"@sajawat/types: typecheck configured in milestone 0.2\" && exit 0",
-    "build": "echo \"@sajawat/types: no build step\" && exit 0"
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@sajawat/config": "workspace:*",
+    "typescript": "^5.7.2"
   }
 }

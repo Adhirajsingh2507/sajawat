@@ -11,11 +11,15 @@
     "test": "echo \"@sajawat/admin: tests configured in milestone 0.9\" && exit 0"
   },
   "dependencies": {
+    "@sajawat/shared": "workspace:*",
+    "@sajawat/types": "workspace:*",
+    "@sajawat/ui": "workspace:*",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@sajawat/config": "workspace:*",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

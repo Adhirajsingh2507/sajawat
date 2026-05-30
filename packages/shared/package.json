@@ -2,11 +2,28 @@
   "name": "@sajawat/shared",
   "version": "0.0.0",
   "private": true,
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "lint": "echo \"@sajawat/shared: lint configured in milestone 0.3\" && exit 0",
-    "typecheck": "echo \"@sajawat/shared: typecheck configured in milestone 0.2\" && exit 0",
-    "build": "echo \"@sajawat/shared: no build step\" && exit 0"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@sajawat/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@sajawat/config": "workspace:*",
+    "typescript": "^5.7.2"
   }
 }

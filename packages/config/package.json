@@ -3,11 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "exports": {
-    "./prettier": "./prettier/index.js"
+    "./prettier": "./prettier/index.js",
+    "./typescript/base": "./typescript/base.json",
+    "./typescript/node": "./typescript/node.json",
+    "./typescript/library": "./typescript/library.json",
+    "./typescript/react-library": "./typescript/react-library.json",
+    "./typescript/nextjs": "./typescript/nextjs.json"
   },
   "scripts": {
     "lint": "echo \"@sajawat/config: lint configured in milestone 0.3\" && exit 0",
-    "typecheck": "echo \"@sajawat/config: typecheck configured in milestone 0.2\" && exit 0",
-    "build": "echo \"@sajawat/config: no build step\" && exit 0"
+    "typecheck": "echo \"@sajawat/config: no TypeScript sources (config-only package)\" && exit 0"
   }
 }

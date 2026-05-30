@@ -1,0 +1,5 @@
+{
+  "extends": "@sajawat/config/typescript/react-library",
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules"]
+}

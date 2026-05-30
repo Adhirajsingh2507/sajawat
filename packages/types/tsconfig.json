@@ -1,0 +1,10 @@
+{
+  "extends": "@sajawat/config/typescript/base",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": ["src/**/*.ts"]
+}

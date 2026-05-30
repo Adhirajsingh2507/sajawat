@@ -1,7 +1,8 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Source-only workspace packages compiled by Next (AD-1: ui ships TSX source).
+  transpilePackages: ['@sajawat/ui'],
 };
 
 export default nextConfig;

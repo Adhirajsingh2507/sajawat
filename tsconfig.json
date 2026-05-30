@@ -1,0 +1,5 @@
+{
+  "//": "Solution-style root config. Builds composite project references via `tsc -b`. Source-only packages (types, ui) and Next apps are typechecked standalone via their own `typecheck` scripts.",
+  "files": [],
+  "references": [{ "path": "./packages/shared" }, { "path": "./services/api" }]
+}
