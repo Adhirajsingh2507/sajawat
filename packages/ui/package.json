@@ -11,7 +11,7 @@
     }
   },
   "scripts": {
-    "lint": "echo \"@sajawat/ui: lint configured in milestone 0.3\" && exit 0",
+    "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc -p tsconfig.json"
   },
   "peerDependencies": {
@@ -25,6 +25,7 @@
     "@sajawat/config": "workspace:*",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "eslint": "^9.18.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "typescript": "^5.7.2"

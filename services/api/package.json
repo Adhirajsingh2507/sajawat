@@ -6,7 +6,7 @@
   "main": "./dist/index.js",
   "scripts": {
     "dev": "echo \"@sajawat/api: dev server configured in milestone 0.4\" && exit 0",
-    "lint": "echo \"@sajawat/api: lint configured in milestone 0.3\" && exit 0",
+    "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "echo \"@sajawat/api: tests configured in milestone 0.9\" && exit 0"
   },
@@ -17,6 +17,7 @@
   "devDependencies": {
     "@sajawat/config": "workspace:*",
     "@types/node": "^22",
+    "eslint": "^9.18.0",
     "typescript": "^5.7.2"
   }
 }

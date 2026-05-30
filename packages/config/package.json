@@ -4,6 +4,8 @@
   "private": true,
   "exports": {
     "./prettier": "./prettier/index.js",
+    "./eslint/base": "./eslint/base.mjs",
+    "./eslint/react": "./eslint/react.mjs",
     "./typescript/base": "./typescript/base.json",
     "./typescript/node": "./typescript/node.json",
     "./typescript/library": "./typescript/library.json",
@@ -11,7 +13,17 @@
     "./typescript/nextjs": "./typescript/nextjs.json"
   },
   "scripts": {
-    "lint": "echo \"@sajawat/config: lint configured in milestone 0.3\" && exit 0",
+    "lint": "echo \"@sajawat/config: config-only package (no lintable sources)\" && exit 0",
     "typecheck": "echo \"@sajawat/config: no TypeScript sources (config-only package)\" && exit 0"
+  },
+  "dependencies": {
+    "@eslint/js": "^9.18.0",
+    "eslint-plugin-react": "^7.37.4",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "globals": "^15.14.0",
+    "typescript-eslint": "^8.20.0"
+  },
+  "peerDependencies": {
+    "eslint": "^9.18.0"
   }
 }

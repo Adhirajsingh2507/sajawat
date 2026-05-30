@@ -16,7 +16,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "lint": "echo \"@sajawat/shared: lint configured in milestone 0.3\" && exit 0",
+    "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@sajawat/config": "workspace:*",
+    "eslint": "^9.18.0",
     "typescript": "^5.7.2"
   }
 }
