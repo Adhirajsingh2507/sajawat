@@ -9,14 +9,15 @@
 
 - **Project:** Sajawat Jewellery — luxury jewelry e-commerce (B2C + B2B leads + CRM + admin).
 - **Current status:** Phase 0 (Foundation) in progress — infrastructure only, **no business features**.
-- **Current milestone:** **0.4 complete.** Next up: **0.5 (MongoDB Atlas connection + DB health check)** — not yet planned.
-- **As of:** Milestone 0.4 commit on branch `main`.
+- **Current milestone:** **0.4.1 complete** (0.4 + security hardening). Next up: **0.5 (MongoDB Atlas connection + DB health check)** — not yet planned.
+- **As of:** Milestone 0.4.1 commit on branch `main`.
 
 ### Completed milestones
 - ✅ **0.1** — Monorepo skeleton
 - ✅ **0.2** — TypeScript foundation, project references, commit hygiene
 - ✅ **0.3** — ESLint flat config, zero-warning policy, workspace-wide lint
 - ✅ **0.4** — API foundation (Express 5 app factory, pino + request IDs, `/health` + `/api/v1/health`, error hierarchy + global handler, response envelope, Zod request/env validation, type-aware ESLint layer)
+- ✅ **0.4.1** — Security hardening (helmet, env-driven CORS w/ credentials, global per-IP rate limiter + factory)
 
 ### Pending milestones
 - ⏳ **0.5** — MongoDB Atlas connection + DB health check
@@ -35,7 +36,7 @@ infrastructure/{docker,deployment,monitoring,backups,scripts}
 ```
 
 ### Installed technologies
-Turborepo · pnpm · TypeScript · ESLint (flat + type-aware layer) · Prettier · Husky · commitlint · lint-staged · Next.js 16 · React 19 · Tailwind CSS v4 · **Express 5 · pino + pino-http · Zod · tsx (API foundation)**. (Mongoose arrives in 0.5.)
+Turborepo · pnpm · TypeScript · ESLint (flat + type-aware layer) · Prettier · Husky · commitlint · lint-staged · Next.js 16 · React 19 · Tailwind CSS v4 · **Express 5 · pino + pino-http · Zod · tsx (API foundation)** · **helmet · cors · express-rate-limit (0.4.1 security)**. (Mongoose arrives in 0.5.)
 
 ### Architecture decisions
 See `sajawat-current-architecture.md` §1–2 for the authoritative list (Turborepo, Node 22, pnpm, TS strict, ESM+NodeNext, Express 5, pino, Next/React/Tailwind, AD-1 role-based packages, project references, `workspace:*`, root ESLint, Conventional Commits, Zod validation).
@@ -99,6 +100,13 @@ Plan and implement **Milestone 0.5** (MongoDB Atlas): a connection module with r
 - **Risks discovered / resolved:** pino-http default not callable under NodeNext → named import; `Router` type not portable → explicit annotation; body-parser 4xx initially masked as 500 → exposed-`http-errors` mapping.
 - **Verification:** typecheck + lint (zero-warning, type-aware) + build + format all green (8/8 workspaces); live smoke: `/health` 200, `/api/v1/health` enveloped 200, inbound `x-request-id` honored, 404 envelope, malformed JSON → 400, oversized body → 413, SIGTERM graceful shutdown, dev pino-pretty output. Resolves debt **D6**; reduces **D8** (api `dev` now real).
 
+#### Milestone 0.4.1 — Security hardening
+- **Goal:** Add the baseline HTTP security middleware that should exist before any route serves traffic (gap surfaced after 0.4). No business features.
+- **Implemented:** deps (helmet 8.2.0, cors 2.8.6, express-rate-limit 8.5.2; dev @types/cors 2.8.19); `middleware/security.ts` (helmet w/ CSP off + CORP cross-origin; env-driven CORS allow-list, credentials, silent deny of unknown origins); `middleware/rate-limit.ts` (`createRateLimiter` factory + `globalRateLimiter` skipping health, 429→`TooManyRequestsError`); env additions `CORS_ORIGINS` (parsed→deduped array), `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX`; wired into `app.ts` (logger → helmet → cors → limiter → parsers → routes); `.env.example` updated.
+- **Key decisions:** CSP disabled (JSON API; CSP belongs to Next apps); cors before limiter (preflight short-circuits, uncounted); limiter before body parsing; health endpoints exempt from limiting; factory pattern so 0.7 auth limits reuse defaults.
+- **Verification:** typecheck + lint + build + format green; live smoke confirmed helmet headers (HSTS, X-Content-Type-Options, X-Frame-Options, CORP; `x-powered-by` absent), CORS allow (localhost:3000/3001 + credentials) / silent deny (evil.com) / preflight 204, rate-limit draft-7 headers + `429 TOO_MANY_REQUESTS` envelope after limit, `/health` + `/api/v1/health` skipped.
+- **Still deferred (tracked):** CSP (frontend), CSRF (D11), auth/OTP strict limiters (0.7).
+
 ### Planned
 
 | Milestone | Goal (summary) |
@@ -134,8 +142,9 @@ Authoritative copy in `sajawat-open-debt.md`. Open items:
 | D8 | Low | Residual placeholder scripts (api/web/admin `test`, config lint/typecheck). | Replace as capabilities land. | 0.9 |
 | D9 | Low | No git tags / release versioning. | Adopt tagging (see §6). | 0.10 |
 | D10 | Low | `services/api` `dist/` git-ignored; API not consumed by another workspace. | Accepted; revisit if imported elsewhere. | — |
+| D11 | Medium | No CSRF protection yet (security-design mandates it). Mitigated short-term by token-in-header auth (planned) + strict CORS allow-list; cookie-based sessions would need CSRF tokens. | Implement with the auth foundation. | 0.7 |
 
-(D6 — non-type-aware ESLint — **resolved in 0.4**: type-checked layer added for `services/api`.)
+(D6 — non-type-aware ESLint — **resolved in 0.4**: type-checked layer added for `services/api`. The helmet/cors/rate-limit gap flagged after 0.4 was **resolved in 0.4.1**; CSP remains a frontend concern, CSRF tracked as D11.)
 
 ---
 
@@ -146,7 +155,7 @@ Authoritative copy in `sajawat-open-debt.md`. Open items:
 - `admin/` — `@sajawat/admin` (Next 16, :3001): same layout.
 
 ### services/
-- `api/` — `@sajawat/api` (Express 5, ESM/NodeNext): `src/{index,app}.ts`, `config/{env,logger}.ts`, `errors/app-error.ts`, `http/respond.ts`, `middleware/{request-logger,validate,not-found,error-handler}.ts`, `routes/health.routes.ts`, `types/express.d.ts`; `tsconfig.json` (node base, references shared, emits `dist`); `package.json` (dev `tsx watch`, `start`, `build`). Runs `/health` + `/api/v1/health`. MongoDB lands in 0.5.
+- `api/` — `@sajawat/api` (Express 5, ESM/NodeNext): `src/{index,app}.ts`, `config/{env,logger}.ts`, `errors/app-error.ts`, `http/respond.ts`, `middleware/{request-logger,security,rate-limit,validate,not-found,error-handler}.ts`, `routes/health.routes.ts`, `types/express.d.ts`; `tsconfig.json` (node base, references shared, emits `dist`); `package.json` (dev `tsx watch`, `start`, `build`). Runs `/health` + `/api/v1/health` behind helmet + CORS + rate limiting. MongoDB lands in 0.5.
 
 ### packages/
 - `ui/` — `@sajawat/ui` (source TSX): `src/index.ts`, `tsconfig.json` (react-library).
@@ -219,6 +228,10 @@ Specs (source of truth): `sajawat-prd.md`, `-system-architecture.md`, `-database
 | tsx | 4.22.3 | dev runtime / watch (0.4) |
 | pino-pretty | 13.1.3 | dev log formatting (0.4) |
 | @types/express | 5.0.6 | (0.4) |
+| helmet | 8.2.0 | secure headers (0.4.1) |
+| cors | 2.8.6 | CORS allow-list (0.4.1) |
+| express-rate-limit | 8.5.2 | per-IP rate limiting (0.4.1) |
+| @types/cors | 2.8.19 | (0.4.1) |
 | **Planned (0.5):** | | |
 | Mongoose | ^8 | MongoDB Atlas connection |
 

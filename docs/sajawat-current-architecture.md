@@ -4,8 +4,8 @@
 > the latest completed milestone. The aspirational/target specs remain in
 > `sajawat-system-architecture.md`; this file is the ground truth of what exists.
 
-- **As of:** Milestone 0.4 complete (API foundation)
-- **Latest completed milestone:** 0.4 (Express 5 API foundation)
+- **As of:** Milestone 0.4.1 complete (API foundation + security hardening)
+- **Latest completed milestone:** 0.4.1 (helmet + cors + rate limiting)
 - **Phase:** 0 — Foundation (infrastructure only; no business features)
 
 ---
@@ -117,16 +117,25 @@ lifecycle. The same factory is reusable by Supertest in 0.9.
 | `errors/app-error.ts` | `AppError` base (statusCode, machine `code`, optional field `details`, `isOperational`) + subclasses (BadRequest, Validation, Unauthorized, Forbidden, NotFound, Conflict, TooManyRequests, InternalServer); `clientErrorCode(status)` maps 4xx → code. |
 | `http/respond.ts` | Response envelope. `sendSuccess()` + `buildErrorEnvelope()`; every response carries `meta.requestId` + `meta.timestamp`. |
 | `middleware/request-logger.ts` | pino-http; mints/honors `x-request-id` (echoed in response header, attached as `req.id`); status→level mapping (5xx→error, 4xx→warn, else info). |
+| `middleware/security.ts` (0.4.1) | `securityHeaders` = helmet (CSP **off** — JSON API; `crossOriginResourcePolicy: cross-origin`); `corsMiddleware` = env-driven allow-list (`CORS_ORIGINS`), `credentials: true`, no-Origin requests allowed, unknown browser origins silently denied (no 5xx). |
+| `middleware/rate-limit.ts` (0.4.1) | `createRateLimiter(overrides)` factory (defaults from `RATE_LIMIT_WINDOW_MS`/`RATE_LIMIT_MAX`, draft-7 headers, 429→`TooManyRequestsError`); `globalRateLimiter` (per-IP, **skips** `/health` and `/api/v1/health`). |
 | `middleware/validate.ts` | `validate(schema)` parses `{ body, query, params }` and writes to **`req.validatedData`** (never `req.query`/`req.params`, read-only in Express 5); failures → `ValidationError` with per-field details. |
 | `middleware/not-found.ts` | Terminal 404 → `NotFoundError` (standard envelope, not Express HTML). |
 | `middleware/error-handler.ts` | Single global handler. `AppError` passes through; `ZodError` → validation; exposed `http-errors` 4xx (body-parser) → correct status; everything else → non-operational `InternalServerError` (message masked in prod). |
 | `routes/health.routes.ts` | `GET /api/v1/health` enveloped readiness (service, env, uptime). DB check added 0.5. |
 | `types/express.d.ts` | Augments `Express.Request` with `validatedData?` (`req.id`/`req.log` come from pino-http's own augmentation). |
 
-**Middleware order:** request-logger (+ request id) → body parsers (1mb cap) →
-`/health` liveness (minimal, unversioned) → `/api/v1/*` → 404 → global error
-handler (last). **Response envelopes:** success `{ success:true, data, meta }`;
-error `{ success:false, error:{ code, message, details? }, meta }`.
+**Middleware order:** request-logger (+ request id) → **helmet → cors → global
+rate limiter (0.4.1)** → body parsers (1mb cap) → `/health` liveness (minimal,
+unversioned) → `/api/v1/*` → 404 → global error handler (last). cors is placed
+before the limiter so OPTIONS preflight is short-circuited (204) and not
+counted. **Response envelopes:** success `{ success:true, data, meta }`; error
+`{ success:false, error:{ code, message, details? }, meta }`.
+
+**Security posture (0.4.1):** helmet secure headers, env-driven CORS allow-list
+with credentials, per-IP global rate limiting. **Still deferred:** CSP (belongs
+to the Next.js apps), CSRF protection, and auth/OTP-specific strict limiters
+(0.7) — see open-debt.
 
 **Dev/runtime:** `dev` = `tsx watch --env-file-if-exists=.env.development`;
 `start` = `node --env-file-if-exists=.env dist/index.js`; `build` = `tsc`.

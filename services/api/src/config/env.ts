@@ -18,6 +18,29 @@ const EnvSchema = z.object({
   API_PORT: z.coerce.number().int().positive().max(65535).default(4000),
   API_BASE_URL: z.string().url().default('http://localhost:4000'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+
+  // CORS — comma-separated allowed origins; defaults cover local web (:3000)
+  // and admin (:3001). Parsed into a deduped array.
+  CORS_ORIGINS: z
+    .string()
+    .default('http://localhost:3000,http://localhost:3001')
+    .transform((value) => [
+      ...new Set(
+        value
+          .split(',')
+          .map((origin) => origin.trim())
+          .filter((origin) => origin.length > 0),
+      ),
+    ]),
+
+  // Global rate limit (per IP). Auth-specific stricter limits are layered later
+  // via the createRateLimiter factory.
+  RATE_LIMIT_WINDOW_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(15 * 60 * 1000),
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

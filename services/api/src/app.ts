@@ -6,14 +6,19 @@
  *
  * Middleware order is deliberate:
  *   1. request logger + request id   (so everything downstream is traced)
- *   2. body parsers
- *   3. routes (liveness, then versioned API)
- *   4. 404 handler
- *   5. global error handler          (must be last)
+ *   2. security headers (helmet)
+ *   3. cors                           (handles preflight before the limiter)
+ *   4. global rate limiter            (skips health probes)
+ *   5. body parsers
+ *   6. routes (liveness, then versioned API)
+ *   7. 404 handler
+ *   8. global error handler          (must be last)
  */
 import express from 'express';
 import type { Application } from 'express';
 import { requestLogger } from './middleware/request-logger.js';
+import { securityHeaders, corsMiddleware } from './middleware/security.js';
+import { globalRateLimiter } from './middleware/rate-limit.js';
 import { healthRouter } from './routes/health.routes.js';
 import { notFoundHandler } from './middleware/not-found.js';
 import { errorHandler } from './middleware/error-handler.js';
@@ -25,8 +30,15 @@ export function createApp(): Application {
   app.disable('x-powered-by');
   app.set('trust proxy', true);
 
-  // Observability.
+  // Observability — first, so even rejected/limited requests are traced.
   app.use(requestLogger);
+
+  // Security headers + CORS allow-list (CORS handles & ends OPTIONS preflight).
+  app.use(securityHeaders);
+  app.use(corsMiddleware);
+
+  // Per-IP rate limiting (before body parsing; skips health probes).
+  app.use(globalRateLimiter);
 
   // Body parsing (bounded to mitigate large-payload abuse).
   app.use(express.json({ limit: '1mb' }));

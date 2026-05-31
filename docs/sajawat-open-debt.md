@@ -3,7 +3,7 @@
 > Single source of truth for known, accepted debt and deferred work. Updated at
 > every milestone. "Open" = not yet resolved. Resolved items move to the bottom.
 
-- **As of commit:** Milestone 0.4 complete (API foundation)
+- **As of commit:** Milestone 0.4.1 complete (API foundation + security hardening)
 
 ## Open Debt
 
@@ -17,6 +17,8 @@
 | D8 | Low | Remaining placeholder `echo … exit 0` scripts: `test` (api/web/admin), `lint`/`typecheck` (config). (api `dev` resolved in 0.4 → real `tsx watch`.) | Replace as each capability lands. | 0.9 |
 | D9 | Low | No git tags / release versioning yet. | Adopt tagging strategy (see project-state §Git Snapshot). | 0.10 |
 | D10 | Low | `services/api` `dist/` build output exists locally but is git-ignored; the API is consumed only by its own runtime (not by another workspace), so no project-reference/build-order coupling yet. | None needed; revisit if another workspace imports `@sajawat/api`. | — (accepted) |
+| D11 | Medium | No CSRF protection yet (`sajawat-security-design.md:248` mandates it). Short-term mitigations: planned token-in-`Authorization`-header auth (not cookie sessions) + strict CORS allow-list (0.4.1). Becomes load-bearing if/when cookie-based sessions are used. | Implement alongside the auth foundation (CSRF tokens / double-submit, or confirm header-token model removes the need). | 0.7 |
+| D12 | Low | helmet **CSP disabled** (`contentSecurityPolicy: false`) — acceptable for a JSON API, but the security headers picture is incomplete until the Next.js apps ship their own CSP. | Define CSP in `apps/web` / `apps/admin` at Phase 1 UI. | Phase 1 |
 
 ## Resolved Debt (history)
 
@@ -38,3 +40,4 @@
 - **0.4:** `pino-http` default import is not callable under NodeNext → switched to the named import `import { pinoHttp } from 'pino-http'`.
 - **0.4:** `tsc` could not name the inferred `Router` type portably (TS2742) → added an explicit `Router` type annotation (`import type { Router } from 'express'`).
 - **0.4:** body-parser errors (malformed JSON, oversized body) initially surfaced as masked `500`s → the global handler now maps exposed `http-errors` 4xx (`expose === true`) to the correct status/code (verified: `400 BAD_REQUEST`, `413 PAYLOAD_TOO_LARGE`).
+- **0.4.1:** helmet/cors/rate-limit were missing from the 0.4 scope and were not initially recorded as deferred (reporting gap). Closed by the 0.4.1 hardening patch; residual security work (CSP, CSRF) is now explicitly tracked as D11/D12. The `globalRateLimiter` skip list covers both `/health` and `/api/v1/health` so probes are never throttled.
