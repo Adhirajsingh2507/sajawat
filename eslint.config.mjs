@@ -3,6 +3,7 @@ import nextVitals from 'eslint-config-next/core-web-vitals';
 import nextTs from 'eslint-config-next/typescript';
 import base from '@sajawat/config/eslint/base';
 import react from '@sajawat/config/eslint/react';
+import typeChecked from '@sajawat/config/eslint/type-checked';
 
 /**
  * Root ESLint flat config — single source of truth for the whole monorepo.
@@ -34,6 +35,20 @@ export default defineConfig([
     extends: [base],
   },
 
+  // Backend service — type-aware layer on top of base. Requires the TypeScript
+  // program; `projectService` resolves each file to its nearest tsconfig
+  // (services/api/tsconfig.json) with the repo root as the resolution anchor.
+  {
+    files: ['services/api/**/*.ts'],
+    extends: [typeChecked],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+
   // Shared React component library.
   {
     files: ['packages/ui/**/*.{ts,tsx}'],
@@ -58,12 +73,14 @@ export default defineConfig([
       'no-restricted-syntax': [
         'error',
         {
-          selector: "ImportDeclaration[source.value='express'] > ImportSpecifier",
+          selector:
+            "ImportDeclaration[source.value='express'][importKind!='type'] > ImportSpecifier[importKind!='type']",
           message:
             "CJS interop: import express as default then destructure — `import express from 'express'; const { Router } = express;`",
         },
         {
-          selector: "ImportDeclaration[source.value='mongoose'] > ImportSpecifier",
+          selector:
+            "ImportDeclaration[source.value='mongoose'][importKind!='type'] > ImportSpecifier[importKind!='type']",
           message:
             "CJS interop: import mongoose as default then destructure — `import mongoose from 'mongoose'; const { Schema } = mongoose;`",
         },

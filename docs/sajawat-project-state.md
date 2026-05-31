@@ -9,16 +9,16 @@
 
 - **Project:** Sajawat Jewellery — luxury jewelry e-commerce (B2C + B2B leads + CRM + admin).
 - **Current status:** Phase 0 (Foundation) in progress — infrastructure only, **no business features**.
-- **Current milestone:** **0.3 complete.** Next up: **0.4 (API foundation)** — planned & approved, **not yet implemented**.
-- **As of commit:** `6df12ff` on branch `main`.
+- **Current milestone:** **0.4 complete.** Next up: **0.5 (MongoDB Atlas connection + DB health check)** — not yet planned.
+- **As of:** Milestone 0.4 commit on branch `main`.
 
 ### Completed milestones
 - ✅ **0.1** — Monorepo skeleton
 - ✅ **0.2** — TypeScript foundation, project references, commit hygiene
 - ✅ **0.3** — ESLint flat config, zero-warning policy, workspace-wide lint
+- ✅ **0.4** — API foundation (Express 5 app factory, pino + request IDs, `/health` + `/api/v1/health`, error hierarchy + global handler, response envelope, Zod request/env validation, type-aware ESLint layer)
 
 ### Pending milestones
-- ⏳ **0.4** — API foundation (Express 5, pino, health, errors, validation, env) — *plan approved*
 - ⏳ **0.5** — MongoDB Atlas connection + DB health check
 - ⏳ **0.6** — Environment strategy completion (per-env files; partially folded into 0.4) + first domain scaffolding
 - ⏳ **0.7** — Auth foundation (JWT, Argon2, RBAC utilities)
@@ -35,7 +35,7 @@ infrastructure/{docker,deployment,monitoring,backups,scripts}
 ```
 
 ### Installed technologies
-Turborepo · pnpm · TypeScript · ESLint (flat) · Prettier · Husky · commitlint · lint-staged · Next.js 16 · React 19 · Tailwind CSS v4. (Express 5 / pino / Zod / Mongoose arrive in 0.4–0.5.)
+Turborepo · pnpm · TypeScript · ESLint (flat + type-aware layer) · Prettier · Husky · commitlint · lint-staged · Next.js 16 · React 19 · Tailwind CSS v4 · **Express 5 · pino + pino-http · Zod · tsx (API foundation)**. (Mongoose arrives in 0.5.)
 
 ### Architecture decisions
 See `sajawat-current-architecture.md` §1–2 for the authoritative list (Turborepo, Node 22, pnpm, TS strict, ESM+NodeNext, Express 5, pino, Next/React/Tailwind, AD-1 role-based packages, project references, `workspace:*`, root ESLint, Conventional Commits, Zod validation).
@@ -63,7 +63,7 @@ See `sajawat-current-architecture.md` §1–2 for the authoritative list (Turbor
 - Local toolchain runs on Node 25, not the contracted Node 22.
 
 ### Next recommended action
-Implement **Milestone 0.4** per the approved plan (Express 5 app factory, pino logging, `/health` + `/api/v1/health`, error hierarchy + global handler, Zod request/env validation, `tsx` dev workflow). Begin by adding deps to `services/api`, then `config/env.ts` and `config/logger.ts`.
+Plan and implement **Milestone 0.5** (MongoDB Atlas): a connection module with retry/backoff, Mongoose config, DB readiness wired into `/api/v1/health` (degraded/unhealthy states), and graceful disconnect on shutdown. `MONGODB_URI` graduates to a required env var in `config/env.ts`. Reuse the 0.4 error hierarchy + logger.
 
 ---
 
@@ -92,11 +92,17 @@ Implement **Milestone 0.4** per the approved plan (Express 5 app factory, pino l
 - **Risks discovered:** Next 16 removed the `eslint` NextConfig key (typecheck failure); flat-config "File ignored" warning broke `--max-warnings 0` in lint-staged.
 - **Resolution:** Removed invalid `ignoreDuringBuilds`; added `--no-warn-ignored`. All gates green; rules proven via throwaway probe.
 
+#### Milestone 0.4 — API foundation
+- **Goal:** Turn the `services/api` skeleton into a running, observable, type-safe Express 5 server with the cross-cutting primitives every future module depends on. No business features.
+- **Implemented:** deps (express 5.2.1, pino 9.14, pino-http 10.5, zod 3.25; dev: @types/express 5, pino-pretty 13, tsx 4.22); `config/env.ts` (Zod, fail-fast, frozen) + `config/logger.ts` (pino, dev-pretty, redaction); `errors/app-error.ts` (AppError hierarchy + `clientErrorCode`); `http/respond.ts` (success/error envelopes w/ requestId); middleware: `request-logger` (pino-http + `x-request-id`), `validate` (Zod → `req.validatedData`), `not-found`, `error-handler` (AppError/ZodError/http-errors 4xx mapping, prod masking); `routes/health.routes.ts`; `app.ts` factory + `index.ts` (listen, graceful shutdown, process error traps); `types/express.d.ts`; scripts (`dev` tsx watch, `start`, `build`). **Type-aware ESLint:** new `@sajawat/config/eslint/type-checked` scoped to `services/api` via `projectService`; CJS-interop selector refined to allow type-only express/mongoose imports.
+- **Key decisions:** app factory (Supertest-ready); liveness `/health` (minimal, unversioned) vs enveloped readiness `/api/v1/health`; validated input to `req.validatedData` (Express 5 read-only query/params); fail-fast env; pino-http named import (NodeNext); explicit `Router` annotation (TS2742).
+- **Risks discovered / resolved:** pino-http default not callable under NodeNext → named import; `Router` type not portable → explicit annotation; body-parser 4xx initially masked as 500 → exposed-`http-errors` mapping.
+- **Verification:** typecheck + lint (zero-warning, type-aware) + build + format all green (8/8 workspaces); live smoke: `/health` 200, `/api/v1/health` enveloped 200, inbound `x-request-id` honored, 404 envelope, malformed JSON → 400, oversized body → 413, SIGTERM graceful shutdown, dev pino-pretty output. Resolves debt **D6**; reduces **D8** (api `dev` now real).
+
 ### Planned
 
 | Milestone | Goal (summary) |
 |-----------|----------------|
-| 0.4 | Express 5 app factory, `tsx` dev, `/health` + `/api/v1/health`, response wrapper, error hierarchy + global middleware, pino structured + request logging, Zod request/env validation, env config (fail-fast). |
 | 0.5 | MongoDB Atlas connection module (retry), Mongoose config, DB readiness in `/api/v1/health`, graceful disconnect. |
 | 0.6 | Per-env file strategy completion; first domain module scaffolding using the 0.4 foundation. |
 | 0.7 | Auth foundation: JWT access/refresh utils, Argon2 password utils, RBAC permission matrix, rate-limit factory for auth. |
@@ -124,10 +130,12 @@ Authoritative copy in `sajawat-open-debt.md`. Open items:
 | D3 | Low | Local pnpm via npm prefix (Corepack broken on Node 25). | Documented; CI uses Corepack. | — |
 | D4 | Low | Next.js starter boilerplate in apps. | Replace at Phase 1 UI. | Phase 1 |
 | D5 | Low | `.prettierignore` excludes all Markdown. | Optionally narrow scope. | optional |
-| D6 | Low | Non-type-aware ESLint. | Add type-checked layer. | 0.4+ |
 | D7 | Low | `@sajawat/config` lint-exempt. | Accepted. | — |
-| D8 | Low | Residual placeholder scripts (api dev/test, web/admin test, config lint/typecheck). | Replace as capabilities land. | 0.4/0.9 |
+| D8 | Low | Residual placeholder scripts (api/web/admin `test`, config lint/typecheck). | Replace as capabilities land. | 0.9 |
 | D9 | Low | No git tags / release versioning. | Adopt tagging (see §6). | 0.10 |
+| D10 | Low | `services/api` `dist/` git-ignored; API not consumed by another workspace. | Accepted; revisit if imported elsewhere. | — |
+
+(D6 — non-type-aware ESLint — **resolved in 0.4**: type-checked layer added for `services/api`.)
 
 ---
 
@@ -138,7 +146,7 @@ Authoritative copy in `sajawat-open-debt.md`. Open items:
 - `admin/` — `@sajawat/admin` (Next 16, :3001): same layout.
 
 ### services/
-- `api/` — `@sajawat/api` (ESM skeleton): `src/index.ts` (placeholder), `tsconfig.json` (node base, references shared), `package.json`. Express app lands in 0.4.
+- `api/` — `@sajawat/api` (Express 5, ESM/NodeNext): `src/{index,app}.ts`, `config/{env,logger}.ts`, `errors/app-error.ts`, `http/respond.ts`, `middleware/{request-logger,validate,not-found,error-handler}.ts`, `routes/health.routes.ts`, `types/express.d.ts`; `tsconfig.json` (node base, references shared, emits `dist`); `package.json` (dev `tsx watch`, `start`, `build`). Runs `/health` + `/api/v1/health`. MongoDB lands in 0.5.
 
 ### packages/
 - `ui/` — `@sajawat/ui` (source TSX): `src/index.ts`, `tsconfig.json` (react-library).
@@ -205,11 +213,14 @@ Specs (source of truth): `sajawat-prd.md`, `-system-architecture.md`, `-database
 | Husky | 9.1.7 | |
 | commitlint (cli/config) | 19.8.1 | |
 | lint-staged | 15.5.2 | |
-| **Planned (0.4–0.5):** | | |
-| Express | ^5 | app factory |
-| pino / pino-http | latest | logging |
-| Zod | ^3.24 | validation |
-| Mongoose | ^8 | 0.5 |
+| Express | 5.2.1 | app factory (0.4) |
+| pino / pino-http | 9.14.0 / 10.5.0 | structured logging + request IDs (0.4) |
+| Zod | 3.25.76 | request + env validation (0.4) |
+| tsx | 4.22.3 | dev runtime / watch (0.4) |
+| pino-pretty | 13.1.3 | dev log formatting (0.4) |
+| @types/express | 5.0.6 | (0.4) |
+| **Planned (0.5):** | | |
+| Mongoose | ^8 | MongoDB Atlas connection |
 
 ---
 
@@ -260,6 +271,7 @@ STEP 7 — WAIT for explicit approval before implementing. Then implement,
   file changes · what was implemented · key decisions · verification results ·
   remaining technical debt. Then stop.
 
-The next milestone to implement is 0.4 (API foundation) unless told otherwise.
-Its detailed plan is already approved and summarized in project-state §2.
+The next milestone to implement is 0.5 (MongoDB Atlas connection + DB health
+check) unless told otherwise. 0.4 (API foundation) is complete — reuse its
+error hierarchy, logger, env config, and health route. Plan 0.5 before coding.
 ```

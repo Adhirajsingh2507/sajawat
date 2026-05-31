@@ -3,7 +3,7 @@
 > Single source of truth for known, accepted debt and deferred work. Updated at
 > every milestone. "Open" = not yet resolved. Resolved items move to the bottom.
 
-- **As of commit:** `6df12ff` (Milestone 0.3 complete)
+- **As of commit:** Milestone 0.4 complete (API foundation)
 
 ## Open Debt
 
@@ -13,10 +13,10 @@
 | D3 | Low | Local pnpm installed via npm user-prefix, not Corepack (Corepack's shim is broken on Node 25). Local provisioning diverges from the documented Corepack-on-Node-22 path. | Documented; CI/Docker use Corepack on Node 22. No code change needed. | — (doc-only) |
 | D4 | Low | Next.js starter boilerplate still present in both apps (`page.tsx`, `globals.css`, `public/*.svg`, app `README.md`). | Replace when Phase 1 customer/admin UI begins. | Phase 1 |
 | D5 | Low | `.prettierignore` excludes **all** `**/*.md` (protects hand-formatted specs but means Markdown is never format-enforced). | Optionally narrow to `docs/` + root specs so other Markdown stays formatted. | optional |
-| D6 | Low | Non-type-aware ESLint (used `typescript-eslint:recommended`, not `recommended-type-checked`, to avoid per-config `parserOptions.project`). Type-aware rules (`no-floating-promises`, `no-misused-promises`) are off — relevant for the async-heavy API. | Add an optional type-checked ESLint layer. | 0.4+ |
 | D7 | Low | `@sajawat/config` is lint-exempt (echo stub) — config-only package, no lintable TS sources. | Accepted exemption; revisit only if TS is added there. | — (accepted) |
-| D8 | Low | Remaining placeholder `echo … exit 0` scripts: `dev`/`test` (api), `test` (web/admin), `lint`/`typecheck` (config). | Replace as each capability lands. | 0.4 / 0.9 |
+| D8 | Low | Remaining placeholder `echo … exit 0` scripts: `test` (api/web/admin), `lint`/`typecheck` (config). (api `dev` resolved in 0.4 → real `tsx watch`.) | Replace as each capability lands. | 0.9 |
 | D9 | Low | No git tags / release versioning yet. | Adopt tagging strategy (see project-state §Git Snapshot). | 0.10 |
+| D10 | Low | `services/api` `dist/` build output exists locally but is git-ignored; the API is consumed only by its own runtime (not by another workspace), so no project-reference/build-order coupling yet. | None needed; revisit if another workspace imports `@sajawat/api`. | — (accepted) |
 
 ## Resolved Debt (history)
 
@@ -29,8 +29,12 @@
 | — | 0.2 | Missing mandated top-level dirs (`scripts/`, `tests/`, `infrastructure/`). | Created with documented sub-structure. |
 | — | 0.2 | Five Turbo "no output files" warnings. | Removed build stubs from non-emitting packages. |
 | D2 | 0.3 (partial) | lint-staged ESLint gap (couldn't resolve root eslint) + per-package "lint configured in 0.3" stubs. | Single root flat config + root `eslint` devDep; ESLint re-enabled in lint-staged with `--no-warn-ignored`. (Residual stubs tracked as D8.) |
+| D6 | 0.4 | Non-type-aware ESLint — type-aware rules (`no-floating-promises`, `no-misused-promises`) were off, relevant for the async-heavy API. | Added `@sajawat/config/eslint/type-checked` (`recommendedTypeChecked` + the two promise rules) scoped to `services/api/**` via `projectService` (no per-config `parserOptions.project` needed). Refined the Express/Mongoose CJS-interop selector to exclude type-only imports so `import type { Request }` is allowed. |
 
 ## Notes on Issues Found & Fixed In-Flight (not carried as debt)
 
 - **0.3:** Next 16 removed the `eslint` NextConfig key and build-time linting → removed the invalid `ignoreDuringBuilds` addition.
 - **0.3:** Flat-config emits a "File ignored" warning when lint-staged passes ignored config files → added `--no-warn-ignored`.
+- **0.4:** `pino-http` default import is not callable under NodeNext → switched to the named import `import { pinoHttp } from 'pino-http'`.
+- **0.4:** `tsc` could not name the inferred `Router` type portably (TS2742) → added an explicit `Router` type annotation (`import type { Router } from 'express'`).
+- **0.4:** body-parser errors (malformed JSON, oversized body) initially surfaced as masked `500`s → the global handler now maps exposed `http-errors` 4xx (`expose === true`) to the correct status/code (verified: `400 BAD_REQUEST`, `413 PAYLOAD_TOO_LARGE`).

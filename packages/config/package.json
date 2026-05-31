@@ -6,6 +6,7 @@
     "./prettier": "./prettier/index.js",
     "./eslint/base": "./eslint/base.mjs",
     "./eslint/react": "./eslint/react.mjs",
+    "./eslint/type-checked": "./eslint/type-checked.mjs",
     "./typescript/base": "./typescript/base.json",
     "./typescript/node": "./typescript/node.json",
     "./typescript/library": "./typescript/library.json",

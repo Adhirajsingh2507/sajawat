@@ -28,15 +28,20 @@ export default tseslint.config(js.configs.recommended, ...tseslint.configs.recom
         caughtErrorsIgnorePattern: '^_',
       },
     ],
+    // CJS interop: forbid named *value* imports from Express / Mongoose. Type-only
+    // imports (`import type { Request }` or `import { type Request }`) erase at
+    // compile time and are safe, so they are explicitly excluded via importKind.
     'no-restricted-syntax': [
       'error',
       {
-        selector: "ImportDeclaration[source.value='express'] > ImportSpecifier",
+        selector:
+          "ImportDeclaration[source.value='express'][importKind!='type'] > ImportSpecifier[importKind!='type']",
         message:
           "CJS interop: import express as default then destructure — `import express from 'express'; const { Router } = express;`",
       },
       {
-        selector: "ImportDeclaration[source.value='mongoose'] > ImportSpecifier",
+        selector:
+          "ImportDeclaration[source.value='mongoose'][importKind!='type'] > ImportSpecifier[importKind!='type']",
         message:
           "CJS interop: import mongoose as default then destructure — `import mongoose from 'mongoose'; const { Schema } = mongoose;`",
       },
