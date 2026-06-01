@@ -81,6 +81,39 @@ if (!parsed.success) {
 
 export const env: Readonly<Env> = Object.freeze(parsed.data);
 
+/**
+ * Environment-aware hardening (AD-14): in production, refuse to boot with
+ * development defaults that would be unsafe or simply wrong (e.g. a localhost
+ * API URL or a localhost CORS origin). This extends the fail-fast philosophy to
+ * catch a dev config accidentally shipped to prod.
+ */
+function isLocalhostUrl(value: string): boolean {
+  try {
+    const { hostname } = new URL(value);
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+  } catch {
+    return false;
+  }
+}
+
+if (env.NODE_ENV === 'production') {
+  const problems: string[] = [];
+  if (isLocalhostUrl(env.API_BASE_URL)) {
+    problems.push(`API_BASE_URL must not be localhost in production (got "${env.API_BASE_URL}")`);
+  }
+  const localOrigins = env.CORS_ORIGINS.filter(isLocalhostUrl);
+  if (localOrigins.length > 0) {
+    problems.push(
+      `CORS_ORIGINS must not include localhost in production (got "${localOrigins.join(', ')}")`,
+    );
+  }
+  if (problems.length > 0) {
+    const report = problems.map((problem) => `  - ${problem}`).join('\n');
+    process.stderr.write(`\n[env] Insecure production configuration:\n${report}\n\n`);
+    process.exit(1);
+  }
+}
+
 export const isProduction = env.NODE_ENV === 'production';
 export const isDevelopment = env.NODE_ENV === 'development';
 export const isTest = env.NODE_ENV === 'test';

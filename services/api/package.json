@@ -5,8 +5,8 @@
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
-    "dev": "tsx watch --env-file-if-exists=.env.development src/index.ts",
-    "start": "node --env-file-if-exists=.env dist/index.js",
+    "dev": "tsx watch --env-file-if-exists=.env.development --env-file-if-exists=.env src/index.ts",
+    "start": "node --env-file-if-exists=.env.production --env-file-if-exists=.env dist/index.js",
     "build": "tsc -p tsconfig.json",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc -p tsconfig.json --noEmit",

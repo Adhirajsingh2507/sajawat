@@ -3,7 +3,7 @@
 > Single source of truth for known, accepted debt and deferred work. Updated at
 > every milestone. "Open" = not yet resolved. Resolved items move to the bottom.
 
-- **As of commit:** Milestone 0.5 complete (MongoDB Atlas connection + DB health)
+- **As of commit:** Milestone 0.6 complete (per-environment configuration strategy)
 
 ## Open Debt
 
@@ -43,4 +43,5 @@
 - **0.4:** `tsc` could not name the inferred `Router` type portably (TS2742) → added an explicit `Router` type annotation (`import type { Router } from 'express'`).
 - **0.4:** body-parser errors (malformed JSON, oversized body) initially surfaced as masked `500`s → the global handler now maps exposed `http-errors` 4xx (`expose === true`) to the correct status/code (verified: `400 BAD_REQUEST`, `413 PAYLOAD_TOO_LARGE`).
 - **0.4.1:** helmet/cors/rate-limit were missing from the 0.4 scope and were not initially recorded as deferred (reporting gap). Closed by the 0.4.1 hardening patch; residual security work (CSP, CSRF) is now explicitly tracked as D11/D12. The `globalRateLimiter` skip list covers both `/health` and `/api/v1/health` so probes are never throttled.
-- **0.5:** `mongoose` resolved to **`^9.6.3`** (the plan anticipated `^8`; `pnpm add` pulled the current major). Mongoose 9 is API-compatible for this foundation; no code impact. Mongoose 9 types `connection.readyState` as the `ConnectionStates` enum, which tripped `@typescript-eslint/no-unsafe-enum-comparison` on a `=== 0` literal compare → fixed by comparing against `mongoose.ConnectionStates.disconnected`.
+- **0.5:** `mongoose` resolved to **`^9.6.3`** (the 0.5 plan anticipated `^8`; an unpinned `pnpm add` pulled the current major). Mongoose 9 bundles MongoDB driver `~7.2`, `engines.node >=20.19.0`. Mongoose 9 types `connection.readyState` as the `ConnectionStates` enum, which tripped `@typescript-eslint/no-unsafe-enum-comparison` on a `=== 0` literal compare → fixed by comparing against `mongoose.ConnectionStates.disconnected`. **Reviewed and APPROVED as the baseline** (greenfield, no models/repository yet; gates green; live smoke passed; Atlas + Node 22 compatibility acceptable) — **not** carried as debt; no downgrade.
+- **0.6:** Per-environment configuration strategy completed (Node-native layered `--env-file`, per-env + per-app templates, AD-14 production guards, R-2 pre-commit secret guard, Environment Guide). No new dependencies. The Next.js apps' scaffolded `.gitignore` blanket-ignored `.env*` (incl. `.env.example`) → added `!.env.example` negation in `apps/web` + `apps/admin` so per-app templates are trackable while real env files stay ignored.

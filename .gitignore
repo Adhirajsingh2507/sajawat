@@ -14,13 +14,15 @@ coverage/
 playwright-report/
 test-results/
 
-# Environment files (never commit secrets)
+# Environment files (never commit secrets). Only *.example templates are tracked.
+# Loading precedence (0.6): .env.<NODE_ENV> < .env (optional local override) < process.env.
 .env
 .env.local
 .env.*.local
 .env.development
 .env.staging
 .env.production
+.env.test
 !.env.example
 
 # Logs

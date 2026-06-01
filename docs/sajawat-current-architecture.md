@@ -4,8 +4,8 @@
 > the latest completed milestone. The aspirational/target specs remain in
 > `sajawat-system-architecture.md`; this file is the ground truth of what exists.
 
-- **As of:** Milestone 0.5 complete (MongoDB Atlas connection + DB health)
-- **Latest completed milestone:** 0.5 (Mongoose connection lifecycle + readiness DB check)
+- **As of:** Milestone 0.6 complete (per-environment configuration strategy)
+- **Latest completed milestone:** 0.6 (env loading layering, per-app templates, prod guards, secret guard, Environment Guide)
 - **Phase:** 0 — Foundation (infrastructure only; no business features)
 
 ---
@@ -30,9 +30,11 @@
 | Linting | **Single root ESLint flat config**, zero-warning policy | One source of truth; lint-staged ↔ turbo parity | ✅ Implemented |
 | Commits | **Conventional Commits** via commitlint + Husky | Enforced hygiene | ✅ Implemented |
 | Validation | **Zod** (3.25), request + env, `req.validatedData` | Runtime + compile-time safety | ✅ Implemented (0.4) |
-| Database | **MongoDB Atlas + Mongoose 9** (single default connection) | One-DB service; simple model registration | ✅ Implemented (0.5) |
+| Database | **MongoDB Atlas + Mongoose 9** (single default connection) | One-DB service; simple model registration. **Mongoose 9 is the approved baseline** (0.5 plan said `^8`; approved post-review — greenfield, gates green, smoke passed) | ✅ Implemented (0.5) |
 | DB connect | **Connect-before-listen** + bounded backoff; exit(1) on exhaustion; driver auto-reconnect after | Instance only serves once DB-ready; orchestrator restarts on hard failure | ✅ Implemented (0.5) |
 | DB security | `strictQuery` + `sanitizeFilter`; URI never logged | NoSQL-injection defense + secret hygiene | ✅ Implemented (0.5) |
+| Config loading | **Node-native `--env-file`** (no dotenv); layered `.env.<NODE_ENV>` → `.env` → `process.env` | Contract is Node 22; native flag suffices; cloud env wins | ✅ Implemented (0.6) |
+| Config hardening | **Production guards** (no localhost `API_BASE_URL`/`CORS_ORIGINS`) + **pre-commit secret guard** | Fail-fast on leaked dev config; block committing real `.env*` | ✅ Implemented (0.6) |
 | Payments | **Razorpay** behind a `PaymentProvider` abstraction | Provider-agnostic | ⏳ Phase 1 |
 | Messaging | **MSG91** (SMS) · **WhatsApp Business API** (Meta), provider-abstracted | Decided | ⏳ Phase 1 |
 | Caching | **Redis** — Phase 2, planned, not implemented | Cache-aside, never a correctness dependency | ⏳ Phase 2 |
@@ -179,7 +181,43 @@ domain models land from 0.6.
 
 ---
 
-## 9. Toolchain Provisioning Caveat
+## 9. Configuration & Environment Strategy (Milestone 0.6)
+
+Node-native env loading (no dotenv dependency). Full reference:
+`sajawat-environment-guide.md`.
+
+**Loading precedence (low → high)** — empirically verified on Node:
+```
+.env.<NODE_ENV>   →   .env (optional local override)   →   process.env (platform)
+```
+- Later `--env-file` overrides earlier; a var already in `process.env` is never
+  overridden by a file → **Cloud Run + Secret Manager always win**.
+- API scripts: `dev` loads `.env.development`→`.env`; `start` loads
+  `.env.production`→`.env`; both use `--env-file-if-exists` so cloud (no files) is
+  a no-op. `.env.<NODE_ENV>` is canonical; `.env` is an optional personal override.
+- **Next.js apps** use Next's own loader (NOT `--env-file`); `NEXT_PUBLIC_*` →
+  browser, non-secret only. Per-app `.env.example` templates document the surface.
+
+**Decisions (AD-11 … AD-15):**
+- **AD-11** Node-native `--env-file`, no new dependency.
+- **AD-12** Layered precedence above; `.env.<NODE_ENV>` canonical + optional `.env` override.
+- **AD-13** Cloud uses Google Secret Manager + Cloud Run env; **no `.env` files in containers**. `.env.staging`/`.env.production` are local-simulation only (gitignored). GCP binding lands in 0.8/0.10.
+- **AD-14** Production guards in `config/env.ts`: fail-fast if `API_BASE_URL` or any `CORS_ORIGINS` entry is localhost when `NODE_ENV==='production'`.
+- **AD-15** Next-native loading + per-app `.env.example` (`apps/web`, `apps/admin`).
+
+**Secret hygiene:** only `*.example` templates are committed. A pre-commit guard
+(`scripts/check-staged-secrets.sh`, wired into `.husky/pre-commit`) blocks any
+staged real `.env*`. Root + per-app `.gitignore` negate `!.env.example`.
+
+**Verified (live smoke):** AD-14 prod+localhost → fail-fast (both violations,
+exit 1); AD-12 `.env` overrides `.env.development`, `process.env` beats both;
+secret guard blocks a staged `.env.development`, allows `.env.example`;
+`git add --dry-run` confirms per-app `.env.example` trackable while `.env.local`
+stays ignored.
+
+---
+
+## 10. Toolchain Provisioning Caveat
 
 - **CI/Docker (Node 22):** Corepack enables pnpm 9.15.0 the documented way.
 - **This local machine (Node 25):** Corepack's bundled shim is incompatible with Node 25 (`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`); pnpm 9.15.0 was installed via an npm user-prefix instead. `engine-strict=false` so installs run on Node 25. The Node 22 contract is enforced in CI/Docker, advisory locally.

@@ -9,8 +9,8 @@
 
 - **Project:** Sajawat Jewellery — luxury jewelry e-commerce (B2C + B2B leads + CRM + admin).
 - **Current status:** Phase 0 (Foundation) in progress — infrastructure only, **no business features**.
-- **Current milestone:** **0.5 complete** (MongoDB Atlas connection + DB health check). Next up: **0.6 (per-env file strategy + first domain module scaffolding)** — not yet planned.
-- **As of:** Milestone 0.5 commit on branch `main`.
+- **Current milestone:** **0.6 complete** (per-environment configuration strategy). Next up: **0.7 (auth foundation: JWT, Argon2, RBAC utilities)** — not yet planned.
+- **As of:** Milestone 0.6 commit on branch `main`.
 
 ### Completed milestones
 - ✅ **0.1** — Monorepo skeleton
@@ -19,9 +19,9 @@
 - ✅ **0.4** — API foundation (Express 5 app factory, pino + request IDs, `/health` + `/api/v1/health`, error hierarchy + global handler, response envelope, Zod request/env validation, type-aware ESLint layer)
 - ✅ **0.4.1** — Security hardening (helmet, env-driven CORS w/ credentials, global per-IP rate limiter + factory)
 - ✅ **0.5** — MongoDB Atlas connection (Mongoose 9, retry/backoff), readiness DB check (503 when down), graceful disconnect, Mongoose error normalization, schema conventions
+- ✅ **0.6** — Per-environment configuration strategy (Node-native layered `--env-file`, per-env + per-app templates, AD-14 production guards, pre-commit secret guard, Environment Guide). **Scoped to env only — domain/repository deferred to Phase 1 per AD-6.**
 
 ### Pending milestones
-- ⏳ **0.6** — Environment strategy completion (per-env files; partially folded into 0.4) + first domain scaffolding
 - ⏳ **0.7** — Auth foundation (JWT, Argon2, RBAC utilities)
 - ⏳ **0.8** — Docker (web/admin/api) + `pnpm deploy` images + compose
 - ⏳ **0.9** — Testing foundation (Vitest, Playwright, Supertest)
@@ -36,7 +36,7 @@ infrastructure/{docker,deployment,monitoring,backups,scripts}
 ```
 
 ### Installed technologies
-Turborepo · pnpm · TypeScript · ESLint (flat + type-aware layer) · Prettier · Husky · commitlint · lint-staged · Next.js 16 · React 19 · Tailwind CSS v4 · **Express 5 · pino + pino-http · Zod · tsx (API foundation)** · **helmet · cors · express-rate-limit (0.4.1 security)** · **Mongoose 9 (0.5 MongoDB Atlas)**.
+Turborepo · pnpm · TypeScript · ESLint (flat + type-aware layer) · Prettier · Husky · commitlint · lint-staged · Next.js 16 · React 19 · Tailwind CSS v4 · **Express 5 · pino + pino-http · Zod · tsx (API foundation)** · **helmet · cors · express-rate-limit (0.4.1 security)** · **Mongoose 9 (0.5 MongoDB Atlas)**. (0.6 added **no** runtime deps — Node-native `--env-file`.)
 
 ### Architecture decisions
 See `sajawat-current-architecture.md` §1–2 for the authoritative list (Turborepo, Node 22, pnpm, TS strict, ESM+NodeNext, Express 5, pino, Next/React/Tailwind, AD-1 role-based packages, project references, `workspace:*`, root ESLint, Conventional Commits, Zod validation).
@@ -46,8 +46,10 @@ See `sajawat-current-architecture.md` §1–2 for the authoritative list (Turbor
 2. **`engine-strict=false`** (was planned `true`) so installs run on Node 25.
 3. **pino instead of Winston** (0.1 summary mentioned Winston) — performance + JSON + redaction.
 4. **Express 5 instead of 4** — native async error propagation.
-5. **Env config folded into 0.4** (was a standalone 0.6 item) — Zod-validated, Node `--env-file`.
+5. **Env config foundation folded into 0.4** (Zod-validated, Node `--env-file`); the **full per-environment strategy completed in 0.6** (layering, per-app templates, prod guards, secret guard, Environment Guide).
 6. **Single root ESLint config** (not per-package) — required for lint-staged/turbo parity under ESLint v9 flat-config resolution.
+7. **Mongoose 9 is the approved baseline** (the 0.5 plan anticipated `^8`; an unpinned install pulled `^9.6.3`). Reviewed and **approved** for a greenfield project with no models/repository yet: gates green, live smoke passed, Atlas + Node 22 compatibility acceptable. No downgrade.
+8. **0.6 scoped to environment strategy only** — the "first domain module" once associated with 0.6 is **deferred to Phase 1**; `BaseRepository` (AD-6) is built against the first real model then, avoiding a speculative abstraction.
 
 ### Important implementation notes
 - `verbatimModuleSyntax` ⇒ always use `import type` for type-only imports.
@@ -59,12 +61,12 @@ See `sajawat-current-architecture.md` §1–2 for the authoritative list (Turbor
 
 ### Known limitations
 - `services/api` runs as a real Express 5 server **and connects to MongoDB Atlas** (0.5); still no auth, business modules, tests, Docker, or CI.
-- No business collections/models yet (0.5 ships connection foundation + conventions only; models land 0.6+).
+- No business collections/models yet (0.5 ships connection foundation + conventions only; first model lands in Phase 1).
 - Apps contain default Next.js starter content.
 - Local toolchain runs on Node 25, not the contracted Node 22.
 
 ### Next recommended action
-Plan and implement **Milestone 0.6**: complete the per-environment file strategy (`.env.development`/`.env.staging`/`.env.production`) and scaffold the **first domain module** (Controller → Service → Repository) on the 0.5 DB foundation — this is where the generic `BaseRepository` (AD-6) is implemented against the first real Mongoose model and where the per-collection index review (DB-design doc) begins. Reuse the 0.4 error hierarchy + logger, the 0.5 `baseSchemaPlugin`, and the centralized Mongoose error mapping.
+Plan and implement **Milestone 0.7** (auth foundation): JWT access/refresh utilities, Argon2 password hashing utilities, an RBAC permission matrix, and an auth-specific rate-limit profile (reuse the 0.4.1 `createRateLimiter` factory). `JWT_*` secrets graduate to **required** env vars in `config/env.ts` (and are covered by the 0.6 production guards + secret guard). Still no UI. Reuse the 0.4 error hierarchy + logger and the 0.5 db foundation.
 
 ---
 
@@ -114,11 +116,16 @@ Plan and implement **Milestone 0.6**: complete the per-environment file strategy
 - **Risks discovered / resolved:** mongoose resolved to `^9` (not planned `^8`) — compatible; mongoose 9 `readyState` enum tripped `no-unsafe-enum-comparison` on a literal compare → fixed via `mongoose.ConnectionStates.disconnected`.
 - **Verification:** typecheck + lint (zero-warning, type-aware) + build + format all green (8/8 workspaces). Live smoke (Dockerized `mongo:7`): connect attempt 1/5 → connected (host only, no creds); `/health` 200; readiness 200 `healthy`; Mongo stopped → `/health` stays 200, readiness **503 `degraded`** (no crash, reconnect warning logged); SIGTERM → graceful "Drained HTTP + database; exiting"; fail-fast on missing/malformed `MONGODB_URI` (exit 1). New debt **D13** (`MONGODB_URI` required → tests/CI must provide), **D14** (readiness-503 logs at error level under sustained outage).
 
+#### Milestone 0.6 — Per-environment configuration strategy
+- **Goal:** Complete the per-environment config strategy (phase-0 "Environment Variables: Dev/Staging/Prod, Separate Files" + "Environment Guide"). **Scope locked to env only** — no domain models, no `BaseRepository` (deferred to Phase 1 per AD-6). Zero business features.
+- **Implemented:** **No new deps** (Node-native `--env-file`, AD-11). Layered loading (AD-12): API scripts load `.env.<NODE_ENV>` then `.env` (optional local override wins), platform `process.env` beats both; `--env-file-if-exists` so cloud (no files) is a no-op. `config/env.ts` **AD-14 production guards** (fail-fast if `API_BASE_URL`/`CORS_ORIGINS` are localhost in prod). Annotated root `.env.example` (loading model + `[secret]` tags; frontend vars relocated to per-app templates). New per-app templates `apps/web/.env.example` + `apps/admin/.env.example` (AD-15, `NEXT_PUBLIC_*` only). **R-2 pre-commit secret guard** `scripts/check-staged-secrets.sh` (blocks staged real `.env*`, allows `*.example`), wired into `.husky/pre-commit`. `.gitignore` (root + per-app) negates `!.env.example`, adds `.env.test`. New doc `docs/sajawat-environment-guide.md`.
+- **Key decisions:** AD-11 Node-native, no dotenv; AD-12 base→per-env→`.env`→process.env precedence (empirically verified); AD-13 cloud uses Secret Manager, no container `.env`; AD-14 prod localhost guards; AD-15 Next-native loading + per-app templates. Naming standardized on `.env.<NODE_ENV>` with `.env` as optional local override.
+- **Verification:** typecheck + lint + build + format green (8/8). Live smoke: AD-14 prod+localhost → fail-fast (both violations, exit 1); AD-12 `.env` overrides `.env.development`, `process.env` beats both; secret guard blocks a staged `.env.development` but allows `.env.example`; `git add --dry-run` confirms per-app `.env.example` trackable while `.env.local` stays ignored.
+
 ### Planned
 
 | Milestone | Goal (summary) |
 |-----------|----------------|
-| 0.6 | Per-env file strategy completion; first domain module scaffolding (Controller→Service→Repository, `BaseRepository`) on the 0.5 DB foundation. |
 | 0.7 | Auth foundation: JWT access/refresh utils, Argon2 password utils, RBAC permission matrix, rate-limit factory for auth. |
 | 0.8 | Dockerfiles (web/admin/api) multi-stage on `node:22`, `pnpm deploy` pruned API image, `docker-compose.yml`. |
 | 0.9 | Vitest (unit/integration), Supertest, Playwright e2e; Vitest `@sajawat/*`→`src` aliases; smoke-test NodeNext `.js` resolution. |
@@ -159,8 +166,8 @@ Authoritative copy in `sajawat-open-debt.md`. Open items:
 ## 5. Repository Inventory
 
 ### apps/
-- `web/` — `@sajawat/web` (Next 16, :3000): `next.config.ts` (transpilePackages), `tsconfig.json` (extends nextjs base), `src/app/{layout,page}.tsx`, `postcss.config.mjs`, `package.json`.
-- `admin/` — `@sajawat/admin` (Next 16, :3001): same layout.
+- `web/` — `@sajawat/web` (Next 16, :3000): `next.config.ts` (transpilePackages), `tsconfig.json` (extends nextjs base), `src/app/{layout,page}.tsx`, `postcss.config.mjs`, `.env.example` (0.6, `NEXT_PUBLIC_*`), `.gitignore` (`!.env.example`), `package.json`.
+- `admin/` — `@sajawat/admin` (Next 16, :3001): same layout (+ `.env.example`).
 
 ### services/
 - `api/` — `@sajawat/api` (Express 5, ESM/NodeNext): `src/{index,app}.ts`, `config/{env,logger}.ts`, `db/{connection,health,base-plugin,index}.ts`, `errors/app-error.ts`, `http/respond.ts`, `middleware/{request-logger,security,rate-limit,validate,not-found,error-handler}.ts`, `routes/health.routes.ts`, `types/express.d.ts`; `tsconfig.json` (node base, references shared, emits `dist`); `package.json` (dev `tsx watch`, `start`, `build`). Runs `/health` + `/api/v1/health` behind helmet + CORS + rate limiting; connects to MongoDB Atlas (Mongoose 9) at boot with DB-aware readiness.
@@ -172,10 +179,10 @@ Authoritative copy in `sajawat-open-debt.md`. Open items:
 - `config/` — `@sajawat/config` (tooling): `prettier/index.js`, `eslint/{base,react}.mjs`, `typescript/{base,node,library,react-library,nextjs}.json`, `package.json` (exports map).
 
 ### docs/
-Specs (source of truth): `sajawat-prd.md`, `-system-architecture.md`, `-database-design.md`, `-api-design.md`, `-security-design.md`, `-phase-0-foundation.md`, `-folder-structure.md`, `-coding-standards.md`, `-testing-strategy.md`, `-deployment-plan.md`, `-roadmap.md`, plus brand/business/admin/crm/ui-ux specs. **Handoff docs:** `sajawat-project-state.md` (this), `sajawat-current-architecture.md`, `sajawat-open-debt.md`.
+Specs (source of truth): `sajawat-prd.md`, `-system-architecture.md`, `-database-design.md`, `-api-design.md`, `-security-design.md`, `-phase-0-foundation.md`, `-folder-structure.md`, `-coding-standards.md`, `-testing-strategy.md`, `-deployment-plan.md`, `-roadmap.md`, `-environment-guide.md` (0.6), plus brand/business/admin/crm/ui-ux specs. **Handoff docs:** `sajawat-project-state.md` (this), `sajawat-current-architecture.md`, `sajawat-open-debt.md`.
 
 ### scripts/
-- `.gitkeep` (dev/seed scripts — to be populated).
+- `check-staged-secrets.sh` (0.6 — pre-commit guard blocking staged real `.env*`). `.gitkeep` (dev/seed scripts — to be populated).
 
 ### tests/
 - `e2e/`, `integration/`, `performance/` (`.gitkeep`; Playwright/Vitest/Supertest in 0.9).
@@ -291,9 +298,12 @@ STEP 7 — WAIT for explicit approval before implementing. Then implement,
   file changes · what was implemented · key decisions · verification results ·
   remaining technical debt. Then stop.
 
-The next milestone to implement is 0.6 (per-env file strategy + first domain
-module scaffolding) unless told otherwise. 0.5 (MongoDB Atlas connection + DB
-health) is complete — reuse its db/ module (connectToDatabase, baseSchemaPlugin),
-the centralized Mongoose error mapping, and the 0.4 error hierarchy/logger/env.
-Plan 0.6 before coding.
+The next milestone to implement is 0.7 (auth foundation: JWT access/refresh
+utils, Argon2 password utils, RBAC permission matrix, auth rate-limit profile)
+unless told otherwise. 0.6 (per-environment configuration strategy) is complete;
+0.5 (MongoDB Atlas) is complete. Reuse the db/ module (connectToDatabase,
+baseSchemaPlugin), the centralized Mongoose error mapping, the 0.4 error
+hierarchy/logger, the 0.4.1 createRateLimiter factory, and the 0.6 env loading +
+production guards + secret guard. JWT_* secrets graduate to required in
+config/env.ts. Plan 0.7 before coding. Mongoose 9 is the approved baseline.
 ```

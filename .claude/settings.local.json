@@ -35,7 +35,21 @@
       "Bash(curl -s -m 2 -w \"HTTP %{http_code}\\\\n\" http://127.0.0.1:4055/health)",
       "Read(//tmp/**)",
       "Bash(docker rm *)",
-      "Bash(rm -f /tmp/api-smoke.log)"
+      "Bash(rm -f /tmp/api-smoke.log)",
+      "Bash(git commit *)",
+      "Bash(echo \"clean=$?\")",
+      "Bash(node -e \"const p=require\\('./node_modules/mongoose/package.json'\\); console.log\\('mongoose', p.version\\); console.log\\('engines', JSON.stringify\\(p.engines||{}\\)\\); console.log\\('bundled mongodb driver', \\(p.dependencies&&p.dependencies.mongodb\\)||'n/a'\\); console.log\\('bson', \\(p.dependencies&&p.dependencies.bson\\)||'n/a'\\);\")",
+      "Bash(node -e \"try{console.log\\('mongodb', require\\('./node_modules/mongoose/node_modules/mongodb/package.json'\\).version\\)}catch\\(e\\){console.log\\('mongodb \\(hoisted\\)', require\\('mongodb/package.json'\\).version\\)}\")",
+      "Bash(pnpm --filter @sajawat/api why mongodb)",
+      "Bash(printf 'FOO=fromA\\\\nONLY_A=a\\\\n')",
+      "Bash(printf 'FOO=fromB\\\\nONLY_B=b\\\\n')",
+      "Bash(node --env-file=a.env --env-file=b.env -e \"console.log\\('FOO='+process.env.FOO,'ONLY_A='+process.env.ONLY_A,'ONLY_B='+process.env.ONLY_B\\)\")",
+      "Bash(node --env-file=b.env --env-file=a.env -e \"console.log\\('FOO='+process.env.FOO\\)\")",
+      "Bash(FOO=fromShell node --env-file=a.env --env-file=b.env -e \"console.log\\('FOO='+process.env.FOO\\)\")",
+      "Bash(chmod +x /home/adhiraj-singh/website/actuall/scripts/check-staged-secrets.sh)",
+      "Bash(git check-ignore *)",
+      "Bash(grep -nE 'scripts/$|^### scripts|^- `\\\\.gitkeep`|dev/seed|Handoff docs|Specs \\\\\\(source|### docs' docs/sajawat-project-state.md)",
+      "Bash(sh scripts/check-staged-secrets.sh)"
     ]
   }
 }
