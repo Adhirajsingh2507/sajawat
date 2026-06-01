@@ -10,9 +10,13 @@
  */
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
+import mongoose from 'mongoose';
 import {
   AppError,
+  BadRequestError,
+  ConflictError,
   InternalServerError,
+  NotFoundError,
   ValidationError,
   clientErrorCode,
   type ErrorDetail,
@@ -51,6 +55,39 @@ function asExposedClientError(err: unknown): ExposedHttpError | null {
   return { status: rawStatus, message };
 }
 
+/** Native MongoDB duplicate-key errors surface as `{ code: 11000 }`. */
+function isDuplicateKeyError(
+  err: unknown,
+): err is { code: number; keyValue?: Record<string, unknown> } {
+  return typeof err === 'object' && err !== null && (err as Record<string, unknown>).code === 11000;
+}
+
+/**
+ * Normalize Mongoose/MongoDB errors into the AppError hierarchy so every domain
+ * module (0.6+) inherits consistent mapping (AD-8). Returns null if `err` is not
+ * a database error.
+ */
+function mongooseToAppError(err: unknown): AppError | null {
+  if (err instanceof mongoose.Error.ValidationError) {
+    const details: ErrorDetail[] = Object.values(err.errors).map((fieldError) => ({
+      path: fieldError.path,
+      message: fieldError.message,
+    }));
+    return new ValidationError(details);
+  }
+  if (err instanceof mongoose.Error.CastError) {
+    return new BadRequestError(`Invalid value for "${err.path}"`);
+  }
+  if (err instanceof mongoose.Error.DocumentNotFoundError) {
+    return new NotFoundError();
+  }
+  if (isDuplicateKeyError(err)) {
+    const fields = err.keyValue ? Object.keys(err.keyValue).join(', ') : 'field';
+    return new ConflictError(`Duplicate value for ${fields}`);
+  }
+  return null;
+}
+
 function toAppError(err: unknown): AppError {
   if (err instanceof AppError) {
     return err;
@@ -61,6 +98,10 @@ function toAppError(err: unknown): AppError {
       message: issue.message,
     }));
     return new ValidationError(details);
+  }
+  const mongoErr = mongooseToAppError(err);
+  if (mongoErr) {
+    return mongoErr;
   }
   const exposed = asExposedClientError(err);
   if (exposed) {

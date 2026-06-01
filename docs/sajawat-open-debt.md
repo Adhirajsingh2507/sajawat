@@ -3,7 +3,7 @@
 > Single source of truth for known, accepted debt and deferred work. Updated at
 > every milestone. "Open" = not yet resolved. Resolved items move to the bottom.
 
-- **As of commit:** Milestone 0.4.1 complete (API foundation + security hardening)
+- **As of commit:** Milestone 0.5 complete (MongoDB Atlas connection + DB health)
 
 ## Open Debt
 
@@ -19,6 +19,8 @@
 | D10 | Low | `services/api` `dist/` build output exists locally but is git-ignored; the API is consumed only by its own runtime (not by another workspace), so no project-reference/build-order coupling yet. | None needed; revisit if another workspace imports `@sajawat/api`. | — (accepted) |
 | D11 | Medium | No CSRF protection yet (`sajawat-security-design.md:248` mandates it). Short-term mitigations: planned token-in-`Authorization`-header auth (not cookie sessions) + strict CORS allow-list (0.4.1). Becomes load-bearing if/when cookie-based sessions are used. | Implement alongside the auth foundation (CSRF tokens / double-submit, or confirm header-token model removes the need). | 0.7 |
 | D12 | Low | helmet **CSP disabled** (`contentSecurityPolicy: false`) — acceptable for a JSON API, but the security headers picture is incomplete until the Next.js apps ship their own CSP. | Define CSP in `apps/web` / `apps/admin` at Phase 1 UI. | Phase 1 |
+| D13 | Low | `MONGODB_URI` is now a **required** env var (0.5). `pnpm dev`/`start` exit(1) without it. Future unit tests (0.9) and CI (0.10) must each provide a URI (e.g. `mongodb-memory-server` / a CI service). `build`/`typecheck`/`lint`/`format` are unaffected (they don't load env). | Provide `mongodb-memory-server` in the 0.9 test harness; inject a Mongo service/URI in the 0.10 CI matrix. | 0.9 / 0.10 |
+| D14 | Low | The readiness endpoint returning **503** while the DB is down is logged at **error** level by pino-http's 5xx→error mapping. Under a sustained outage, frequent load-balancer probes of `/api/v1/health` will emit repeated error logs. (Liveness `/health` is unaffected — it stays 200.) | Optionally downgrade readiness-probe log level, or rate-limit/skip logging for the readiness route, when log noise becomes a concern. | optional |
 
 ## Resolved Debt (history)
 
@@ -41,3 +43,4 @@
 - **0.4:** `tsc` could not name the inferred `Router` type portably (TS2742) → added an explicit `Router` type annotation (`import type { Router } from 'express'`).
 - **0.4:** body-parser errors (malformed JSON, oversized body) initially surfaced as masked `500`s → the global handler now maps exposed `http-errors` 4xx (`expose === true`) to the correct status/code (verified: `400 BAD_REQUEST`, `413 PAYLOAD_TOO_LARGE`).
 - **0.4.1:** helmet/cors/rate-limit were missing from the 0.4 scope and were not initially recorded as deferred (reporting gap). Closed by the 0.4.1 hardening patch; residual security work (CSP, CSRF) is now explicitly tracked as D11/D12. The `globalRateLimiter` skip list covers both `/health` and `/api/v1/health` so probes are never throttled.
+- **0.5:** `mongoose` resolved to **`^9.6.3`** (the plan anticipated `^8`; `pnpm add` pulled the current major). Mongoose 9 is API-compatible for this foundation; no code impact. Mongoose 9 types `connection.readyState` as the `ConnectionStates` enum, which tripped `@typescript-eslint/no-unsafe-enum-comparison` on a `=== 0` literal compare → fixed by comparing against `mongoose.ConnectionStates.disconnected`.

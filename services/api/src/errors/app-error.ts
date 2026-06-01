@@ -18,7 +18,8 @@ export type ErrorCode =
   | 'PAYLOAD_TOO_LARGE'
   | 'UNSUPPORTED_MEDIA_TYPE'
   | 'TOO_MANY_REQUESTS'
-  | 'INTERNAL_SERVER_ERROR';
+  | 'INTERNAL_SERVER_ERROR'
+  | 'SERVICE_UNAVAILABLE';
 
 /** Map a 4xx HTTP status to its stable error code (best-fit, defaults to BAD_REQUEST). */
 export function clientErrorCode(status: number): ErrorCode {
@@ -121,5 +122,13 @@ export class InternalServerError extends AppError {
   constructor(message = 'Internal server error') {
     // Non-operational: represents an unexpected failure.
     super(500, 'INTERNAL_SERVER_ERROR', message, undefined, false);
+  }
+}
+
+export class ServiceUnavailableError extends AppError {
+  constructor(message = 'Service temporarily unavailable') {
+    // Operational: an expected, recoverable dependency outage (e.g. database
+    // unreachable). Safe to surface; the caller may retry.
+    super(503, 'SERVICE_UNAVAILABLE', message);
   }
 }

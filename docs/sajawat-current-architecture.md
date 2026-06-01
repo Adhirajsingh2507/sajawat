@@ -4,8 +4,8 @@
 > the latest completed milestone. The aspirational/target specs remain in
 > `sajawat-system-architecture.md`; this file is the ground truth of what exists.
 
-- **As of:** Milestone 0.4.1 complete (API foundation + security hardening)
-- **Latest completed milestone:** 0.4.1 (helmet + cors + rate limiting)
+- **As of:** Milestone 0.5 complete (MongoDB Atlas connection + DB health)
+- **Latest completed milestone:** 0.5 (Mongoose connection lifecycle + readiness DB check)
 - **Phase:** 0 — Foundation (infrastructure only; no business features)
 
 ---
@@ -30,6 +30,9 @@
 | Linting | **Single root ESLint flat config**, zero-warning policy | One source of truth; lint-staged ↔ turbo parity | ✅ Implemented |
 | Commits | **Conventional Commits** via commitlint + Husky | Enforced hygiene | ✅ Implemented |
 | Validation | **Zod** (3.25), request + env, `req.validatedData` | Runtime + compile-time safety | ✅ Implemented (0.4) |
+| Database | **MongoDB Atlas + Mongoose 9** (single default connection) | One-DB service; simple model registration | ✅ Implemented (0.5) |
+| DB connect | **Connect-before-listen** + bounded backoff; exit(1) on exhaustion; driver auto-reconnect after | Instance only serves once DB-ready; orchestrator restarts on hard failure | ✅ Implemented (0.5) |
+| DB security | `strictQuery` + `sanitizeFilter`; URI never logged | NoSQL-injection defense + secret hygiene | ✅ Implemented (0.5) |
 | Payments | **Razorpay** behind a `PaymentProvider` abstraction | Provider-agnostic | ⏳ Phase 1 |
 | Messaging | **MSG91** (SMS) · **WhatsApp Business API** (Meta), provider-abstracted | Decided | ⏳ Phase 1 |
 | Caching | **Redis** — Phase 2, planned, not implemented | Cache-aside, never a correctness dependency | ⏳ Phase 2 |
@@ -98,7 +101,7 @@ Admin    (admin :3001)─┼─→  API (Express :4000, /api/v1)  ─→  MongoD
                        │            ├─→ Razorpay / MSG91 / WhatsApp
                        └────────────┘   (all behind abstractions)
 ```
-Realized today: web + admin scaffolds build & run; **`services/api` is a running Express 5 server** (`/health`, `/api/v1/health`) with structured logging, request IDs, env validation, error hierarchy, and a Zod validation middleware. MongoDB connectivity + DB readiness land in 0.5.
+Realized today: web + admin scaffolds build & run; **`services/api` is a running Express 5 server** (`/health`, `/api/v1/health`) with structured logging, request IDs, env validation, error hierarchy, and a Zod validation middleware. **MongoDB Atlas connectivity + DB readiness are wired (0.5):** the API connects to Atlas (Mongoose) at boot and the readiness route reflects DB health.
 
 ---
 
@@ -144,7 +147,39 @@ logged, `uncaughtException` fatal-logged + exit.
 
 ---
 
-## 8. Toolchain Provisioning Caveat
+## 8. Database Layer (Milestone 0.5)
+
+MongoDB Atlas via **Mongoose 9**, single default connection (`mongoose.connect`).
+No business collections yet — 0.5 ships the **connection foundation + conventions**;
+domain models land from 0.6.
+
+**Module map (`services/api/src/db`)**
+
+| Path | Responsibility |
+|------|----------------|
+| `db/connection.ts` | `connectToDatabase()` — bounded exponential backoff + jitter on the *initial* connect (attempts/base delay from env); throws on exhaustion (caller fatal-logs + exits). `disconnectFromDatabase()` for graceful shutdown. Connection events (`connected`/`disconnected`/`reconnected`/`error`) → structured logs. Globals: `strictQuery`, `sanitizeFilter`, `autoIndex = !isProduction`. **URI credentials are stripped before logging.** |
+| `db/health.ts` | `checkDatabaseHealth()` — cheap `connection.readyState` label gate + bounded `admin().ping()` deep check (raced against a ~1s timeout so a stalled server can't hang the response). Returns `{ state, ok }`. |
+| `db/base-plugin.ts` | `baseSchemaPlugin` — house style for 0.6 schemas: `timestamps`, `toJSON`/`toObject` transform (`_id`→`id`, strip `__v`). Soft-delete (`deletedAt`) is a documented opt-in convention. No model registered in 0.5. |
+| `db/index.ts` | Barrel: `connectToDatabase`, `disconnectFromDatabase`, `checkDatabaseHealth`, `baseSchemaPlugin`, `DbHealth`/`DbConnectionState` types. |
+
+**Connection decisions (AD-2…AD-10):**
+- **AD-2** single default connection (revisit if a 2nd DB appears).
+- **AD-3** connect-before-listen with retry; exit(1) on exhaustion; **auto-reconnect after** the first success — later disconnects never crash the process.
+- **AD-4** liveness `/health` stays DB-independent (200 always); readiness `/api/v1/health` reports `healthy`/`degraded` and **503** when the DB is down.
+- **AD-5** domain-colocated schemas (no central `models/`); shared `baseSchemaPlugin`.
+- **AD-6** repository pattern *contract* locked; the generic `BaseRepository` is implemented in 0.6 alongside the first real model (avoids speculative abstraction).
+- **AD-7** `autoIndex` off in prod; indexes created via explicit `syncIndexes()` per model when collections land.
+- **AD-8** Mongoose/MongoDB errors normalized centrally in the global error handler: `ValidationError`→400 (+field details), `CastError`→400, dup-key `E11000`→409, `DocumentNotFoundError`→404. New `ServiceUnavailableError` (503, `SERVICE_UNAVAILABLE`).
+- **AD-9** `strictQuery` + `sanitizeFilter` (NoSQL-injection defense); URI never logged; Mongoose query-debug logging is dev-only/opt-in.
+- **AD-10** `MONGODB_URI` required + tunable pool/timeout/retry env vars.
+
+**Boot order (`src/index.ts`):** validate env → `await connectToDatabase()` → `createApp()` → `app.listen`. **Graceful shutdown:** re-entrancy-guarded async `shutdown()` — drain HTTP (`server.close`) → `disconnectFromDatabase()` → exit(0), with a 10s failsafe.
+
+**Verified (live smoke):** initial connect (attempt 1/5) + connected log (host only, no creds); `/health` 200; readiness 200 `healthy` (`db: connected/ok`); after stopping Mongo, `/health` stays 200 while readiness flips to **503 `degraded`** (`db: disconnected/ok:false`) with a "disconnected; will reconnect" warning (no crash); SIGTERM → "Drained HTTP + database; exiting"; fail-fast on missing/malformed `MONGODB_URI` (exit 1).
+
+---
+
+## 9. Toolchain Provisioning Caveat
 
 - **CI/Docker (Node 22):** Corepack enables pnpm 9.15.0 the documented way.
 - **This local machine (Node 25):** Corepack's bundled shim is incompatible with Node 25 (`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`); pnpm 9.15.0 was installed via an npm user-prefix instead. `engine-strict=false` so installs run on Node 25. The Node 22 contract is enforced in CI/Docker, advisory locally.

@@ -9,8 +9,8 @@
 
 - **Project:** Sajawat Jewellery — luxury jewelry e-commerce (B2C + B2B leads + CRM + admin).
 - **Current status:** Phase 0 (Foundation) in progress — infrastructure only, **no business features**.
-- **Current milestone:** **0.4.1 complete** (0.4 + security hardening). Next up: **0.5 (MongoDB Atlas connection + DB health check)** — not yet planned.
-- **As of:** Milestone 0.4.1 commit on branch `main`.
+- **Current milestone:** **0.5 complete** (MongoDB Atlas connection + DB health check). Next up: **0.6 (per-env file strategy + first domain module scaffolding)** — not yet planned.
+- **As of:** Milestone 0.5 commit on branch `main`.
 
 ### Completed milestones
 - ✅ **0.1** — Monorepo skeleton
@@ -18,9 +18,9 @@
 - ✅ **0.3** — ESLint flat config, zero-warning policy, workspace-wide lint
 - ✅ **0.4** — API foundation (Express 5 app factory, pino + request IDs, `/health` + `/api/v1/health`, error hierarchy + global handler, response envelope, Zod request/env validation, type-aware ESLint layer)
 - ✅ **0.4.1** — Security hardening (helmet, env-driven CORS w/ credentials, global per-IP rate limiter + factory)
+- ✅ **0.5** — MongoDB Atlas connection (Mongoose 9, retry/backoff), readiness DB check (503 when down), graceful disconnect, Mongoose error normalization, schema conventions
 
 ### Pending milestones
-- ⏳ **0.5** — MongoDB Atlas connection + DB health check
 - ⏳ **0.6** — Environment strategy completion (per-env files; partially folded into 0.4) + first domain scaffolding
 - ⏳ **0.7** — Auth foundation (JWT, Argon2, RBAC utilities)
 - ⏳ **0.8** — Docker (web/admin/api) + `pnpm deploy` images + compose
@@ -36,7 +36,7 @@ infrastructure/{docker,deployment,monitoring,backups,scripts}
 ```
 
 ### Installed technologies
-Turborepo · pnpm · TypeScript · ESLint (flat + type-aware layer) · Prettier · Husky · commitlint · lint-staged · Next.js 16 · React 19 · Tailwind CSS v4 · **Express 5 · pino + pino-http · Zod · tsx (API foundation)** · **helmet · cors · express-rate-limit (0.4.1 security)**. (Mongoose arrives in 0.5.)
+Turborepo · pnpm · TypeScript · ESLint (flat + type-aware layer) · Prettier · Husky · commitlint · lint-staged · Next.js 16 · React 19 · Tailwind CSS v4 · **Express 5 · pino + pino-http · Zod · tsx (API foundation)** · **helmet · cors · express-rate-limit (0.4.1 security)** · **Mongoose 9 (0.5 MongoDB Atlas)**.
 
 ### Architecture decisions
 See `sajawat-current-architecture.md` §1–2 for the authoritative list (Turborepo, Node 22, pnpm, TS strict, ESM+NodeNext, Express 5, pino, Next/React/Tailwind, AD-1 role-based packages, project references, `workspace:*`, root ESLint, Conventional Commits, Zod validation).
@@ -58,13 +58,13 @@ See `sajawat-current-architecture.md` §1–2 for the authoritative list (Turbor
 - ESLint is a single root config; `turbo run lint` and `lint-staged` both resolve it.
 
 ### Known limitations
-- No runtime backend yet (`services/api` is a typed skeleton).
-- No database connectivity, auth, business modules, tests, Docker, or CI.
+- `services/api` runs as a real Express 5 server **and connects to MongoDB Atlas** (0.5); still no auth, business modules, tests, Docker, or CI.
+- No business collections/models yet (0.5 ships connection foundation + conventions only; models land 0.6+).
 - Apps contain default Next.js starter content.
 - Local toolchain runs on Node 25, not the contracted Node 22.
 
 ### Next recommended action
-Plan and implement **Milestone 0.5** (MongoDB Atlas): a connection module with retry/backoff, Mongoose config, DB readiness wired into `/api/v1/health` (degraded/unhealthy states), and graceful disconnect on shutdown. `MONGODB_URI` graduates to a required env var in `config/env.ts`. Reuse the 0.4 error hierarchy + logger.
+Plan and implement **Milestone 0.6**: complete the per-environment file strategy (`.env.development`/`.env.staging`/`.env.production`) and scaffold the **first domain module** (Controller → Service → Repository) on the 0.5 DB foundation — this is where the generic `BaseRepository` (AD-6) is implemented against the first real Mongoose model and where the per-collection index review (DB-design doc) begins. Reuse the 0.4 error hierarchy + logger, the 0.5 `baseSchemaPlugin`, and the centralized Mongoose error mapping.
 
 ---
 
@@ -107,12 +107,18 @@ Plan and implement **Milestone 0.5** (MongoDB Atlas): a connection module with r
 - **Verification:** typecheck + lint + build + format green; live smoke confirmed helmet headers (HSTS, X-Content-Type-Options, X-Frame-Options, CORP; `x-powered-by` absent), CORS allow (localhost:3000/3001 + credentials) / silent deny (evil.com) / preflight 204, rate-limit draft-7 headers + `429 TOO_MANY_REQUESTS` envelope after limit, `/health` + `/api/v1/health` skipped.
 - **Still deferred (tracked):** CSP (frontend), CSRF (D11), auth/OTP strict limiters (0.7).
 
+#### Milestone 0.5 — MongoDB Atlas connection + DB health
+- **Goal:** Wire MongoDB Atlas (Mongoose) into the API with a resilient connection lifecycle and DB-aware readiness — connection foundation + conventions only; no business collections.
+- **Implemented:** dep `mongoose ^9.6.3`; `src/db/{connection,health,base-plugin,index}.ts`. `connectToDatabase()` (bounded exponential backoff + jitter on initial connect, throws on exhaustion), `disconnectFromDatabase()`, connection-event logging, globals `strictQuery`/`sanitizeFilter`/`autoIndex=!prod`, **credential-stripped URI logging**. `checkDatabaseHealth()` (readyState gate + bounded `admin().ping()`). `baseSchemaPlugin` (timestamps + `_id`→`id`/strip `__v` transform; soft-delete convention). **Env:** `MONGODB_URI` now **required** (scheme-validated) + tunables (`MONGODB_DB_NAME`, pool min/max, server-selection/socket timeouts, retry attempts/base). **Errors:** new `ServiceUnavailableError` (503/`SERVICE_UNAVAILABLE`); global handler now normalizes Mongoose `ValidationError`/`CastError`/`DocumentNotFoundError` + dup-key `E11000`. **Routes:** `/api/v1/health` extended with `db` sub-status, returns **503** when not ready. **Lifecycle:** `index.ts` connect-before-listen; re-entrancy-guarded async shutdown closes Mongoose.
+- **Key decisions:** AD-2 single default connection; AD-3 connect-before-listen + retry, exit on exhaustion, auto-reconnect after; AD-4 liveness DB-independent vs readiness 503; AD-5 domain-colocated schemas + shared plugin; AD-6 repository contract locked, `BaseRepository` deferred to 0.6; AD-7 `autoIndex` off in prod; AD-8 centralized Mongoose error mapping; AD-9 `strictQuery`+`sanitizeFilter`+no-URI-logging; AD-10 required `MONGODB_URI` + tunables.
+- **Risks discovered / resolved:** mongoose resolved to `^9` (not planned `^8`) — compatible; mongoose 9 `readyState` enum tripped `no-unsafe-enum-comparison` on a literal compare → fixed via `mongoose.ConnectionStates.disconnected`.
+- **Verification:** typecheck + lint (zero-warning, type-aware) + build + format all green (8/8 workspaces). Live smoke (Dockerized `mongo:7`): connect attempt 1/5 → connected (host only, no creds); `/health` 200; readiness 200 `healthy`; Mongo stopped → `/health` stays 200, readiness **503 `degraded`** (no crash, reconnect warning logged); SIGTERM → graceful "Drained HTTP + database; exiting"; fail-fast on missing/malformed `MONGODB_URI` (exit 1). New debt **D13** (`MONGODB_URI` required → tests/CI must provide), **D14** (readiness-503 logs at error level under sustained outage).
+
 ### Planned
 
 | Milestone | Goal (summary) |
 |-----------|----------------|
-| 0.5 | MongoDB Atlas connection module (retry), Mongoose config, DB readiness in `/api/v1/health`, graceful disconnect. |
-| 0.6 | Per-env file strategy completion; first domain module scaffolding using the 0.4 foundation. |
+| 0.6 | Per-env file strategy completion; first domain module scaffolding (Controller→Service→Repository, `BaseRepository`) on the 0.5 DB foundation. |
 | 0.7 | Auth foundation: JWT access/refresh utils, Argon2 password utils, RBAC permission matrix, rate-limit factory for auth. |
 | 0.8 | Dockerfiles (web/admin/api) multi-stage on `node:22`, `pnpm deploy` pruned API image, `docker-compose.yml`. |
 | 0.9 | Vitest (unit/integration), Supertest, Playwright e2e; Vitest `@sajawat/*`→`src` aliases; smoke-test NodeNext `.js` resolution. |
@@ -143,6 +149,8 @@ Authoritative copy in `sajawat-open-debt.md`. Open items:
 | D9 | Low | No git tags / release versioning. | Adopt tagging (see §6). | 0.10 |
 | D10 | Low | `services/api` `dist/` git-ignored; API not consumed by another workspace. | Accepted; revisit if imported elsewhere. | — |
 | D11 | Medium | No CSRF protection yet (security-design mandates it). Mitigated short-term by token-in-header auth (planned) + strict CORS allow-list; cookie-based sessions would need CSRF tokens. | Implement with the auth foundation. | 0.7 |
+| D13 | Low | `MONGODB_URI` now required (0.5) — tests/CI must each provide a URI. | `mongodb-memory-server` (0.9); Mongo service in CI (0.10). | 0.9 / 0.10 |
+| D14 | Low | Readiness 503 logs at error level (pino-http 5xx→error) — noisy under sustained DB outage. | Optionally downgrade/skip readiness-probe logging. | optional |
 
 (D6 — non-type-aware ESLint — **resolved in 0.4**: type-checked layer added for `services/api`. The helmet/cors/rate-limit gap flagged after 0.4 was **resolved in 0.4.1**; CSP remains a frontend concern, CSRF tracked as D11.)
 
@@ -155,7 +163,7 @@ Authoritative copy in `sajawat-open-debt.md`. Open items:
 - `admin/` — `@sajawat/admin` (Next 16, :3001): same layout.
 
 ### services/
-- `api/` — `@sajawat/api` (Express 5, ESM/NodeNext): `src/{index,app}.ts`, `config/{env,logger}.ts`, `errors/app-error.ts`, `http/respond.ts`, `middleware/{request-logger,security,rate-limit,validate,not-found,error-handler}.ts`, `routes/health.routes.ts`, `types/express.d.ts`; `tsconfig.json` (node base, references shared, emits `dist`); `package.json` (dev `tsx watch`, `start`, `build`). Runs `/health` + `/api/v1/health` behind helmet + CORS + rate limiting. MongoDB lands in 0.5.
+- `api/` — `@sajawat/api` (Express 5, ESM/NodeNext): `src/{index,app}.ts`, `config/{env,logger}.ts`, `db/{connection,health,base-plugin,index}.ts`, `errors/app-error.ts`, `http/respond.ts`, `middleware/{request-logger,security,rate-limit,validate,not-found,error-handler}.ts`, `routes/health.routes.ts`, `types/express.d.ts`; `tsconfig.json` (node base, references shared, emits `dist`); `package.json` (dev `tsx watch`, `start`, `build`). Runs `/health` + `/api/v1/health` behind helmet + CORS + rate limiting; connects to MongoDB Atlas (Mongoose 9) at boot with DB-aware readiness.
 
 ### packages/
 - `ui/` — `@sajawat/ui` (source TSX): `src/index.ts`, `tsconfig.json` (react-library).
@@ -232,8 +240,7 @@ Specs (source of truth): `sajawat-prd.md`, `-system-architecture.md`, `-database
 | cors | 2.8.6 | CORS allow-list (0.4.1) |
 | express-rate-limit | 8.5.2 | per-IP rate limiting (0.4.1) |
 | @types/cors | 2.8.19 | (0.4.1) |
-| **Planned (0.5):** | | |
-| Mongoose | ^8 | MongoDB Atlas connection |
+| Mongoose | ^9.6.3 | MongoDB Atlas connection (0.5; bundles own TS types) |
 
 ---
 
@@ -284,7 +291,9 @@ STEP 7 — WAIT for explicit approval before implementing. Then implement,
   file changes · what was implemented · key decisions · verification results ·
   remaining technical debt. Then stop.
 
-The next milestone to implement is 0.5 (MongoDB Atlas connection + DB health
-check) unless told otherwise. 0.4 (API foundation) is complete — reuse its
-error hierarchy, logger, env config, and health route. Plan 0.5 before coding.
+The next milestone to implement is 0.6 (per-env file strategy + first domain
+module scaffolding) unless told otherwise. 0.5 (MongoDB Atlas connection + DB
+health) is complete — reuse its db/ module (connectToDatabase, baseSchemaPlugin),
+the centralized Mongoose error mapping, and the 0.4 error hierarchy/logger/env.
+Plan 0.6 before coding.
 ```

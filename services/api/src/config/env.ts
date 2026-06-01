@@ -7,9 +7,9 @@
  * Node populates from `--env-file` / `--env-file-if-exists` (see package
  * scripts) and, in the cloud, from Google Secret Manager.
  *
- * Only variables the API needs to *boot* in Milestone 0.4 are validated here.
- * MONGODB_URI (0.5) and JWT/secret material (0.7) graduate to required fields
- * in their respective milestones.
+ * Variables the API needs to *boot* are validated here. MONGODB_URI is now
+ * required (Milestone 0.5); JWT/secret material (0.7) graduates to required in
+ * its milestone.
  */
 import { z } from 'zod';
 
@@ -41,6 +41,29 @@ const EnvSchema = z.object({
     .positive()
     .default(15 * 60 * 1000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
+
+  // ---- Database (MongoDB Atlas) ----
+  // Required. Credentials live in the URI; never logged (see db/connection.ts).
+  MONGODB_URI: z
+    .string()
+    .min(1, 'MONGODB_URI is required')
+    .refine(
+      (value) => /^mongodb(\+srv)?:\/\//.test(value),
+      'MONGODB_URI must be a mongodb:// or mongodb+srv:// connection string',
+    ),
+  // Optional explicit database name (otherwise taken from the URI path).
+  MONGODB_DB_NAME: z.string().min(1).optional(),
+  // Connection pool sizing. Keep modest: Cloud Run scales horizontally, so
+  // (instances x maxPoolSize) must stay under the Atlas tier connection cap.
+  MONGODB_MAX_POOL_SIZE: z.coerce.number().int().positive().max(500).default(10),
+  MONGODB_MIN_POOL_SIZE: z.coerce.number().int().nonnegative().default(0),
+  // Fail fast if Atlas is unreachable rather than hanging the boot.
+  MONGODB_SERVER_SELECTION_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+  MONGODB_SOCKET_TIMEOUT_MS: z.coerce.number().int().positive().default(45_000),
+  // Bounded exponential backoff for the *initial* connect (driver auto-reconnects
+  // for transient drops afterwards).
+  MONGODB_CONNECT_RETRY_ATTEMPTS: z.coerce.number().int().positive().max(20).default(5),
+  MONGODB_CONNECT_RETRY_BASE_MS: z.coerce.number().int().positive().default(1_000),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

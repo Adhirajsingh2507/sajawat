@@ -20,7 +20,22 @@
       "Bash(git -c 'user.name=Sajawat Dev' -c user.email=techadhiraj07@gmail.com commit -q -m 'chore\\(phase-0\\): milestone 0.1 monorepo skeleton *)",
       "Bash(grep -v '^\\\\.$')",
       "Bash(awk -F/ '{ indent=\"\"; for\\(i=1;i<NF;i++\\) indent=indent\"  \"; print indent $NF }')",
-      "Bash(chmod +x .husky/pre-commit .husky/commit-msg)"
+      "Bash(chmod +x .husky/pre-commit .husky/commit-msg)",
+      "Bash(pnpm install *)",
+      "Bash(pnpm run *)",
+      "Bash(pnpm --filter @sajawat/api add mongoose)",
+      "Bash(pnpm exec *)",
+      "Bash(pnpm --filter @sajawat/api run lint)",
+      "Bash(env -u MONGODB_URI NODE_ENV=development node dist/index.js)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(docker stop *)",
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\\\\n\" http://127.0.0.1:4055/health)",
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\\\\n\" http://127.0.0.1:4055/api/v1/health)",
+      "Bash(kill -TERM 13810)",
+      "Bash(curl -s -m 2 -w \"HTTP %{http_code}\\\\n\" http://127.0.0.1:4055/health)",
+      "Read(//tmp/**)",
+      "Bash(docker rm *)",
+      "Bash(rm -f /tmp/api-smoke.log)"
     ]
   }
 }
