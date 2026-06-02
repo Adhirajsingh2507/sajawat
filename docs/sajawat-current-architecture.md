@@ -4,8 +4,8 @@
 > the latest completed milestone. The aspirational/target specs remain in
 > `sajawat-system-architecture.md`; this file is the ground truth of what exists.
 
-- **As of:** Milestone 0.8 complete (Docker & local orchestration)
-- **Latest completed milestone:** 0.8 (multi-stage images for api/web/admin + docker-compose with mongo:7)
+- **As of:** Milestone 0.9 complete (testing foundation)
+- **Latest completed milestone:** 0.9 (Vitest + Supertest + memory-server + Playwright; 63 tests green)
 - **Phase:** 0 — Foundation (infrastructure only; no business features — no auth *endpoints* yet)
 
 ---
@@ -41,6 +41,7 @@
 | CSRF | Bearer API CSRF-immune; **double-submit guard** for cookie endpoints | Resolves D11 | ✅ Implemented (0.7) |
 | Containers | **Multi-stage `node:22-bookworm-slim`**, non-root, `turbo prune` + `pnpm deploy` / Next `standalone` | Slim, hardened, Cloud-Run-ready images | ✅ Implemented (0.8) |
 | Local orchestration | **`docker-compose.yml`** (api+web+admin+`mongo:7`) — dev only | Integrated local runs + local MongoDB | ✅ Implemented (0.8) |
+| Testing | **Vitest** (unit+integration) + **Supertest** on `createApp()` + **mongodb-memory-server** + **Playwright** (chromium smoke) | Fast, hermetic, ESM-native; tests run against source | ✅ Implemented (0.9) |
 | Payments | **Razorpay** behind a `PaymentProvider` abstraction | Provider-agnostic | ⏳ Phase 1 |
 | Messaging | **MSG91** (SMS) · **WhatsApp Business API** (Meta), provider-abstracted | Decided | ⏳ Phase 1 |
 | Caching | **Redis** — Phase 2, planned, not implemented | Cache-aside, never a correctness dependency | ⏳ Phase 2 |
@@ -300,7 +301,49 @@ web/admin 401MB.
 
 ---
 
-## 12. Toolchain Provisioning Caveat
+## 12. Testing Foundation (Milestone 0.9)
+
+Harness for the existing code (no business domains yet → E2E is a smoke
+scaffold). **61 Vitest + 2 Playwright = 63 tests green.**
+
+**Topology**
+- Shared base **`@sajawat/config/vitest/base.mts`** (AD-32): a Vite plugin that
+  resolves NodeNext relative `.js` specifiers → `.ts` source, `@sajawat/*` →
+  `src` aliases (tests run against source for true coverage), and coverage
+  defaults. Per-package `vitest.config.ts` + `"test": "vitest run"`; **Turbo**
+  orchestrates (`test` task: `^build`, outputs `coverage/**`).
+- **Environments:** node (`api`, `shared`); **jsdom + React Testing Library**
+  (`web`, `admin`).
+- **AD-36 tsconfig split:** api `tsconfig.json` (lint/typecheck, includes
+  `test/**` so the type-aware ESLint `projectService` covers tests) +
+  `tsconfig.build.json` (emit `src` only); shared/apps exclude `*.test.*` from
+  emit. Type-aware lint relaxed for test files (`no-unsafe-*`, `unbound-method`).
+
+**Unit** (colocated `*.test.ts`): RBAC matrix (every role, allow/deny), password
+policy, Argon2id hash/verify, JWT round-trips + **type-confusion** + tamper +
+**expired access & refresh → 401**, cookie attributes, AppError/`clientErrorCode`.
+
+**Integration** (Supertest on `createApp()`): `/health` + readiness
+**healthy/degraded(503)** via `mongodb-memory-server`; 404/400(malformed
+JSON)/413 envelopes; helmet headers + CORS allow/deny; `requireAuth`/
+`requireRole`/`requirePermission` (401/403); CSRF double-submit; rate-limit 429.
+
+**E2E** (AD-38): root `playwright.config.ts`, chromium-only, `webServer` starts
+the built web app; `PLAYWRIGHT_BASE_URL` targets the `docker compose` stack
+(Docker-aware mode). `tests/e2e/smoke.spec.ts` (homepage + `/health`).
+
+**Coverage** (`@vitest/coverage-v8`): floors enforced on `src/auth` + `src/errors`
+(api) and `src/auth` (shared) — current auth 87.9%, errors 92.6%, shared auth
+100%; global ~66% (moderate, ratcheted as domains land). `pnpm test:coverage`.
+
+**Environment:** `test/setup.ts` sets `NODE_ENV=test` + test JWT secrets +
+placeholder `MONGODB_URI` + `MONGOMS_VERSION=6.0.14` (the default 8.x mongod
+SIGSEGVs on some hosts) **before** any import — the harness self-provisions
+required env (no real `.env`).
+
+---
+
+## 13. Toolchain Provisioning Caveat
 
 - **CI/Docker (Node 22):** Corepack enables pnpm 9.15.0 the documented way.
 - **This local machine (Node 25):** Corepack's bundled shim is incompatible with Node 25 (`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`); pnpm 9.15.0 was installed via an npm user-prefix instead. `engine-strict=false` so installs run on Node 25. The Node 22 contract is enforced in CI/Docker, advisory locally.

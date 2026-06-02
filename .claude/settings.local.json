@@ -72,7 +72,24 @@
       "Bash(curl -s -w \" [%{http_code}]\\\\n\" http://localhost:4000/api/v1/health)",
       "Bash(curl -s -w \" [%{http_code}]\\\\n\" http://localhost:3000/health)",
       "Bash(curl -s -w \" [%{http_code}]\\\\n\" http://localhost:3001/health)",
-      "Bash(cd *)"
+      "Bash(cd *)",
+      "Bash(pnpm --filter @sajawat/api add -D vitest @vitest/coverage-v8 supertest @types/supertest mongodb-memory-server)",
+      "Bash(pnpm --filter @sajawat/shared add -D vitest @vitest/coverage-v8)",
+      "Bash(pnpm --filter @sajawat/web add -D vitest @vitest/coverage-v8 jsdom @testing-library/react @testing-library/jest-dom @testing-library/user-event @vitejs/plugin-react)",
+      "Bash(pnpm --filter @sajawat/admin add -D vitest @vitest/coverage-v8 jsdom @testing-library/react @testing-library/jest-dom @testing-library/user-event @vitejs/plugin-react)",
+      "Bash(pnpm add *)",
+      "Bash(pnpm --filter @sajawat/api exec vitest run src/)",
+      "Bash(git mv *)",
+      "Bash(pnpm --filter @sajawat/api test)",
+      "Bash(pnpm --filter @sajawat/shared test)",
+      "Bash(pnpm --filter @sajawat/web test)",
+      "Bash(pnpm --filter @sajawat/api exec vitest run test/integration/health.test.ts)",
+      "Read(//home/adhiraj-singh/.cache/mongodb-binaries/**)",
+      "Read(//home/adhiraj-singh/.cache/**)",
+      "Bash(MONGOMS_VERSION=__TRACKED_VAR__ pnpm --filter @sajawat/api exec vitest run test/integration/health.test.ts)",
+      "Bash(pnpm --filter @sajawat/shared exec vitest run --coverage)",
+      "Bash(pnpm --filter @sajawat/api exec vitest run --coverage)",
+      "Bash(pnpm test:e2e)"
     ]
   }
 }

@@ -29,9 +29,15 @@ export default defineConfig([
     'prettier.config.js',
   ]),
 
-  // TypeScript libraries, services, and type packages.
+  // TypeScript libraries, services, and type packages (incl. shared `.mts`).
   {
-    files: ['packages/**/*.{ts,tsx}', 'services/**/*.{ts,tsx}'],
+    files: ['packages/**/*.{ts,tsx,mts}', 'services/**/*.{ts,tsx}'],
+    extends: [base],
+  },
+
+  // Playwright e2e specs (base TS rules; no type-aware program needed).
+  {
+    files: ['tests/**/*.{ts,tsx}'],
     extends: [base],
   },
 
@@ -46,6 +52,19 @@ export default defineConfig([
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
+    },
+  },
+
+  // Test files: relax type-aware strictness that fights test ergonomics
+  // (Supertest's `res.body` is `any`; `expect(obj.method)` reads methods unbound).
+  {
+    files: ['services/api/**/*.test.ts', 'services/api/test/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/unbound-method': 'off',
     },
   },
 

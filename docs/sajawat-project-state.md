@@ -9,9 +9,9 @@
 
 - **Project:** Sajawat Jewellery — luxury jewelry e-commerce (B2C + B2B leads + CRM + admin).
 - **Current status:** Phase 0 (Foundation) in progress — infrastructure only, **no business features**.
-- **Current milestone:** **0.8 complete** (Docker & local orchestration). Next up: **0.9 (testing foundation: Vitest, Supertest, Playwright)** — not yet planned.
-- **As of:** Milestone 0.8 commit on branch `main` (Phase 0 ~80% — 0.1–0.8 done; **0.9–0.10 remain**).
-- **Phase 0 status:** foundation in place — monorepo, TS, ESLint/Prettier, Express 5 API, security middleware, MongoDB Atlas, env strategy, auth primitives, **containerization (Docker + compose)**. Remaining: **0.9** testing · **0.10** CI/CD. Mongoose 9 is the **approved baseline**. (Auth endpoints/session store + domain models are Phase 1.)
+- **Current milestone:** **0.9 complete** (testing foundation). Next up: **0.10 (CI/CD: GitHub Actions)** — the final Phase-0 milestone — not yet planned.
+- **As of:** Milestone 0.9 commit on branch `main` (Phase 0 ~90% — 0.1–0.9 done; **0.10 remains**).
+- **Phase 0 status:** foundation in place — monorepo, TS, ESLint/Prettier, Express 5 API, security middleware, MongoDB Atlas, env strategy, auth primitives, containerization, **automated testing (Vitest + Supertest + memory-server + Playwright)**. Remaining: **0.10** CI/CD. Mongoose 9 is the **approved baseline**. (Auth endpoints/session store + domain models are Phase 1.)
 
 ### Milestone commit hashes
 | Milestone | Commit |
@@ -21,7 +21,8 @@
 | 0.5 | `a498ca3` |
 | 0.6 | `c05d2af` |
 | 0.7 | `805798e` |
-| 0.8 | (this commit — see `git log`) |
+| 0.8 | `114cfcb` |
+| 0.9 | (this commit — see `git log`) |
 
 ### Completed milestones
 - ✅ **0.1** — Monorepo skeleton
@@ -33,9 +34,9 @@
 - ✅ **0.6** — Per-environment configuration strategy (Node-native layered `--env-file`, per-env + per-app templates, AD-14 production guards, pre-commit secret guard, Environment Guide). **Scoped to env only — domain/repository deferred to Phase 1 per AD-6.**
 - ✅ **0.7** — Auth foundation (jose JWT utils, `@node-rs/argon2` Argon2id, centralized RBAC in `@sajawat/shared`, `requireAuth`/`requireRole`/`requirePermission`, double-submit CSRF, auth rate limiter). **Stateless primitives + middleware only — endpoints/session store + User/Role models are Phase 1.**
 - ✅ **0.8** — Docker & local orchestration (multi-stage `node:22-bookworm-slim` images for api/web/admin via `turbo prune` + `pnpm deploy` / Next `standalone`; `docker-compose.yml` with `mongo:7`; `$PORT` Cloud Run support; non-root; health checks). Verified: full stack healthy, Web→API / Admin→API / API→Mongo, graceful shutdown.
+- ✅ **0.9** — Testing foundation (Vitest unit+integration, Supertest on `createApp()`, `mongodb-memory-server`, chromium Playwright smoke; shared base config with `.js`→`.ts` + `@sajawat/*`→src resolution; coverage floors on auth/errors). **61 Vitest + 2 Playwright = 63 tests green.** Retires D8 + the test-side of D13.
 
 ### Pending milestones
-- ⏳ **0.9** — Testing foundation (Vitest, Playwright, Supertest)
 - ⏳ **0.10** — CI/CD (GitHub Actions: Node 22 + Corepack, lint/typecheck/test/build, deploy)
 
 ### Repository structure (top level)
@@ -47,7 +48,7 @@ infrastructure/{docker,deployment,monitoring,backups,scripts}
 ```
 
 ### Installed technologies
-Turborepo · pnpm · TypeScript · ESLint (flat + type-aware layer) · Prettier · Husky · commitlint · lint-staged · Next.js 16 · React 19 · Tailwind CSS v4 · **Express 5 · pino + pino-http · Zod · tsx (API foundation)** · **helmet · cors · express-rate-limit (0.4.1 security)** · **Mongoose 9 (0.5 MongoDB Atlas)**. (0.6 added **no** runtime deps — Node-native `--env-file`.) · **jose · @node-rs/argon2 · cookie-parser (0.7 auth)**. (0.8 added **no** runtime deps — Docker multi-stage on `node:22-bookworm-slim`, `turbo prune` + `pnpm deploy` / Next `standalone`, `docker-compose` with `mongo:7`.)
+Turborepo · pnpm · TypeScript · ESLint (flat + type-aware layer) · Prettier · Husky · commitlint · lint-staged · Next.js 16 · React 19 · Tailwind CSS v4 · **Express 5 · pino + pino-http · Zod · tsx (API foundation)** · **helmet · cors · express-rate-limit (0.4.1 security)** · **Mongoose 9 (0.5 MongoDB Atlas)**. (0.6 added **no** runtime deps — Node-native `--env-file`.) · **jose · @node-rs/argon2 · cookie-parser (0.7 auth)**. (0.8 added **no** runtime deps — Docker multi-stage on `node:22-bookworm-slim`, `turbo prune` + `pnpm deploy` / Next `standalone`, `docker-compose` with `mongo:7`.) · **Vitest · Supertest · mongodb-memory-server · jsdom · React Testing Library · Playwright (0.9 testing, all devDeps)**.
 
 ### Architecture decisions
 See `sajawat-current-architecture.md` §1–2 for the authoritative list (Turborepo, Node 22, pnpm, TS strict, ESM+NodeNext, Express 5, pino, Next/React/Tailwind, AD-1 role-based packages, project references, `workspace:*`, root ESLint, Conventional Commits, Zod validation).
@@ -71,14 +72,15 @@ See `sajawat-current-architecture.md` §1–2 for the authoritative list (Turbor
 - ESLint is a single root config; `turbo run lint` and `lint-staged` both resolve it.
 
 ### Known limitations
-- `services/api` runs as a real Express 5 server, connects to MongoDB Atlas (0.5), ships **auth primitives + middleware** (0.7), and is **containerized** (0.8); still no auth *endpoints*, business modules, automated tests, or CI.
+- `services/api` runs as a real Express 5 server, connects to MongoDB Atlas (0.5), ships **auth primitives + middleware** (0.7), is **containerized** (0.8), and has an **automated test suite** (0.9); still no auth *endpoints*, business modules, or CI.
+- **E2E is a chromium smoke scaffold only** — no business journeys yet (Phase 1).
 - Auth is stateless — **no session/refresh store yet** (D15): no server-side revocation/rotation until Phase 1.
 - No business collections/models yet (first `User`/`Role` model lands in Phase 1).
 - Apps contain default Next.js starter content.
 - Local (non-Docker) toolchain runs on Node 25; the **Docker images use the contracted Node 22** (Corepack pnpm).
 
 ### Next recommended action
-Plan and implement **Milestone 0.9** (testing foundation): Vitest (unit/integration) with `@sajawat/*`→`src` aliases and NodeNext `.js`-resolution smoke; Supertest against the `createApp()` factory; `mongodb-memory-server` + test JWT secrets (addresses D13); Playwright e2e scaffold. Convert the throwaway 0.7 auth smoke + 0.5/0.8 manual checks into real test suites and replace the placeholder `test` scripts (D8).
+Plan and implement **Milestone 0.10** (CI/CD — the final Phase-0 milestone): GitHub Actions on **Node 22 + Corepack**, pipeline `install → lint → typecheck → test (+coverage) → build`; cache the pnpm store, Turbo, and the `mongodb-memory-server` binary (pin `MONGOMS_VERSION`); inject test/CI env (closes the **CI-side of D13**); enforce Node 22 (closes **D1**); optional chromium e2e job; staging auto / prod manual Cloud Run deploy (Secret Manager). Add git tags per milestone (**D9**).
 
 ---
 
@@ -147,12 +149,18 @@ Plan and implement **Milestone 0.9** (testing foundation): Vitest (unit/integrat
 - **Key decisions:** AD-23 slim/glibc; AD-24 Next standalone; AD-25 pnpm deploy; AD-26 turbo prune + cache mounts; AD-27 `$PORT`; AD-28 `NEXT_PUBLIC_*` build-args (env-specific images); AD-29 compose local-only with `mongo:7`; AD-30 hardening. Compose API runs `NODE_ENV=staging` (avoids the AD-14 localhost guard *and* the dev-only pino-pretty devDep absent from the prod image).
 - **Verification:** repo gates green (8/8). Built all three (api 360MB, web/admin 401MB). `docker compose up`: all healthy; `/health` 200 on api(4000)/web(3000)/admin(3001); readiness `healthy` db=connected (**API→Mongo**); **Web→API** + **Admin→API** over the compose network 200/healthy; non-root (uid 1000) in all; argon2id loads in-container; SIGTERM → graceful "Drained HTTP + database; exiting".
 
+#### Milestone 0.9 — Testing foundation
+- **Goal:** Stand up the test harness and cover the existing code (auth/RBAC/JWT/middleware/health/errors). No business domains yet → E2E is a smoke scaffold. Retire D8 + the test-side of D13.
+- **Implemented:** devDeps `vitest`, `@vitest/coverage-v8`, `supertest`, `mongodb-memory-server` (api); `vitest`/coverage (shared); `jsdom` + RTL + `@vitejs/plugin-react` (web/admin); `@playwright/test` (root). Shared base `@sajawat/config/vitest/base.mts` (AD-32: `.js`→`.ts` resolver plugin + `@sajawat/*`→src aliases + coverage defaults). Per-package `vitest.config.ts` + `test: vitest run`. **AD-36 tsconfig split:** api `tsconfig.json` (lint/typecheck, incl. `test/**`) + `tsconfig.build.json` (emit `src` only); shared/apps exclude `*.test.*` from emit. ESLint: test-file rule relaxations (no-unsafe-*, unbound-method), `.mts` + `tests/**` globs. Playwright `playwright.config.ts` (chromium, webServer, `PLAYWRIGHT_BASE_URL` compose mode) + `tests/e2e/smoke.spec.ts`. Coverage floors on `src/auth`/`src/errors` (api) + `src/auth` (shared). Root `test:coverage` + `test:e2e`.
+- **Tests:** unit (jwt incl. **expired access + refresh → 401**, password argon2id, cookies, app-error/clientErrorCode, RBAC matrix every-role, password policy) + integration (Supertest on `createApp()`: health healthy/degraded via memory-server, 404/400/413 envelopes, helmet/CORS, requireAuth/Role/Permission, CSRF double-submit, rate-limit 429). **61 Vitest + 2 Playwright = 63 green.**
+- **Verification:** typecheck + lint + build + format + test all green (Turbo). Coverage: shared auth 100%, api auth 87.9% / errors 92.6% (floors pass); moderate ~66% global (ratchet later). Playwright chromium smoke 2/2.
+- **Risks resolved in-flight:** memory-server default mongod 8.2.6 (ubuntu2404) **SIGSEGV** on this host → pinned `MONGOMS_VERSION=6.0.14` (overridable); type-aware lint vs Supertest `any`/unbound methods → test-file rule relaxations; NodeNext `.js`→`.ts` resolution → resolver plugin (proven by the green suites). Retires **D8**; retires test-side **D13**.
+
 ### Planned
 
 | Milestone | Goal (summary) |
 |-----------|----------------|
-| 0.9 | Vitest (unit/integration), Supertest, Playwright e2e; Vitest `@sajawat/*`→`src` aliases; smoke-test NodeNext `.js` resolution. |
-| 0.10 | GitHub Actions: Node 22 + Corepack, install → lint → typecheck → test → build; staging auto / prod manual; enforce Node 22 (addresses D1). |
+| 0.10 | GitHub Actions: Node 22 + Corepack, install → lint → typecheck → test → build; staging auto / prod manual; enforce Node 22 (closes D1); CI env (closes D13); git tags (D9). |
 
 ---
 
@@ -175,14 +183,13 @@ Authoritative copy in `sajawat-open-debt.md`. Open items:
 | D4 | Low | Next.js starter boilerplate in apps. | Replace at Phase 1 UI. | Phase 1 |
 | D5 | Low | `.prettierignore` excludes all Markdown. | Optionally narrow scope. | optional |
 | D7 | Low | `@sajawat/config` lint-exempt. | Accepted. | — |
-| D8 | Low | Residual placeholder scripts (api/web/admin `test`, config lint/typecheck). | Replace as capabilities land. | 0.9 |
+| D13 | Low | **CI-side only** now: the 0.10 CI must inject env/secrets + pin `MONGOMS_VERSION`. (Test-side retired in 0.9 — the harness self-provisions via `test/setup.ts` + memory-server.) | Inject in the 0.10 CI matrix. | 0.10 |
 | D9 | Low | No git tags / release versioning. | Adopt tagging (see §6). | 0.10 |
 | D10 | Low | `services/api` `dist/` git-ignored; API not consumed by another workspace. | Accepted; revisit if imported elsewhere. | — |
-| D13 | Low | Required env now includes `MONGODB_URI` (0.5) + `JWT_*` secrets (0.7) — tests/CI must each provide them. | test secrets + `mongodb-memory-server` (0.9); inject in CI (0.10). | 0.9 / 0.10 |
 | D14 | Low | Readiness 503 logs at error level (pino-http 5xx→error) — noisy under sustained DB outage. | Optionally downgrade/skip readiness-probe logging. | optional |
 | D15 | Medium | Stateless refresh tokens (0.7) — no server-side revocation/rotation until a Phase-1 session store; leaked refresh valid until expiry. Accepted. | Phase-1 session/refresh store (rotation + reuse-detection); claims already carry `jti`/`family`. | Phase 1 |
 
-(D6 — non-type-aware ESLint — **resolved in 0.4**. helmet/cors/rate-limit gap **resolved in 0.4.1**. **D11 (CSRF) resolved in 0.7** via hybrid Bearer transport + double-submit guard. CSP remains a frontend concern (D12).)
+(D6 — non-type-aware ESLint — **resolved in 0.4**. helmet/cors/rate-limit gap **resolved in 0.4.1**. **D11 (CSRF) resolved in 0.7**. **D8 (placeholder `test` scripts) resolved in 0.9** — all three now `vitest run`; only the accepted `@sajawat/config` lint/typecheck stubs remain (D7). CSP remains a frontend concern (D12).)
 
 ---
 
@@ -193,13 +200,13 @@ Authoritative copy in `sajawat-open-debt.md`. Open items:
 - `admin/` — `@sajawat/admin` (Next 16, :3001): same layout (+ `.env.example`, `health/route.ts`, standalone).
 
 ### services/
-- `api/` — `@sajawat/api` (Express 5, ESM/NodeNext): `src/{index,app}.ts`, `config/{env,logger}.ts`, `db/{connection,health,base-plugin,index}.ts`, `auth/{jwt,password,cookies,rbac}.ts` (0.7), `errors/app-error.ts`, `http/respond.ts`, `middleware/{request-logger,security,rate-limit,validate,auth,csrf,not-found,error-handler}.ts`, `routes/health.routes.ts`, `types/express.d.ts`; `tsconfig.json` (node base, references shared, emits `dist`); `package.json`. Runs `/health` + `/api/v1/health` behind helmet + CORS + rate limiting + cookie-parser; connects to MongoDB Atlas (Mongoose 9). Auth utilities + middleware present; **endpoints Phase 1**.
+- `api/` — `@sajawat/api` (Express 5, ESM/NodeNext): `src/{index,app}.ts`, `config/{env,logger}.ts`, `db/{connection,health,base-plugin,index}.ts`, `auth/{jwt,password,cookies,rbac}.ts` (0.7), `errors/app-error.ts`, `http/respond.ts`, `middleware/{request-logger,security,rate-limit,validate,auth,csrf,not-found,error-handler}.ts`, `routes/health.routes.ts`, `types/express.d.ts`; **tests (0.9):** colocated `src/**/*.test.ts` + `test/{setup,helpers}.ts` + `test/integration/*.test.ts`, `vitest.config.ts`; `tsconfig.json` (lint/typecheck incl. tests) + `tsconfig.build.json` (emit `src`). Auth utilities + middleware present; **endpoints Phase 1**.
 
 ### packages/
 - `ui/` — `@sajawat/ui` (source TSX): `src/index.ts`, `tsconfig.json` (react-library).
 - `types/` — `@sajawat/types` (type-only): `src/index.ts`, `tsconfig.json` (noEmit).
 - `shared/` — `@sajawat/shared` (compiled): `src/index.ts`, `src/auth/{roles,password-policy,index}.ts` (0.7 RBAC catalog + password policy; `zod` dep), `tsconfig.json` (composite), emits `dist/`.
-- `config/` — `@sajawat/config` (tooling): `prettier/index.js`, `eslint/{base,react}.mjs`, `typescript/{base,node,library,react-library,nextjs}.json`, `package.json` (exports map).
+- `config/` — `@sajawat/config` (tooling): `prettier/index.js`, `eslint/{base,react,type-checked}.mjs`, `typescript/{base,node,library,react-library,nextjs}.json`, `vitest/base.mts` (0.9), `package.json` (exports map).
 
 ### docs/
 Specs (source of truth): `sajawat-prd.md`, `-system-architecture.md`, `-database-design.md`, `-api-design.md`, `-security-design.md`, `-phase-0-foundation.md`, `-folder-structure.md`, `-coding-standards.md`, `-testing-strategy.md`, `-deployment-plan.md`, `-roadmap.md`, `-environment-guide.md` (0.6), plus brand/business/admin/crm/ui-ux specs. **Handoff docs:** `sajawat-project-state.md` (this), `sajawat-current-architecture.md`, `sajawat-open-debt.md`.
@@ -208,13 +215,13 @@ Specs (source of truth): `sajawat-prd.md`, `-system-architecture.md`, `-database
 - `check-staged-secrets.sh` (0.6 — pre-commit guard blocking staged real `.env*`). `.gitkeep` (dev/seed scripts — to be populated).
 
 ### tests/
-- `e2e/`, `integration/`, `performance/` (`.gitkeep`; Playwright/Vitest/Supertest in 0.9).
+- `e2e/smoke.spec.ts` (0.9 Playwright chromium smoke); `integration/`, `performance/` (`.gitkeep`). Unit/integration live colocated per package; root `playwright.config.ts` + `tests/e2e`.
 
 ### infrastructure/
 - `docker/` — **`api.Dockerfile`, `web.Dockerfile`, `admin.Dockerfile`** (0.8, multi-stage `node:22-bookworm-slim`). `deployment/`, `monitoring/`, `backups/`, `scripts/` (`.gitkeep`; CI deploy in 0.10).
 
 ### Root
-`package.json`, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig.json` (solution), `eslint.config.mjs`, `prettier.config.js`, `commitlint.config.cjs`, `.lintstagedrc.json`, `.npmrc`, `.nvmrc`, `.gitignore`, `.prettierignore`, `.dockerignore` (0.8), `.env.example`, `docker-compose.yml` (0.8), `README.md`, `CLAUDE.md`, `.husky/{pre-commit,commit-msg}`. `scripts/check-staged-secrets.sh`.
+`package.json`, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig.json` (solution), `eslint.config.mjs`, `prettier.config.js`, `commitlint.config.cjs`, `.lintstagedrc.json`, `.npmrc`, `.nvmrc`, `.gitignore`, `.prettierignore`, `.dockerignore` (0.8), `.env.example`, `docker-compose.yml` (0.8), `playwright.config.ts` (0.9), `README.md`, `CLAUDE.md`, `.husky/{pre-commit,commit-msg}`. `scripts/check-staged-secrets.sh`.
 
 ---
 
@@ -276,6 +283,11 @@ Specs (source of truth): `sajawat-prd.md`, `-system-architecture.md`, `-database
 | cookie-parser | ^1.4.7 | refresh/CSRF cookie parsing (0.7) |
 | @types/cookie-parser | ^1.4.10 | (0.7) |
 | zod (shared) | ^3 | RBAC password policy in `@sajawat/shared` (0.7) |
+| vitest / @vitest/coverage-v8 | ^4 | unit + integration runner (0.9) |
+| supertest | ^7 | API integration on `createApp()` (0.9) |
+| mongodb-memory-server | ^10 | hermetic Mongo for integration (0.9; pin `MONGOMS_VERSION=6.0.14`) |
+| jsdom · @testing-library/{react,jest-dom,user-event} | — | web/admin component tests (0.9) |
+| @playwright/test | ^1 | chromium e2e smoke (0.9) |
 
 ---
 
@@ -326,13 +338,13 @@ STEP 7 — WAIT for explicit approval before implementing. Then implement,
   file changes · what was implemented · key decisions · verification results ·
   remaining technical debt. Then stop.
 
-The next milestone to implement is 0.9 (testing foundation: Vitest unit/
-integration with @sajawat/*→src aliases + NodeNext .js-resolution smoke;
-Supertest against createApp(); mongodb-memory-server + test JWT secrets to
-address D13; Playwright e2e scaffold; replace placeholder `test` scripts (D8))
-unless told otherwise. 0.8 (Docker & local orchestration) is complete — images
-in infrastructure/docker/, root docker-compose.yml (api+web+admin+mongo:7).
-Reuse createApp() for Supertest, the 0.7 auth-smoke checks, and the 0.5/0.8
-manual health checks as the basis for real suites. Plan 0.9 before coding.
-Mongoose 9 is the approved baseline.
+The next milestone to implement is 0.10 (CI/CD — the final Phase-0 milestone):
+GitHub Actions on Node 22 + Corepack; pipeline install → lint → typecheck →
+test (+coverage) → build; cache pnpm store / Turbo / the memory-server binary
+(pin MONGOMS_VERSION=6.0.14); inject CI env (closes CI-side D13); enforce Node 22
+(closes D1); optional chromium e2e job; staging-auto / prod-manual Cloud Run
+deploy via Secret Manager; git tags per milestone (D9). 0.9 (testing foundation)
+is complete — `turbo run test` green (61 Vitest + 2 Playwright); coverage via
+`pnpm test:coverage`; e2e via `pnpm test:e2e`. Plan 0.10 before coding. Mongoose
+9 is the approved baseline.
 ```
