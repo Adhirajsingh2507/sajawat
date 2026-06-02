@@ -64,11 +64,42 @@ const EnvSchema = z.object({
   // for transient drops afterwards).
   MONGODB_CONNECT_RETRY_ATTEMPTS: z.coerce.number().int().positive().max(20).default(5),
   MONGODB_CONNECT_RETRY_BASE_MS: z.coerce.number().int().positive().default(1_000),
+
+  // ---- Auth / JWT (Milestone 0.7) ----
+  // Required, distinct, >=32 chars. [secret] — Secret Manager in cloud.
+  JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
+  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
+  // Token lifetimes (jose duration strings, e.g. "15m", "7d").
+  JWT_ACCESS_EXPIRES_IN: z.string().min(1).default('15m'),
+  JWT_REFRESH_EXPIRES_IN: z.string().min(1).default('7d'),
+  // Required issuer/audience — validated on every verify (claim binding).
+  JWT_ISSUER: z.string().min(1, 'JWT_ISSUER is required'),
+  JWT_AUDIENCE: z.string().min(1, 'JWT_AUDIENCE is required'),
+
+  // Auth-route rate limit (very strict; built via createRateLimiter).
+  AUTH_RATE_LIMIT_WINDOW_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(15 * 60 * 1000),
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
+});
+
+const EnvSchemaChecked = EnvSchema.superRefine((value, ctx) => {
+  // Access and refresh secrets must differ so a leak of one does not compromise
+  // the other (compromise isolation, AD-21).
+  if (value.JWT_ACCESS_SECRET === value.JWT_REFRESH_SECRET) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['JWT_REFRESH_SECRET'],
+      message: 'JWT_REFRESH_SECRET must differ from JWT_ACCESS_SECRET',
+    });
+  }
 });
 
 export type Env = z.infer<typeof EnvSchema>;
 
-const parsed = EnvSchema.safeParse(process.env);
+const parsed = EnvSchemaChecked.safeParse(process.env);
 
 if (!parsed.success) {
   const issues = parsed.error.issues

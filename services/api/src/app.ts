@@ -16,6 +16,7 @@
  */
 import express from 'express';
 import type { Application } from 'express';
+import cookieParser from 'cookie-parser';
 import { requestLogger } from './middleware/request-logger.js';
 import { securityHeaders, corsMiddleware } from './middleware/security.js';
 import { globalRateLimiter } from './middleware/rate-limit.js';
@@ -43,6 +44,9 @@ export function createApp(): Application {
   // Body parsing (bounded to mitigate large-payload abuse).
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+  // Cookie parsing (refresh-token + CSRF cookies; 0.7). Auth routes arrive in Phase 1.
+  app.use(cookieParser());
 
   // Liveness probe — minimal, unversioned, dependency-free (for Cloud Run / LB).
   app.get('/health', (_req, res) => {

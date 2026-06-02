@@ -33,3 +33,13 @@ export function createRateLimiter(overrides: Partial<Options> = {}): RateLimitRe
 export const globalRateLimiter = createRateLimiter({
   skip: (req) => req.path === '/health' || req.path === '/api/v1/health',
 });
+
+/**
+ * Very strict per-IP limiter for authentication routes (login/register/refresh/
+ * OTP, wired in Phase 1). Brute-force defense; account lockout (stateful) is a
+ * Phase-1 addition layered on top.
+ */
+export const authRateLimiter = createRateLimiter({
+  windowMs: env.AUTH_RATE_LIMIT_WINDOW_MS,
+  limit: env.AUTH_RATE_LIMIT_MAX,
+});

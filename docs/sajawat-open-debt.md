@@ -3,7 +3,7 @@
 > Single source of truth for known, accepted debt and deferred work. Updated at
 > every milestone. "Open" = not yet resolved. Resolved items move to the bottom.
 
-- **As of commit:** Milestone 0.6 complete (`c05d2af`, per-environment configuration strategy). Phase 0: 0.1–0.6 done; 0.7–0.10 remain.
+- **As of commit:** Milestone 0.7 complete (auth foundation). Phase 0: 0.1–0.7 done; 0.8–0.10 remain.
 
 ## Open Debt
 
@@ -17,10 +17,10 @@
 | D8 | Low | Remaining placeholder `echo … exit 0` scripts: `test` (api/web/admin), `lint`/`typecheck` (config). (api `dev` resolved in 0.4 → real `tsx watch`.) | Replace as each capability lands. | 0.9 |
 | D9 | Low | No git tags / release versioning yet. | Adopt tagging strategy (see project-state §Git Snapshot). | 0.10 |
 | D10 | Low | `services/api` `dist/` build output exists locally but is git-ignored; the API is consumed only by its own runtime (not by another workspace), so no project-reference/build-order coupling yet. | None needed; revisit if another workspace imports `@sajawat/api`. | — (accepted) |
-| D11 | Medium | No CSRF protection yet (`sajawat-security-design.md:248` mandates it). Short-term mitigations: planned token-in-`Authorization`-header auth (not cookie sessions) + strict CORS allow-list (0.4.1). Becomes load-bearing if/when cookie-based sessions are used. | Implement alongside the auth foundation (CSRF tokens / double-submit, or confirm header-token model removes the need). | 0.7 |
 | D12 | Low | helmet **CSP disabled** (`contentSecurityPolicy: false`) — acceptable for a JSON API, but the security headers picture is incomplete until the Next.js apps ship their own CSP. | Define CSP in `apps/web` / `apps/admin` at Phase 1 UI. | Phase 1 |
-| D13 | Low | `MONGODB_URI` is now a **required** env var (0.5). `pnpm dev`/`start` exit(1) without it. Future unit tests (0.9) and CI (0.10) must each provide a URI (e.g. `mongodb-memory-server` / a CI service). `build`/`typecheck`/`lint`/`format` are unaffected (they don't load env). | Provide `mongodb-memory-server` in the 0.9 test harness; inject a Mongo service/URI in the 0.10 CI matrix. | 0.9 / 0.10 |
+| D13 | Low | **Required** env vars now include `MONGODB_URI` (0.5) and `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET`/`JWT_ISSUER`/`JWT_AUDIENCE` (0.7) — secrets must be ≥32 chars and distinct. `pnpm dev`/`start` exit(1) without them. Tests (0.9) and CI (0.10) must each provide them. `build`/`typecheck`/`lint`/`format` are unaffected (they don't load env). | Provide test secrets + `mongodb-memory-server` in the 0.9 harness; inject env/secrets in the 0.10 CI matrix. | 0.9 / 0.10 |
 | D14 | Low | The readiness endpoint returning **503** while the DB is down is logged at **error** level by pino-http's 5xx→error mapping. Under a sustained outage, frequent load-balancer probes of `/api/v1/health` will emit repeated error logs. (Liveness `/health` is unaffected — it stays 200.) | Optionally downgrade readiness-probe log level, or rate-limit/skip logging for the readiness route, when log noise becomes a concern. | optional |
+| D15 | Medium | **No server-side refresh-token revocation/rotation yet** (0.7 is stateless). Refresh tokens carry `jti`/`family` claims (rotation-ready) but there is no session store, so a leaked refresh token is valid until expiry and logout can only clear the cookie — true revocation, rotation, and reuse-detection require persisted state. Accepted by the user as tracked debt. | Implement the Phase-1 session/refresh store (rotation + reuse-detection → revoke family) alongside the auth endpoints; keep a conservative refresh TTL until then. | Phase 1 |
 
 ## Resolved Debt (history)
 
@@ -34,6 +34,7 @@
 | — | 0.2 | Five Turbo "no output files" warnings. | Removed build stubs from non-emitting packages. |
 | D2 | 0.3 (partial) | lint-staged ESLint gap (couldn't resolve root eslint) + per-package "lint configured in 0.3" stubs. | Single root flat config + root `eslint` devDep; ESLint re-enabled in lint-staged with `--no-warn-ignored`. (Residual stubs tracked as D8.) |
 | D6 | 0.4 | Non-type-aware ESLint — type-aware rules (`no-floating-promises`, `no-misused-promises`) were off, relevant for the async-heavy API. | Added `@sajawat/config/eslint/type-checked` (`recommendedTypeChecked` + the two promise rules) scoped to `services/api/**` via `projectService` (no per-config `parserOptions.project` needed). Refined the Express/Mongoose CJS-interop selector to exclude type-only imports so `import type { Request }` is allowed. |
+| D11 | 0.7 | No CSRF protection (security-design mandates it). | **AD-17 hybrid transport** makes the API surface CSRF-immune (Bearer access token — browsers don't auto-attach it); the refresh cookie is httpOnly + SameSite=Strict, and a **double-submit CSRF guard** (`middleware/csrf.ts`, AD-22) protects the cookie-authenticated endpoints (refresh/logout, mounted Phase 1). |
 
 ## Notes on Issues Found & Fixed In-Flight (not carried as debt)
 
@@ -45,3 +46,4 @@
 - **0.4.1:** helmet/cors/rate-limit were missing from the 0.4 scope and were not initially recorded as deferred (reporting gap). Closed by the 0.4.1 hardening patch; residual security work (CSP, CSRF) is now explicitly tracked as D11/D12. The `globalRateLimiter` skip list covers both `/health` and `/api/v1/health` so probes are never throttled.
 - **0.5:** `mongoose` resolved to **`^9.6.3`** (the 0.5 plan anticipated `^8`; an unpinned `pnpm add` pulled the current major). Mongoose 9 bundles MongoDB driver `~7.2`, `engines.node >=20.19.0`. Mongoose 9 types `connection.readyState` as the `ConnectionStates` enum, which tripped `@typescript-eslint/no-unsafe-enum-comparison` on a `=== 0` literal compare → fixed by comparing against `mongoose.ConnectionStates.disconnected`. **Reviewed and APPROVED as the baseline** (greenfield, no models/repository yet; gates green; live smoke passed; Atlas + Node 22 compatibility acceptable) — **not** carried as debt; no downgrade.
 - **0.6:** Per-environment configuration strategy completed (Node-native layered `--env-file`, per-env + per-app templates, AD-14 production guards, R-2 pre-commit secret guard, Environment Guide). No new dependencies. The Next.js apps' scaffolded `.gitignore` blanket-ignored `.env*` (incl. `.env.example`) → added `!.env.example` negation in `apps/web` + `apps/admin` so per-app templates are trackable while real env files stay ignored.
+- **0.7:** Auth foundation (jose JWT utils, `@node-rs/argon2` password utils, centralized RBAC in `@sajawat/shared`, auth/CSRF middleware, auth rate limiter). `@node-rs/argon2` exports `Algorithm` as an **ambient const enum**, which `verbatimModuleSyntax` forbids referencing → dropped the explicit `algorithm` option and rely on the library's argon2id default (cost params set explicitly). Resolves **D11**; adds **D15** (stateless refresh — no server-side revocation until the Phase-1 session store).

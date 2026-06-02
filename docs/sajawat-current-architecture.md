@@ -4,9 +4,9 @@
 > the latest completed milestone. The aspirational/target specs remain in
 > `sajawat-system-architecture.md`; this file is the ground truth of what exists.
 
-- **As of:** Milestone 0.6 complete (per-environment configuration strategy) — commit `c05d2af`
-- **Latest completed milestone:** 0.6 (env loading layering, per-app templates, prod guards, secret guard, Environment Guide)
-- **Phase:** 0 — Foundation (infrastructure only; no business features)
+- **As of:** Milestone 0.7 complete (auth foundation)
+- **Latest completed milestone:** 0.7 (JWT/Argon2/RBAC utilities, auth + CSRF middleware, auth rate limiter)
+- **Phase:** 0 — Foundation (infrastructure only; no business features — no auth *endpoints* yet)
 
 ---
 
@@ -35,6 +35,10 @@
 | DB security | `strictQuery` + `sanitizeFilter`; URI never logged | NoSQL-injection defense + secret hygiene | ✅ Implemented (0.5) |
 | Config loading | **Node-native `--env-file`** (no dotenv); layered `.env.<NODE_ENV>` → `.env` → `process.env` | Contract is Node 22; native flag suffices; cloud env wins | ✅ Implemented (0.6) |
 | Config hardening | **Production guards** (no localhost `API_BASE_URL`/`CORS_ORIGINS`) + **pre-commit secret guard** | Fail-fast on leaked dev config; block committing real `.env*` | ✅ Implemented (0.6) |
+| Auth tokens | **JWT via `jose`** — Bearer access (~15m) + httpOnly refresh cookie (~7d), distinct secrets, `type` claim, iss/aud bound | Stateless, ESM-native, CSRF-resistant transport | ✅ Utilities (0.7) |
+| Password hashing | **Argon2id via `@node-rs/argon2`** (prebuilt, no node-gyp) | Strong KDF; Docker/Cloud-Run friendly | ✅ Implemented (0.7) |
+| Authorization | **Centralized RBAC** catalog + matrix in `@sajawat/shared`; token carries role only | Single source; small tokens; typed `module:action` permissions | ✅ Implemented (0.7) |
+| CSRF | Bearer API CSRF-immune; **double-submit guard** for cookie endpoints | Resolves D11 | ✅ Implemented (0.7) |
 | Payments | **Razorpay** behind a `PaymentProvider` abstraction | Provider-agnostic | ⏳ Phase 1 |
 | Messaging | **MSG91** (SMS) · **WhatsApp Business API** (Meta), provider-abstracted | Decided | ⏳ Phase 1 |
 | Caching | **Redis** — Phase 2, planned, not implemented | Cache-aside, never a correctness dependency | ⏳ Phase 2 |
@@ -217,7 +221,45 @@ stays ignored.
 
 ---
 
-## 10. Toolchain Provisioning Caveat
+## 10. Auth Foundation (Milestone 0.7)
+
+**Stateless primitives + middleware only** — no auth endpoints, no `User`/`Role`/
+session collections, no OAuth/OTP/2FA (all Phase 1). Validated by the 0.7 live
+smoke; unit tests land in 0.9.
+
+**Module map**
+
+| Path | Responsibility |
+|------|----------------|
+| `@sajawat/shared` `auth/roles.ts` | `ROLES`, `PERMISSIONS` (`module:action`), `ROLE_PERMISSIONS` matrix, `hasPermission`, `getPermissionsForRole`, `isRole`. **Centralized RBAC source** (api + admin UI). |
+| `@sajawat/shared` `auth/password-policy.ts` | `passwordSchema` (Zod: ≥8, ≤128, letter+number). |
+| `services/api` `auth/jwt.ts` | `signAccessToken`/`signRefreshToken`/`verifyAccessToken`/`verifyRefreshToken` (jose, HS256). Distinct secrets; `type` claim; iss/aud bound; refresh carries `jti`+`family`. Failures → opaque `UnauthorizedError`. |
+| `auth/password.ts` | `hashPassword`/`verifyPassword` (Argon2id, OWASP cost m=19456/t=2/p=1). |
+| `auth/cookies.ts` | `setRefreshCookie`/`clearRefreshCookie` — httpOnly, Secure-in-prod, SameSite=Strict, path `/api/v1/auth`. |
+| `auth/rbac.ts` | API bridge re-exporting the shared catalog (single import point). |
+| `middleware/auth.ts` | `requireAuth` (Bearer→verify→`req.user`), `requireRole(...)`, `requirePermission(...)` → 401/403 via the global handler. Route-level only. |
+| `middleware/csrf.ts` | `issueCsrfToken` + `csrfGuard` (double-submit, constant-time compare) for cookie endpoints. |
+| `middleware/rate-limit.ts` | + `authRateLimiter` (very strict, from `createRateLimiter`). |
+
+**Token strategy:** access = Bearer header (client memory, ~15m); refresh =
+httpOnly+Secure+SameSite=Strict cookie (~7d), rotation-ready. **Issuance/login/
+refresh endpoints + the rotating session store = Phase 1** (tracked: **D15** — no
+server-side revocation yet).
+
+**Wiring:** `cookie-parser` added after body parsers in `app.ts`; `req.user`
+augmented in `types/express.d.ts`; logger redaction extended with `*.otp`.
+`JWT_*` graduated to **required** env (≥32 chars, access≠refresh, iss/aud
+required) with fail-fast validation.
+
+**Verified (smoke):** Argon2id hash/verify (correct→true, wrong→false); access &
+refresh sign/verify round-trips (jti/family preserved); **type-confusion
+rejected** both ways; tampered token rejected; RBAC matrix
+(admin/customer/super_admin/inventory_staff); env fail-fast on missing/short/
+identical secrets and missing iss/aud.
+
+---
+
+## 11. Toolchain Provisioning Caveat
 
 - **CI/Docker (Node 22):** Corepack enables pnpm 9.15.0 the documented way.
 - **This local machine (Node 25):** Corepack's bundled shim is incompatible with Node 25 (`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`); pnpm 9.15.0 was installed via an npm user-prefix instead. `engine-strict=false` so installs run on Node 25. The Node 22 contract is enforced in CI/Docker, advisory locally.

@@ -16,6 +16,7 @@ const redact = {
     '*.secret',
     '*.accessToken',
     '*.refreshToken',
+    '*.otp',
   ],
   censor: '[REDACTED]',
 };

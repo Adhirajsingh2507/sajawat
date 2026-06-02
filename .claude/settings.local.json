@@ -49,7 +49,16 @@
       "Bash(chmod +x /home/adhiraj-singh/website/actuall/scripts/check-staged-secrets.sh)",
       "Bash(git check-ignore *)",
       "Bash(grep -nE 'scripts/$|^### scripts|^- `\\\\.gitkeep`|dev/seed|Handoff docs|Specs \\\\\\(source|### docs' docs/sajawat-project-state.md)",
-      "Bash(sh scripts/check-staged-secrets.sh)"
+      "Bash(sh scripts/check-staged-secrets.sh)",
+      "Bash(echo \"commit-exit=$?\")",
+      "Bash(pnpm --filter @sajawat/api add jose @node-rs/argon2 cookie-parser)",
+      "Bash(pnpm --filter @sajawat/api add -D @types/cookie-parser)",
+      "Bash(pnpm --filter @sajawat/shared add zod)",
+      "Bash(export MONGODB_URI=\"mongodb://example.test/db\")",
+      "Bash(export JWT_ACCESS_SECRET=\"access-secret-aaaaaaaaaaaaaaaaaaaaaaaaaaaa\")",
+      "Bash(export JWT_REFRESH_SECRET=\"refresh-secret-bbbbbbbbbbbbbbbbbbbbbbbbbbb\")",
+      "Bash(export JWT_ISSUER=\"sajawat-api\")",
+      "Bash(export JWT_AUDIENCE=\"sajawat-clients\")"
     ]
   }
 }

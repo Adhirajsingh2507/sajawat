@@ -5,7 +5,10 @@
  * validated input is written to `req.validatedData` instead of mutating the
  * request. (`req.id` and `req.log` are contributed by pino-http's own http
  * module augmentation and are not redeclared here.)
+ *
+ * `req.user` (0.7) is populated by `requireAuth` after verifying the access token.
  */
+import type { Role } from '@sajawat/shared';
 
 export interface ValidatedData {
   body: unknown;
@@ -13,10 +16,16 @@ export interface ValidatedData {
   params: unknown;
 }
 
+export interface AuthUser {
+  id: string;
+  role: Role;
+}
+
 declare global {
   namespace Express {
     interface Request {
       validatedData?: ValidatedData;
+      user?: AuthUser;
     }
   }
 }

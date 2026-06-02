@@ -9,9 +9,9 @@
 
 - **Project:** Sajawat Jewellery — luxury jewelry e-commerce (B2C + B2B leads + CRM + admin).
 - **Current status:** Phase 0 (Foundation) in progress — infrastructure only, **no business features**.
-- **Current milestone:** **0.6 complete** (per-environment configuration strategy). Next up: **0.7 (auth foundation: JWT, Argon2, RBAC utilities)** — not yet planned.
-- **As of:** Milestone 0.6 commit `c05d2af` on branch `main` (Phase 0 ~60% — 0.1–0.6 done; **0.7–0.10 remain**).
-- **Phase 0 status:** infrastructure foundation in place — monorepo, TS, ESLint/Prettier, Express 5 API, security middleware, MongoDB Atlas, env strategy. Remaining: **0.7** auth foundation · **0.8** Docker · **0.9** testing · **0.10** CI/CD. Mongoose 9 is the **approved baseline**.
+- **Current milestone:** **0.7 complete** (auth foundation — JWT/Argon2/RBAC utilities + middleware). Next up: **0.8 (Docker: web/admin/api multi-stage + compose)** — not yet planned.
+- **As of:** Milestone 0.7 commit on branch `main` (Phase 0 ~70% — 0.1–0.7 done; **0.8–0.10 remain**).
+- **Phase 0 status:** foundation in place — monorepo, TS, ESLint/Prettier, Express 5 API, security middleware, MongoDB Atlas, env strategy, **auth primitives**. Remaining: **0.8** Docker · **0.9** testing · **0.10** CI/CD. Mongoose 9 is the **approved baseline**. (Auth *endpoints*/session store + domain models are Phase 1.)
 
 ### Milestone commit hashes
 | Milestone | Commit |
@@ -20,6 +20,7 @@
 | 0.4.1 | `7c0c748` |
 | 0.5 | `a498ca3` |
 | 0.6 | `c05d2af` |
+| 0.7 | (this commit — see `git log`) |
 
 ### Completed milestones
 - ✅ **0.1** — Monorepo skeleton
@@ -29,9 +30,9 @@
 - ✅ **0.4.1** — Security hardening (helmet, env-driven CORS w/ credentials, global per-IP rate limiter + factory)
 - ✅ **0.5** — MongoDB Atlas connection (Mongoose 9, retry/backoff), readiness DB check (503 when down), graceful disconnect, Mongoose error normalization, schema conventions
 - ✅ **0.6** — Per-environment configuration strategy (Node-native layered `--env-file`, per-env + per-app templates, AD-14 production guards, pre-commit secret guard, Environment Guide). **Scoped to env only — domain/repository deferred to Phase 1 per AD-6.**
+- ✅ **0.7** — Auth foundation (jose JWT utils, `@node-rs/argon2` Argon2id, centralized RBAC in `@sajawat/shared`, `requireAuth`/`requireRole`/`requirePermission`, double-submit CSRF, auth rate limiter). **Stateless primitives + middleware only — endpoints/session store + User/Role models are Phase 1.**
 
 ### Pending milestones
-- ⏳ **0.7** — Auth foundation (JWT, Argon2, RBAC utilities)
 - ⏳ **0.8** — Docker (web/admin/api) + `pnpm deploy` images + compose
 - ⏳ **0.9** — Testing foundation (Vitest, Playwright, Supertest)
 - ⏳ **0.10** — CI/CD (GitHub Actions: Node 22 + Corepack, lint/typecheck/test/build, deploy)
@@ -45,7 +46,7 @@ infrastructure/{docker,deployment,monitoring,backups,scripts}
 ```
 
 ### Installed technologies
-Turborepo · pnpm · TypeScript · ESLint (flat + type-aware layer) · Prettier · Husky · commitlint · lint-staged · Next.js 16 · React 19 · Tailwind CSS v4 · **Express 5 · pino + pino-http · Zod · tsx (API foundation)** · **helmet · cors · express-rate-limit (0.4.1 security)** · **Mongoose 9 (0.5 MongoDB Atlas)**. (0.6 added **no** runtime deps — Node-native `--env-file`.)
+Turborepo · pnpm · TypeScript · ESLint (flat + type-aware layer) · Prettier · Husky · commitlint · lint-staged · Next.js 16 · React 19 · Tailwind CSS v4 · **Express 5 · pino + pino-http · Zod · tsx (API foundation)** · **helmet · cors · express-rate-limit (0.4.1 security)** · **Mongoose 9 (0.5 MongoDB Atlas)**. (0.6 added **no** runtime deps — Node-native `--env-file`.) · **jose · @node-rs/argon2 · cookie-parser (0.7 auth)**.
 
 ### Architecture decisions
 See `sajawat-current-architecture.md` §1–2 for the authoritative list (Turborepo, Node 22, pnpm, TS strict, ESM+NodeNext, Express 5, pino, Next/React/Tailwind, AD-1 role-based packages, project references, `workspace:*`, root ESLint, Conventional Commits, Zod validation).
@@ -69,13 +70,14 @@ See `sajawat-current-architecture.md` §1–2 for the authoritative list (Turbor
 - ESLint is a single root config; `turbo run lint` and `lint-staged` both resolve it.
 
 ### Known limitations
-- `services/api` runs as a real Express 5 server **and connects to MongoDB Atlas** (0.5); still no auth, business modules, tests, Docker, or CI.
-- No business collections/models yet (0.5 ships connection foundation + conventions only; first model lands in Phase 1).
+- `services/api` runs as a real Express 5 server, connects to MongoDB Atlas (0.5), and ships **auth primitives + middleware** (0.7); still no auth *endpoints*, business modules, tests, Docker, or CI.
+- Auth is stateless — **no session/refresh store yet** (D15): no server-side revocation/rotation until Phase 1.
+- No business collections/models yet (first `User`/`Role` model lands in Phase 1).
 - Apps contain default Next.js starter content.
 - Local toolchain runs on Node 25, not the contracted Node 22.
 
 ### Next recommended action
-Plan and implement **Milestone 0.7** (auth foundation): JWT access/refresh utilities, Argon2 password hashing utilities, an RBAC permission matrix, and an auth-specific rate-limit profile (reuse the 0.4.1 `createRateLimiter` factory). `JWT_*` secrets graduate to **required** env vars in `config/env.ts` (and are covered by the 0.6 production guards + secret guard). Still no UI. Reuse the 0.4 error hierarchy + logger and the 0.5 db foundation.
+Plan and implement **Milestone 0.8** (Docker): multi-stage Dockerfiles for `web`/`admin`/`api` on `node:22`, a `pnpm deploy`-pruned API image, and a `docker-compose.yml` (api + local MongoDB) for integrated local runs. Honor the Node 22 contract (addresses D1/D3), the 0.6 env strategy (platform env, no baked `.env`), and `@node-rs/argon2`'s prebuilt-binary advantage (no node-gyp toolchain needed in the image).
 
 ---
 
@@ -131,11 +133,17 @@ Plan and implement **Milestone 0.7** (auth foundation): JWT access/refresh utili
 - **Key decisions:** AD-11 Node-native, no dotenv; AD-12 base→per-env→`.env`→process.env precedence (empirically verified); AD-13 cloud uses Secret Manager, no container `.env`; AD-14 prod localhost guards; AD-15 Next-native loading + per-app templates. Naming standardized on `.env.<NODE_ENV>` with `.env` as optional local override.
 - **Verification:** typecheck + lint + build + format green (8/8). Live smoke: AD-14 prod+localhost → fail-fast (both violations, exit 1); AD-12 `.env` overrides `.env.development`, `process.env` beats both; secret guard blocks a staged `.env.development` but allows `.env.example`; `git add --dry-run` confirms per-app `.env.example` trackable while `.env.local` stays ignored.
 
+#### Milestone 0.7 — Auth foundation
+- **Goal:** Ship the stateless auth primitives + middleware (phase-0 "JWT/Password/Role utilities, no UI"). **No** auth endpoints, `User`/`Role`/session models, or OAuth/OTP/2FA (Phase 1).
+- **Implemented:** deps `jose ^6`, `@node-rs/argon2 ^2`, `cookie-parser ^1.4` (+ `@types`). **`@sajawat/shared/auth`:** RBAC catalog (`ROLES`, `PERMISSIONS`, `ROLE_PERMISSIONS`, `hasPermission`, `isRole`) + `passwordSchema` (added `zod` dep). **`services/api/auth`:** `jwt.ts` (sign/verify access+refresh, distinct secrets, `type` claim, iss/aud bound, refresh `jti`/`family`), `password.ts` (Argon2id), `cookies.ts` (refresh cookie httpOnly/Secure/SameSite=Strict), `rbac.ts` (bridge). **Middleware:** `auth.ts` (`requireAuth`/`requireRole`/`requirePermission`), `csrf.ts` (double-submit + constant-time compare), `rate-limit.ts` `authRateLimiter`. **Wiring:** `cookie-parser` in `app.ts`; `req.user` in `types/express.d.ts`; `*.otp` redaction. **Env:** `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` (required ≥32, distinct via superRefine), `JWT_ISSUER`/`JWT_AUDIENCE` (required), `JWT_*_EXPIRES_IN` defaults, `AUTH_RATE_LIMIT_*`.
+- **Key decisions:** AD-16 stateless only; AD-17 hybrid transport (Bearer access + httpOnly refresh cookie); AD-18 jose; AD-19 @node-rs/argon2; AD-20 centralized RBAC in shared, token carries role only; AD-21 distinct secrets + type claim + rotation-ready claims; AD-22 double-submit CSRF for cookie endpoints.
+- **Risks discovered / resolved:** `@node-rs/argon2` `Algorithm` is an ambient const enum (forbidden under `verbatimModuleSyntax`) → dropped explicit `algorithm`, rely on argon2id default with explicit cost params.
+- **Verification:** typecheck + lint (type-aware) + build + format green (8/8). Live smoke (9 checks): Argon2id hash/verify; access+refresh round-trips (jti/family preserved); type-confusion rejected both ways; tampered token rejected; RBAC matrix; env fail-fast on missing/short/identical secrets + missing iss/aud. **Resolves D11**; adds **D15** (stateless refresh — no revocation until Phase-1 store).
+
 ### Planned
 
 | Milestone | Goal (summary) |
 |-----------|----------------|
-| 0.7 | Auth foundation: JWT access/refresh utils, Argon2 password utils, RBAC permission matrix, rate-limit factory for auth. |
 | 0.8 | Dockerfiles (web/admin/api) multi-stage on `node:22`, `pnpm deploy` pruned API image, `docker-compose.yml`. |
 | 0.9 | Vitest (unit/integration), Supertest, Playwright e2e; Vitest `@sajawat/*`→`src` aliases; smoke-test NodeNext `.js` resolution. |
 | 0.10 | GitHub Actions: Node 22 + Corepack, install → lint → typecheck → test → build; staging auto / prod manual; enforce Node 22 (addresses D1). |
@@ -164,11 +172,11 @@ Authoritative copy in `sajawat-open-debt.md`. Open items:
 | D8 | Low | Residual placeholder scripts (api/web/admin `test`, config lint/typecheck). | Replace as capabilities land. | 0.9 |
 | D9 | Low | No git tags / release versioning. | Adopt tagging (see §6). | 0.10 |
 | D10 | Low | `services/api` `dist/` git-ignored; API not consumed by another workspace. | Accepted; revisit if imported elsewhere. | — |
-| D11 | Medium | No CSRF protection yet (security-design mandates it). Mitigated short-term by token-in-header auth (planned) + strict CORS allow-list; cookie-based sessions would need CSRF tokens. | Implement with the auth foundation. | 0.7 |
-| D13 | Low | `MONGODB_URI` now required (0.5) — tests/CI must each provide a URI. | `mongodb-memory-server` (0.9); Mongo service in CI (0.10). | 0.9 / 0.10 |
+| D13 | Low | Required env now includes `MONGODB_URI` (0.5) + `JWT_*` secrets (0.7) — tests/CI must each provide them. | test secrets + `mongodb-memory-server` (0.9); inject in CI (0.10). | 0.9 / 0.10 |
 | D14 | Low | Readiness 503 logs at error level (pino-http 5xx→error) — noisy under sustained DB outage. | Optionally downgrade/skip readiness-probe logging. | optional |
+| D15 | Medium | Stateless refresh tokens (0.7) — no server-side revocation/rotation until a Phase-1 session store; leaked refresh valid until expiry. Accepted. | Phase-1 session/refresh store (rotation + reuse-detection); claims already carry `jti`/`family`. | Phase 1 |
 
-(D6 — non-type-aware ESLint — **resolved in 0.4**: type-checked layer added for `services/api`. The helmet/cors/rate-limit gap flagged after 0.4 was **resolved in 0.4.1**; CSP remains a frontend concern, CSRF tracked as D11.)
+(D6 — non-type-aware ESLint — **resolved in 0.4**. helmet/cors/rate-limit gap **resolved in 0.4.1**. **D11 (CSRF) resolved in 0.7** via hybrid Bearer transport + double-submit guard. CSP remains a frontend concern (D12).)
 
 ---
 
@@ -179,12 +187,12 @@ Authoritative copy in `sajawat-open-debt.md`. Open items:
 - `admin/` — `@sajawat/admin` (Next 16, :3001): same layout (+ `.env.example`).
 
 ### services/
-- `api/` — `@sajawat/api` (Express 5, ESM/NodeNext): `src/{index,app}.ts`, `config/{env,logger}.ts`, `db/{connection,health,base-plugin,index}.ts`, `errors/app-error.ts`, `http/respond.ts`, `middleware/{request-logger,security,rate-limit,validate,not-found,error-handler}.ts`, `routes/health.routes.ts`, `types/express.d.ts`; `tsconfig.json` (node base, references shared, emits `dist`); `package.json` (dev `tsx watch`, `start`, `build`). Runs `/health` + `/api/v1/health` behind helmet + CORS + rate limiting; connects to MongoDB Atlas (Mongoose 9) at boot with DB-aware readiness.
+- `api/` — `@sajawat/api` (Express 5, ESM/NodeNext): `src/{index,app}.ts`, `config/{env,logger}.ts`, `db/{connection,health,base-plugin,index}.ts`, `auth/{jwt,password,cookies,rbac}.ts` (0.7), `errors/app-error.ts`, `http/respond.ts`, `middleware/{request-logger,security,rate-limit,validate,auth,csrf,not-found,error-handler}.ts`, `routes/health.routes.ts`, `types/express.d.ts`; `tsconfig.json` (node base, references shared, emits `dist`); `package.json`. Runs `/health` + `/api/v1/health` behind helmet + CORS + rate limiting + cookie-parser; connects to MongoDB Atlas (Mongoose 9). Auth utilities + middleware present; **endpoints Phase 1**.
 
 ### packages/
 - `ui/` — `@sajawat/ui` (source TSX): `src/index.ts`, `tsconfig.json` (react-library).
 - `types/` — `@sajawat/types` (type-only): `src/index.ts`, `tsconfig.json` (noEmit).
-- `shared/` — `@sajawat/shared` (compiled): `src/index.ts`, `tsconfig.json` (composite), emits `dist/`.
+- `shared/` — `@sajawat/shared` (compiled): `src/index.ts`, `src/auth/{roles,password-policy,index}.ts` (0.7 RBAC catalog + password policy; `zod` dep), `tsconfig.json` (composite), emits `dist/`.
 - `config/` — `@sajawat/config` (tooling): `prettier/index.js`, `eslint/{base,react}.mjs`, `typescript/{base,node,library,react-library,nextjs}.json`, `package.json` (exports map).
 
 ### docs/
@@ -257,6 +265,11 @@ Specs (source of truth): `sajawat-prd.md`, `-system-architecture.md`, `-database
 | express-rate-limit | 8.5.2 | per-IP rate limiting (0.4.1) |
 | @types/cors | 2.8.19 | (0.4.1) |
 | Mongoose | ^9.6.3 | MongoDB Atlas connection (0.5; bundles own TS types) |
+| jose | ^6.2.3 | JWT sign/verify (0.7; ESM-native) |
+| @node-rs/argon2 | ^2.0.2 | Argon2id password hashing (0.7; prebuilt) |
+| cookie-parser | ^1.4.7 | refresh/CSRF cookie parsing (0.7) |
+| @types/cookie-parser | ^1.4.10 | (0.7) |
+| zod (shared) | ^3 | RBAC password policy in `@sajawat/shared` (0.7) |
 
 ---
 
@@ -307,12 +320,12 @@ STEP 7 — WAIT for explicit approval before implementing. Then implement,
   file changes · what was implemented · key decisions · verification results ·
   remaining technical debt. Then stop.
 
-The next milestone to implement is 0.7 (auth foundation: JWT access/refresh
-utils, Argon2 password utils, RBAC permission matrix, auth rate-limit profile)
-unless told otherwise. 0.6 (per-environment configuration strategy) is complete;
-0.5 (MongoDB Atlas) is complete. Reuse the db/ module (connectToDatabase,
-baseSchemaPlugin), the centralized Mongoose error mapping, the 0.4 error
-hierarchy/logger, the 0.4.1 createRateLimiter factory, and the 0.6 env loading +
-production guards + secret guard. JWT_* secrets graduate to required in
-config/env.ts. Plan 0.7 before coding. Mongoose 9 is the approved baseline.
+The next milestone to implement is 0.8 (Docker: multi-stage Dockerfiles for
+web/admin/api on node:22, pnpm deploy-pruned API image, docker-compose with a
+local MongoDB) unless told otherwise. 0.7 (auth foundation) is complete — auth
+primitives live in services/api/auth + @sajawat/shared/auth; endpoints + session
+store + User/Role models are Phase 1. Honor the Node 22 contract (D1/D3), the 0.6
+env strategy (platform env, no baked .env), and @node-rs/argon2's prebuilt
+binaries (no node-gyp in the image). Plan 0.8 before coding. Mongoose 9 is the
+approved baseline.
 ```
