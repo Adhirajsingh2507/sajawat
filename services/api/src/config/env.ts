@@ -16,6 +16,9 @@ import { z } from 'zod';
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'staging', 'production', 'test']).default('development'),
   API_PORT: z.coerce.number().int().positive().max(65535).default(4000),
+  // Cloud Run / container platforms inject PORT; when present it wins over
+  // API_PORT (AD-27). Optional so local dev keeps using API_PORT.
+  PORT: z.coerce.number().int().positive().max(65535).optional(),
   API_BASE_URL: z.string().url().default('http://localhost:4000'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 

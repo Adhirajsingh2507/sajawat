@@ -4,8 +4,8 @@
 > the latest completed milestone. The aspirational/target specs remain in
 > `sajawat-system-architecture.md`; this file is the ground truth of what exists.
 
-- **As of:** Milestone 0.7 complete (auth foundation)
-- **Latest completed milestone:** 0.7 (JWT/Argon2/RBAC utilities, auth + CSRF middleware, auth rate limiter)
+- **As of:** Milestone 0.8 complete (Docker & local orchestration)
+- **Latest completed milestone:** 0.8 (multi-stage images for api/web/admin + docker-compose with mongo:7)
 - **Phase:** 0 — Foundation (infrastructure only; no business features — no auth *endpoints* yet)
 
 ---
@@ -39,6 +39,8 @@
 | Password hashing | **Argon2id via `@node-rs/argon2`** (prebuilt, no node-gyp) | Strong KDF; Docker/Cloud-Run friendly | ✅ Implemented (0.7) |
 | Authorization | **Centralized RBAC** catalog + matrix in `@sajawat/shared`; token carries role only | Single source; small tokens; typed `module:action` permissions | ✅ Implemented (0.7) |
 | CSRF | Bearer API CSRF-immune; **double-submit guard** for cookie endpoints | Resolves D11 | ✅ Implemented (0.7) |
+| Containers | **Multi-stage `node:22-bookworm-slim`**, non-root, `turbo prune` + `pnpm deploy` / Next `standalone` | Slim, hardened, Cloud-Run-ready images | ✅ Implemented (0.8) |
+| Local orchestration | **`docker-compose.yml`** (api+web+admin+`mongo:7`) — dev only | Integrated local runs + local MongoDB | ✅ Implemented (0.8) |
 | Payments | **Razorpay** behind a `PaymentProvider` abstraction | Provider-agnostic | ⏳ Phase 1 |
 | Messaging | **MSG91** (SMS) · **WhatsApp Business API** (Meta), provider-abstracted | Decided | ⏳ Phase 1 |
 | Caching | **Redis** — Phase 2, planned, not implemented | Cache-aside, never a correctness dependency | ⏳ Phase 2 |
@@ -259,7 +261,46 @@ identical secrets and missing iss/aud.
 
 ---
 
-## 11. Toolchain Provisioning Caveat
+## 11. Containerization & Local Orchestration (Milestone 0.8)
+
+Three independent, Cloud-Run-ready images; one process each, listening on
+**8080** in-container. Build from the repo root.
+
+| Image | Base | Build flow | Runtime |
+|-------|------|-----------|---------|
+| `api` | `node:22-bookworm-slim` | `turbo prune` → `pnpm install` (cached) → `turbo build` → **`pnpm deploy --prod`** | `node dist/index.js` |
+| `web` | same | prune → install → `next build` (**`output:'standalone'`**) | `node apps/web/server.js` |
+| `admin` | same | same | `node apps/admin/server.js` |
+
+**Decisions (AD-23…AD-30):** glibc/slim base (argon2 prebuilts; **not Alpine**);
+Next standalone + `outputFileTracingRoot`; API via `pnpm deploy`; `turbo prune
+--docker` + BuildKit pnpm-store cache mounts (manifest-first layering); **honor
+`$PORT`** (`env.PORT ?? API_PORT`; Next `HOSTNAME=0.0.0.0`); `NEXT_PUBLIC_*` are
+**build-args** → frontend images are environment-specific; compose is **local-dev
+only**; hardened (non-root `USER node`, no secrets baked, exec-form CMD for
+SIGTERM, `HEALTHCHECK` via Node `fetch`, `HUSKY=0`).
+
+**Cloud Run compatibility:** stateless, single port `$PORT`, JSON logs to stdout,
+SIGTERM-graceful. The API opens its port only **after** the Mongo connect, so the
+open socket is correct readiness — set a generous startup-probe timeout (DB
+connect budget). Dockerfile `HEALTHCHECK` serves compose/local; Cloud Run probes
+are configured in 0.10.
+
+**Compose:** `api + web + admin + mongo:7`, healthchecks, `init:true`,
+`depends_on: service_healthy`. API runs `NODE_ENV=staging` locally (skips the
+AD-14 localhost guard *and* the dev-only pino-pretty devDep absent from the
+`--prod` image). `NEXT_PUBLIC_API_BASE_URL=http://localhost:4000/api/v1`
+(browser-facing host URL, not the internal `api` hostname).
+
+**Verified (live):** all four services healthy; `/health` 200 on
+api(4000)/web(3000)/admin(3001); readiness `healthy` db=connected (**API→Mongo**);
+**Web→API** + **Admin→API** over the compose network; non-root (uid 1000) in all;
+argon2id loads in-container; SIGTERM → graceful drain. Image sizes: api 360MB,
+web/admin 401MB.
+
+---
+
+## 12. Toolchain Provisioning Caveat
 
 - **CI/Docker (Node 22):** Corepack enables pnpm 9.15.0 the documented way.
 - **This local machine (Node 25):** Corepack's bundled shim is incompatible with Node 25 (`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`); pnpm 9.15.0 was installed via an npm user-prefix instead. `engine-strict=false` so installs run on Node 25. The Node 22 contract is enforced in CI/Docker, advisory locally.

@@ -9,9 +9,9 @@
 
 - **Project:** Sajawat Jewellery — luxury jewelry e-commerce (B2C + B2B leads + CRM + admin).
 - **Current status:** Phase 0 (Foundation) in progress — infrastructure only, **no business features**.
-- **Current milestone:** **0.7 complete** (auth foundation — JWT/Argon2/RBAC utilities + middleware). Next up: **0.8 (Docker: web/admin/api multi-stage + compose)** — not yet planned.
-- **As of:** Milestone 0.7 commit on branch `main` (Phase 0 ~70% — 0.1–0.7 done; **0.8–0.10 remain**).
-- **Phase 0 status:** foundation in place — monorepo, TS, ESLint/Prettier, Express 5 API, security middleware, MongoDB Atlas, env strategy, **auth primitives**. Remaining: **0.8** Docker · **0.9** testing · **0.10** CI/CD. Mongoose 9 is the **approved baseline**. (Auth *endpoints*/session store + domain models are Phase 1.)
+- **Current milestone:** **0.8 complete** (Docker & local orchestration). Next up: **0.9 (testing foundation: Vitest, Supertest, Playwright)** — not yet planned.
+- **As of:** Milestone 0.8 commit on branch `main` (Phase 0 ~80% — 0.1–0.8 done; **0.9–0.10 remain**).
+- **Phase 0 status:** foundation in place — monorepo, TS, ESLint/Prettier, Express 5 API, security middleware, MongoDB Atlas, env strategy, auth primitives, **containerization (Docker + compose)**. Remaining: **0.9** testing · **0.10** CI/CD. Mongoose 9 is the **approved baseline**. (Auth endpoints/session store + domain models are Phase 1.)
 
 ### Milestone commit hashes
 | Milestone | Commit |
@@ -20,7 +20,8 @@
 | 0.4.1 | `7c0c748` |
 | 0.5 | `a498ca3` |
 | 0.6 | `c05d2af` |
-| 0.7 | (this commit — see `git log`) |
+| 0.7 | `805798e` |
+| 0.8 | (this commit — see `git log`) |
 
 ### Completed milestones
 - ✅ **0.1** — Monorepo skeleton
@@ -31,9 +32,9 @@
 - ✅ **0.5** — MongoDB Atlas connection (Mongoose 9, retry/backoff), readiness DB check (503 when down), graceful disconnect, Mongoose error normalization, schema conventions
 - ✅ **0.6** — Per-environment configuration strategy (Node-native layered `--env-file`, per-env + per-app templates, AD-14 production guards, pre-commit secret guard, Environment Guide). **Scoped to env only — domain/repository deferred to Phase 1 per AD-6.**
 - ✅ **0.7** — Auth foundation (jose JWT utils, `@node-rs/argon2` Argon2id, centralized RBAC in `@sajawat/shared`, `requireAuth`/`requireRole`/`requirePermission`, double-submit CSRF, auth rate limiter). **Stateless primitives + middleware only — endpoints/session store + User/Role models are Phase 1.**
+- ✅ **0.8** — Docker & local orchestration (multi-stage `node:22-bookworm-slim` images for api/web/admin via `turbo prune` + `pnpm deploy` / Next `standalone`; `docker-compose.yml` with `mongo:7`; `$PORT` Cloud Run support; non-root; health checks). Verified: full stack healthy, Web→API / Admin→API / API→Mongo, graceful shutdown.
 
 ### Pending milestones
-- ⏳ **0.8** — Docker (web/admin/api) + `pnpm deploy` images + compose
 - ⏳ **0.9** — Testing foundation (Vitest, Playwright, Supertest)
 - ⏳ **0.10** — CI/CD (GitHub Actions: Node 22 + Corepack, lint/typecheck/test/build, deploy)
 
@@ -46,7 +47,7 @@ infrastructure/{docker,deployment,monitoring,backups,scripts}
 ```
 
 ### Installed technologies
-Turborepo · pnpm · TypeScript · ESLint (flat + type-aware layer) · Prettier · Husky · commitlint · lint-staged · Next.js 16 · React 19 · Tailwind CSS v4 · **Express 5 · pino + pino-http · Zod · tsx (API foundation)** · **helmet · cors · express-rate-limit (0.4.1 security)** · **Mongoose 9 (0.5 MongoDB Atlas)**. (0.6 added **no** runtime deps — Node-native `--env-file`.) · **jose · @node-rs/argon2 · cookie-parser (0.7 auth)**.
+Turborepo · pnpm · TypeScript · ESLint (flat + type-aware layer) · Prettier · Husky · commitlint · lint-staged · Next.js 16 · React 19 · Tailwind CSS v4 · **Express 5 · pino + pino-http · Zod · tsx (API foundation)** · **helmet · cors · express-rate-limit (0.4.1 security)** · **Mongoose 9 (0.5 MongoDB Atlas)**. (0.6 added **no** runtime deps — Node-native `--env-file`.) · **jose · @node-rs/argon2 · cookie-parser (0.7 auth)**. (0.8 added **no** runtime deps — Docker multi-stage on `node:22-bookworm-slim`, `turbo prune` + `pnpm deploy` / Next `standalone`, `docker-compose` with `mongo:7`.)
 
 ### Architecture decisions
 See `sajawat-current-architecture.md` §1–2 for the authoritative list (Turborepo, Node 22, pnpm, TS strict, ESM+NodeNext, Express 5, pino, Next/React/Tailwind, AD-1 role-based packages, project references, `workspace:*`, root ESLint, Conventional Commits, Zod validation).
@@ -70,14 +71,14 @@ See `sajawat-current-architecture.md` §1–2 for the authoritative list (Turbor
 - ESLint is a single root config; `turbo run lint` and `lint-staged` both resolve it.
 
 ### Known limitations
-- `services/api` runs as a real Express 5 server, connects to MongoDB Atlas (0.5), and ships **auth primitives + middleware** (0.7); still no auth *endpoints*, business modules, tests, Docker, or CI.
+- `services/api` runs as a real Express 5 server, connects to MongoDB Atlas (0.5), ships **auth primitives + middleware** (0.7), and is **containerized** (0.8); still no auth *endpoints*, business modules, automated tests, or CI.
 - Auth is stateless — **no session/refresh store yet** (D15): no server-side revocation/rotation until Phase 1.
 - No business collections/models yet (first `User`/`Role` model lands in Phase 1).
 - Apps contain default Next.js starter content.
-- Local toolchain runs on Node 25, not the contracted Node 22.
+- Local (non-Docker) toolchain runs on Node 25; the **Docker images use the contracted Node 22** (Corepack pnpm).
 
 ### Next recommended action
-Plan and implement **Milestone 0.8** (Docker): multi-stage Dockerfiles for `web`/`admin`/`api` on `node:22`, a `pnpm deploy`-pruned API image, and a `docker-compose.yml` (api + local MongoDB) for integrated local runs. Honor the Node 22 contract (addresses D1/D3), the 0.6 env strategy (platform env, no baked `.env`), and `@node-rs/argon2`'s prebuilt-binary advantage (no node-gyp toolchain needed in the image).
+Plan and implement **Milestone 0.9** (testing foundation): Vitest (unit/integration) with `@sajawat/*`→`src` aliases and NodeNext `.js`-resolution smoke; Supertest against the `createApp()` factory; `mongodb-memory-server` + test JWT secrets (addresses D13); Playwright e2e scaffold. Convert the throwaway 0.7 auth smoke + 0.5/0.8 manual checks into real test suites and replace the placeholder `test` scripts (D8).
 
 ---
 
@@ -140,11 +141,16 @@ Plan and implement **Milestone 0.8** (Docker): multi-stage Dockerfiles for `web`
 - **Risks discovered / resolved:** `@node-rs/argon2` `Algorithm` is an ambient const enum (forbidden under `verbatimModuleSyntax`) → dropped explicit `algorithm`, rely on argon2id default with explicit cost params.
 - **Verification:** typecheck + lint (type-aware) + build + format green (8/8). Live smoke (9 checks): Argon2id hash/verify; access+refresh round-trips (jti/family preserved); type-confusion rejected both ways; tampered token rejected; RBAC matrix; env fail-fast on missing/short/identical secrets + missing iss/aud. **Resolves D11**; adds **D15** (stateless refresh — no revocation until Phase-1 store).
 
+#### Milestone 0.8 — Docker & local orchestration
+- **Goal:** Containerize all three deployables with Cloud-Run-ready, hardened multi-stage images + a local integrated stack. No business features.
+- **Implemented:** **No runtime deps.** 3 Dockerfiles in `infrastructure/docker/` (api/web/admin) on `node:22-bookworm-slim` (AD-23, glibc for argon2 prebuilts), Corepack pnpm. Build backbone: `turbo prune --docker` → manifest-first `pnpm install` (BuildKit store cache) → build. **API**: `pnpm deploy --prod` bundle, `node dist/index.js`. **Web/Admin**: Next `output: 'standalone'` (+`outputFileTracingRoot`), copy `standalone`+`static`+`public`. `$PORT` support (AD-27: `env.PORT ?? API_PORT`; Next `HOSTNAME=0.0.0.0`). Minimal `/health` routes in both apps. `.dockerignore`; root `docker-compose.yml` (api+web+admin+`mongo:7`, healthchecks, `init:true`, depends_on healthy). Non-root `USER node`, exec-form CMD, `HEALTHCHECK` via Node `fetch`, `HUSKY=0` in build.
+- **Key decisions:** AD-23 slim/glibc; AD-24 Next standalone; AD-25 pnpm deploy; AD-26 turbo prune + cache mounts; AD-27 `$PORT`; AD-28 `NEXT_PUBLIC_*` build-args (env-specific images); AD-29 compose local-only with `mongo:7`; AD-30 hardening. Compose API runs `NODE_ENV=staging` (avoids the AD-14 localhost guard *and* the dev-only pino-pretty devDep absent from the prod image).
+- **Verification:** repo gates green (8/8). Built all three (api 360MB, web/admin 401MB). `docker compose up`: all healthy; `/health` 200 on api(4000)/web(3000)/admin(3001); readiness `healthy` db=connected (**API→Mongo**); **Web→API** + **Admin→API** over the compose network 200/healthy; non-root (uid 1000) in all; argon2id loads in-container; SIGTERM → graceful "Drained HTTP + database; exiting".
+
 ### Planned
 
 | Milestone | Goal (summary) |
 |-----------|----------------|
-| 0.8 | Dockerfiles (web/admin/api) multi-stage on `node:22`, `pnpm deploy` pruned API image, `docker-compose.yml`. |
 | 0.9 | Vitest (unit/integration), Supertest, Playwright e2e; Vitest `@sajawat/*`→`src` aliases; smoke-test NodeNext `.js` resolution. |
 | 0.10 | GitHub Actions: Node 22 + Corepack, install → lint → typecheck → test → build; staging auto / prod manual; enforce Node 22 (addresses D1). |
 
@@ -183,8 +189,8 @@ Authoritative copy in `sajawat-open-debt.md`. Open items:
 ## 5. Repository Inventory
 
 ### apps/
-- `web/` — `@sajawat/web` (Next 16, :3000): `next.config.ts` (transpilePackages), `tsconfig.json` (extends nextjs base), `src/app/{layout,page}.tsx`, `postcss.config.mjs`, `.env.example` (0.6, `NEXT_PUBLIC_*`), `.gitignore` (`!.env.example`), `package.json`.
-- `admin/` — `@sajawat/admin` (Next 16, :3001): same layout (+ `.env.example`).
+- `web/` — `@sajawat/web` (Next 16, :3000): `next.config.ts` (transpilePackages + **`output:'standalone'`**, 0.8), `tsconfig.json`, `src/app/{layout,page}.tsx` + `src/app/health/route.ts` (0.8), `postcss.config.mjs`, `.env.example` (0.6, `NEXT_PUBLIC_*`), `.gitignore` (`!.env.example`), `package.json`.
+- `admin/` — `@sajawat/admin` (Next 16, :3001): same layout (+ `.env.example`, `health/route.ts`, standalone).
 
 ### services/
 - `api/` — `@sajawat/api` (Express 5, ESM/NodeNext): `src/{index,app}.ts`, `config/{env,logger}.ts`, `db/{connection,health,base-plugin,index}.ts`, `auth/{jwt,password,cookies,rbac}.ts` (0.7), `errors/app-error.ts`, `http/respond.ts`, `middleware/{request-logger,security,rate-limit,validate,auth,csrf,not-found,error-handler}.ts`, `routes/health.routes.ts`, `types/express.d.ts`; `tsconfig.json` (node base, references shared, emits `dist`); `package.json`. Runs `/health` + `/api/v1/health` behind helmet + CORS + rate limiting + cookie-parser; connects to MongoDB Atlas (Mongoose 9). Auth utilities + middleware present; **endpoints Phase 1**.
@@ -205,10 +211,10 @@ Specs (source of truth): `sajawat-prd.md`, `-system-architecture.md`, `-database
 - `e2e/`, `integration/`, `performance/` (`.gitkeep`; Playwright/Vitest/Supertest in 0.9).
 
 ### infrastructure/
-- `docker/`, `deployment/`, `monitoring/`, `backups/`, `scripts/` (`.gitkeep`; Docker in 0.8, CI deploy in 0.10).
+- `docker/` — **`api.Dockerfile`, `web.Dockerfile`, `admin.Dockerfile`** (0.8, multi-stage `node:22-bookworm-slim`). `deployment/`, `monitoring/`, `backups/`, `scripts/` (`.gitkeep`; CI deploy in 0.10).
 
 ### Root
-`package.json`, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig.json` (solution), `eslint.config.mjs`, `prettier.config.js`, `commitlint.config.cjs`, `.lintstagedrc.json`, `.npmrc`, `.nvmrc`, `.gitignore`, `.prettierignore`, `.env.example`, `README.md`, `CLAUDE.md`, `.husky/{pre-commit,commit-msg}`.
+`package.json`, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig.json` (solution), `eslint.config.mjs`, `prettier.config.js`, `commitlint.config.cjs`, `.lintstagedrc.json`, `.npmrc`, `.nvmrc`, `.gitignore`, `.prettierignore`, `.dockerignore` (0.8), `.env.example`, `docker-compose.yml` (0.8), `README.md`, `CLAUDE.md`, `.husky/{pre-commit,commit-msg}`. `scripts/check-staged-secrets.sh`.
 
 ---
 
@@ -320,12 +326,13 @@ STEP 7 — WAIT for explicit approval before implementing. Then implement,
   file changes · what was implemented · key decisions · verification results ·
   remaining technical debt. Then stop.
 
-The next milestone to implement is 0.8 (Docker: multi-stage Dockerfiles for
-web/admin/api on node:22, pnpm deploy-pruned API image, docker-compose with a
-local MongoDB) unless told otherwise. 0.7 (auth foundation) is complete — auth
-primitives live in services/api/auth + @sajawat/shared/auth; endpoints + session
-store + User/Role models are Phase 1. Honor the Node 22 contract (D1/D3), the 0.6
-env strategy (platform env, no baked .env), and @node-rs/argon2's prebuilt
-binaries (no node-gyp in the image). Plan 0.8 before coding. Mongoose 9 is the
-approved baseline.
+The next milestone to implement is 0.9 (testing foundation: Vitest unit/
+integration with @sajawat/*→src aliases + NodeNext .js-resolution smoke;
+Supertest against createApp(); mongodb-memory-server + test JWT secrets to
+address D13; Playwright e2e scaffold; replace placeholder `test` scripts (D8))
+unless told otherwise. 0.8 (Docker & local orchestration) is complete — images
+in infrastructure/docker/, root docker-compose.yml (api+web+admin+mongo:7).
+Reuse createApp() for Supertest, the 0.7 auth-smoke checks, and the 0.5/0.8
+manual health checks as the basis for real suites. Plan 0.9 before coding.
+Mongoose 9 is the approved baseline.
 ```

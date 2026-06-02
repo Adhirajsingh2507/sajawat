@@ -20,11 +20,10 @@ async function start(): Promise<void> {
   await connectToDatabase();
 
   const app = createApp();
-  server = app.listen(env.API_PORT, () => {
-    logger.info(
-      { port: env.API_PORT, baseUrl: env.API_BASE_URL, env: env.NODE_ENV },
-      '@sajawat/api listening',
-    );
+  // Honor the platform-injected PORT (Cloud Run); fall back to API_PORT locally.
+  const port = env.PORT ?? env.API_PORT;
+  server = app.listen(port, () => {
+    logger.info({ port, baseUrl: env.API_BASE_URL, env: env.NODE_ENV }, '@sajawat/api listening');
   });
 }
 

@@ -58,7 +58,21 @@
       "Bash(export JWT_ACCESS_SECRET=\"access-secret-aaaaaaaaaaaaaaaaaaaaaaaaaaaa\")",
       "Bash(export JWT_REFRESH_SECRET=\"refresh-secret-bbbbbbbbbbbbbbbbbbbbbbbbbbb\")",
       "Bash(export JWT_ISSUER=\"sajawat-api\")",
-      "Bash(export JWT_AUDIENCE=\"sajawat-clients\")"
+      "Bash(export JWT_AUDIENCE=\"sajawat-clients\")",
+      "Bash(docker --version)",
+      "Bash(docker buildx *)",
+      "Bash(docker compose *)",
+      "Bash(node -e \"const p=require\\('./apps/web/package.json'\\); console.log\\(JSON.stringify\\(p.dependencies\\)\\)\")",
+      "Bash(DOCKER_BUILDKIT=1 docker build -f infrastructure/docker/api.Dockerfile -t sajawat-api:0.8 .)",
+      "Bash(docker run *)",
+      "Bash(docker image *)",
+      "Bash(DOCKER_BUILDKIT=1 docker build -f infrastructure/docker/web.Dockerfile -t sajawat-web:0.8 .)",
+      "Bash(DOCKER_BUILDKIT=1 docker build -f infrastructure/docker/admin.Dockerfile -t sajawat-admin:0.8 .)",
+      "Bash(curl -s -w \" [%{http_code}]\\\\n\" http://localhost:4000/health)",
+      "Bash(curl -s -w \" [%{http_code}]\\\\n\" http://localhost:4000/api/v1/health)",
+      "Bash(curl -s -w \" [%{http_code}]\\\\n\" http://localhost:3000/health)",
+      "Bash(curl -s -w \" [%{http_code}]\\\\n\" http://localhost:3001/health)",
+      "Bash(cd *)"
     ]
   }
 }
