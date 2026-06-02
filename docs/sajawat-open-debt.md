@@ -3,7 +3,7 @@
 > Single source of truth for known, accepted debt and deferred work. Updated at
 > every milestone. "Open" = not yet resolved. Resolved items move to the bottom.
 
-- **As of commit:** Milestone 0.6 complete (per-environment configuration strategy)
+- **As of commit:** Milestone 0.6 complete (`c05d2af`, per-environment configuration strategy). Phase 0: 0.1–0.6 done; 0.7–0.10 remain.
 
 ## Open Debt
 

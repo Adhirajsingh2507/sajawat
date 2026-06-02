@@ -4,7 +4,7 @@
 > the latest completed milestone. The aspirational/target specs remain in
 > `sajawat-system-architecture.md`; this file is the ground truth of what exists.
 
-- **As of:** Milestone 0.6 complete (per-environment configuration strategy)
+- **As of:** Milestone 0.6 complete (per-environment configuration strategy) — commit `c05d2af`
 - **Latest completed milestone:** 0.6 (env loading layering, per-app templates, prod guards, secret guard, Environment Guide)
 - **Phase:** 0 — Foundation (infrastructure only; no business features)
 

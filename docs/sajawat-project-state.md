@@ -10,7 +10,16 @@
 - **Project:** Sajawat Jewellery — luxury jewelry e-commerce (B2C + B2B leads + CRM + admin).
 - **Current status:** Phase 0 (Foundation) in progress — infrastructure only, **no business features**.
 - **Current milestone:** **0.6 complete** (per-environment configuration strategy). Next up: **0.7 (auth foundation: JWT, Argon2, RBAC utilities)** — not yet planned.
-- **As of:** Milestone 0.6 commit on branch `main`.
+- **As of:** Milestone 0.6 commit `c05d2af` on branch `main` (Phase 0 ~60% — 0.1–0.6 done; **0.7–0.10 remain**).
+- **Phase 0 status:** infrastructure foundation in place — monorepo, TS, ESLint/Prettier, Express 5 API, security middleware, MongoDB Atlas, env strategy. Remaining: **0.7** auth foundation · **0.8** Docker · **0.9** testing · **0.10** CI/CD. Mongoose 9 is the **approved baseline**.
+
+### Milestone commit hashes
+| Milestone | Commit |
+|-----------|--------|
+| 0.4 | `388044f` |
+| 0.4.1 | `7c0c748` |
+| 0.5 | `a498ca3` |
+| 0.6 | `c05d2af` |
 
 ### Completed milestones
 - ✅ **0.1** — Monorepo skeleton
