@@ -89,7 +89,14 @@
       "Bash(MONGOMS_VERSION=__TRACKED_VAR__ pnpm --filter @sajawat/api exec vitest run test/integration/health.test.ts)",
       "Bash(pnpm --filter @sajawat/shared exec vitest run --coverage)",
       "Bash(pnpm --filter @sajawat/api exec vitest run --coverage)",
-      "Bash(pnpm test:e2e)"
+      "Bash(pnpm test:e2e)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\); console.log\\('packageManager:', p.packageManager\\); console.log\\('engines:', JSON.stringify\\(p.engines\\)\\)\")",
+      "Bash(python3 *)",
+      "Bash(node *)",
+      "Bash(pip install *)",
+      "Bash(git tag *)",
+      "Bash(git ls-remote *)",
+      "Bash(git push *)"
     ]
   }
 }
