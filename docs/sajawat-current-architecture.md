@@ -4,9 +4,9 @@
 > the latest completed milestone. The aspirational/target specs remain in
 > `sajawat-system-architecture.md`; this file is the ground truth of what exists.
 
-- **As of:** Milestone 0.9 complete (testing foundation)
-- **Latest completed milestone:** 0.9 (Vitest + Supertest + memory-server + Playwright; 63 tests green)
-- **Phase:** 0 — Foundation (infrastructure only; no business features — no auth *endpoints* yet)
+- **As of:** Milestone 0.10a complete (CI pipeline — GitHub Actions)
+- **Latest completed milestone:** 0.10a (CI gates + caching + coverage artifacts + Docker build validation; tags + branch reconciliation)
+- **Phase:** 0 — Foundation (infrastructure only; no business features — no auth *endpoints* yet). **CD (Cloud Run) deferred to 0.10b.**
 
 ---
 
@@ -42,6 +42,8 @@
 | Containers | **Multi-stage `node:22-bookworm-slim`**, non-root, `turbo prune` + `pnpm deploy` / Next `standalone` | Slim, hardened, Cloud-Run-ready images | ✅ Implemented (0.8) |
 | Local orchestration | **`docker-compose.yml`** (api+web+admin+`mongo:7`) — dev only | Integrated local runs + local MongoDB | ✅ Implemented (0.8) |
 | Testing | **Vitest** (unit+integration) + **Supertest** on `createApp()` + **mongodb-memory-server** + **Playwright** (chromium smoke) | Fast, hermetic, ESM-native; tests run against source | ✅ Implemented (0.9) |
+| CI | **GitHub Actions** (`.github/workflows/ci.yml`): Corepack pnpm, **Node 22 pinned + guarded**, frozen install, Turbo-driven `lint/typecheck/build/test(+coverage)`, chromium e2e smoke, Docker build validation; pnpm/Turbo/mongod/Playwright caching; coverage artifacts | One CI provider; reproducible; matches Docker provisioning (AD-39…AD-46) | ✅ Implemented (0.10a) |
+| CD | **Cloud Run + Artifact Registry + WIF + Secret Manager** (staging-auto / prod-manual) | Keyless OIDC, runtime secret injection, revision rollback (AD-47…AD-50) | ⏳ Deferred (0.10b) |
 | Payments | **Razorpay** behind a `PaymentProvider` abstraction | Provider-agnostic | ⏳ Phase 1 |
 | Messaging | **MSG91** (SMS) · **WhatsApp Business API** (Meta), provider-abstracted | Decided | ⏳ Phase 1 |
 | Caching | **Redis** — Phase 2, planned, not implemented | Cache-aside, never a correctness dependency | ⏳ Phase 2 |
@@ -347,3 +349,55 @@ required env (no real `.env`).
 
 - **CI/Docker (Node 22):** Corepack enables pnpm 9.15.0 the documented way.
 - **This local machine (Node 25):** Corepack's bundled shim is incompatible with Node 25 (`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`); pnpm 9.15.0 was installed via an npm user-prefix instead. `engine-strict=false` so installs run on Node 25. The Node 22 contract is enforced in CI/Docker, advisory locally.
+
+---
+
+## 14. CI Pipeline (Milestone 0.10a)
+
+GitHub Actions is the sole CI/CD provider (AD-39). One workflow today —
+`.github/workflows/ci.yml` — runs on every `pull_request` and every `push` to
+`main`/`develop`, with a `concurrency` group that cancels superseded runs and
+least-privilege `permissions: contents: read`. **CD (Cloud Run) is deferred to
+0.10b** and intentionally absent.
+
+**Jobs**
+
+| Job | Runner | Responsibility |
+|-----|--------|----------------|
+| `quality` | `ubuntu-22.04` | `corepack enable` → `setup-node` (`.nvmrc`, `cache: pnpm`) → **Node-22 guard** → `pnpm install --frozen-lockfile` → `turbo run lint typecheck build` → `turbo run test -- --coverage` → upload `coverage/` artifacts. |
+| `e2e` | `ubuntu-22.04` | Cached chromium Playwright; build `@sajawat/web`; run the smoke spec (homepage + `/health`). No Mongo needed. |
+| `docker` | `ubuntu-22.04` (matrix api/web/admin) | **Push events only.** `build-push-action` validates each 0.8 Dockerfile (`push: false`) with GHA layer cache (`type=gha`, per-service scope). |
+
+**Decisions (AD-39 … AD-46, AD-49 … AD-50; AD-47/48 are 0.10b):**
+- **AD-39** GitHub Actions as the single CI/CD provider.
+- **AD-40** Node 22 enforced via `setup-node` + `.nvmrc` **and** an explicit guard
+  step (fails if major ≠ 22). `engine-strict` stays `false` so local Node-25
+  installs still work — enforcement is a **CI runtime pin**, not a strict toggle.
+  **This is the D1 closure.**
+- **AD-41** **Corepack** activates pnpm 9.15.0 from `packageManager` — identical to
+  the 0.8 Docker path. Must run **before** `setup-node` (whose `cache: pnpm` needs
+  pnpm on PATH).
+- **AD-42** `pnpm install --frozen-lockfile` (lockfile authoritative; fail on drift).
+- **AD-43** **Turbo drives the gates** (`--cache-dir=.turbo`, restored via
+  `actions/cache`); Vercel Remote Cache deferred (no external token in Phase 0).
+- **AD-44** Coverage is uploaded as a **build artifact**; Vitest threshold floors
+  fail the job. No Codecov/third-party in Phase 0.
+- **AD-45** Gate jobs need **no real secrets** — `test/setup.ts` self-provisions
+  test env; only `MONGOMS_VERSION=6.0.14` is set (also keys the mongod binary
+  cache). **This is the CI-side D13 closure.**
+- **AD-46** Docker images are **build-validated** in CI (no push); push/deploy is
+  0.10b. GHA layer cache keeps rebuilds cheap.
+- **AD-49** (applies in 0.10b) frontend images are environment-specific
+  (`NEXT_PUBLIC_*` baked at build); the API image is env-agnostic.
+- **AD-50** (applies in 0.10b) branch→env mapping: PR ⇒ gates; `develop` ⇒ staging;
+  `main` ⇒ production behind a GitHub Environment with a required reviewer.
+
+**Caching:** pnpm store (`setup-node` `cache: pnpm`), Turbo (`.turbo`),
+`mongodb-binaries` (keyed on `MONGOMS_VERSION`), Playwright browsers
+(keyed on `pnpm-lock.yaml`), Docker layers (`type=gha`).
+
+**Release / branching (D9):** annotated `vX.Y.0-phase0` per milestone; the
+previously-untagged milestones (0.4.1 → 0.9) were retro-tagged at their recorded
+commits, plus `v0.10.0-phase0`. `develop` is fast-forwarded to `main` and both
+are pushed so the (0.10b) `develop`→staging mapping can fire. First production
+release `v1.0.0` at the end of Phase 1.

@@ -9,9 +9,9 @@
 
 - **Project:** Sajawat Jewellery — luxury jewelry e-commerce (B2C + B2B leads + CRM + admin).
 - **Current status:** Phase 0 (Foundation) in progress — infrastructure only, **no business features**.
-- **Current milestone:** **0.9 complete** (testing foundation). Next up: **0.10 (CI/CD: GitHub Actions)** — the final Phase-0 milestone — not yet planned.
-- **As of:** Milestone 0.9 commit on branch `main` (Phase 0 ~90% — 0.1–0.9 done; **0.10 remains**).
-- **Phase 0 status:** foundation in place — monorepo, TS, ESLint/Prettier, Express 5 API, security middleware, MongoDB Atlas, env strategy, auth primitives, containerization, **automated testing (Vitest + Supertest + memory-server + Playwright)**. Remaining: **0.10** CI/CD. Mongoose 9 is the **approved baseline**. (Auth endpoints/session store + domain models are Phase 1.)
+- **Current milestone:** **0.10a complete** (CI pipeline — GitHub Actions). Next up: **0.10b (CD: Cloud Run / Artifact Registry / WIF / Secret Manager)** — **deferred until GCP is provisioned**.
+- **As of:** Milestone 0.10a commit on branch `main` (Phase 0 ~95% — 0.1–0.9 + 0.10a done; **only 0.10b CD remains**).
+- **Phase 0 status:** foundation in place — monorepo, TS, ESLint/Prettier, Express 5 API, security middleware, MongoDB Atlas, env strategy, auth primitives, containerization, automated testing, **CI (GitHub Actions: gates + caching + coverage artifacts + Docker build validation)**. Remaining: **0.10b** Cloud Run CD (deferred — needs GCP). Mongoose 9 is the **approved baseline**. (Auth endpoints/session store + domain models are Phase 1.)
 
 ### Milestone commit hashes
 | Milestone | Commit |
@@ -22,7 +22,8 @@
 | 0.6 | `c05d2af` |
 | 0.7 | `805798e` |
 | 0.8 | `114cfcb` |
-| 0.9 | (this commit — see `git log`) |
+| 0.9 | `94e9fc6` |
+| 0.10a | (this commit — see `git log`) |
 
 ### Completed milestones
 - ✅ **0.1** — Monorepo skeleton
@@ -35,16 +36,17 @@
 - ✅ **0.7** — Auth foundation (jose JWT utils, `@node-rs/argon2` Argon2id, centralized RBAC in `@sajawat/shared`, `requireAuth`/`requireRole`/`requirePermission`, double-submit CSRF, auth rate limiter). **Stateless primitives + middleware only — endpoints/session store + User/Role models are Phase 1.**
 - ✅ **0.8** — Docker & local orchestration (multi-stage `node:22-bookworm-slim` images for api/web/admin via `turbo prune` + `pnpm deploy` / Next `standalone`; `docker-compose.yml` with `mongo:7`; `$PORT` Cloud Run support; non-root; health checks). Verified: full stack healthy, Web→API / Admin→API / API→Mongo, graceful shutdown.
 - ✅ **0.9** — Testing foundation (Vitest unit+integration, Supertest on `createApp()`, `mongodb-memory-server`, chromium Playwright smoke; shared base config with `.js`→`.ts` + `@sajawat/*`→src resolution; coverage floors on auth/errors). **61 Vitest + 2 Playwright = 63 tests green.** Retires D8 + the test-side of D13.
+- ✅ **0.10a** — CI pipeline (GitHub Actions `ci.yml`: Corepack pnpm, **Node 22 pinned + guarded**, frozen install, Turbo `lint/typecheck/build/test(+coverage)`, chromium e2e smoke, Docker build validation; pnpm/Turbo/mongod/Playwright caching; coverage artifacts). **Resolves D1 + D9 + CI-side D13.** Retro-tagged 0.4.1→0.9; reconciled `develop`. **No runtime/dev deps; no GCP.**
 
 ### Pending milestones
-- ⏳ **0.10** — CI/CD (GitHub Actions: Node 22 + Corepack, lint/typecheck/test/build, deploy)
+- ⏳ **0.10b** — CD (Cloud Run + Artifact Registry + WIF/OIDC + Secret Manager; staging-auto / prod-manual). **Deferred until GCP is provisioned** (tracked as D16).
 
 ### Repository structure (top level)
 ```
 apps/{web,admin}   services/api   packages/{ui,types,shared,config}
 docs/   scripts/   tests/{e2e,integration,performance}
 infrastructure/{docker,deployment,monitoring,backups,scripts}
-.husky/   .github/(pending 0.10)
+.husky/   .github/workflows/ (0.10a CI)
 ```
 
 ### Installed technologies
@@ -80,7 +82,7 @@ See `sajawat-current-architecture.md` §1–2 for the authoritative list (Turbor
 - Local (non-Docker) toolchain runs on Node 25; the **Docker images use the contracted Node 22** (Corepack pnpm).
 
 ### Next recommended action
-Plan and implement **Milestone 0.10** (CI/CD — the final Phase-0 milestone): GitHub Actions on **Node 22 + Corepack**, pipeline `install → lint → typecheck → test (+coverage) → build`; cache the pnpm store, Turbo, and the `mongodb-memory-server` binary (pin `MONGOMS_VERSION`); inject test/CI env (closes the **CI-side of D13**); enforce Node 22 (closes **D1**); optional chromium e2e job; staging auto / prod manual Cloud Run deploy (Secret Manager). Add git tags per milestone (**D9**).
+Implement **Milestone 0.10b** (CD — Cloud Run) once GCP is provisioned (tracked as **D16**): GCP project + **Workload Identity Federation** (OIDC, keyless), **Artifact Registry** repo, **Secret Manager** entries (`MONGODB_URI`, `JWT_*`), and least-privilege service accounts (separate CI-deployer SA from the Cloud Run runtime SA). Then author `deploy-staging.yml` (auto on `develop`) + `deploy-production.yml` (`main`, behind a GitHub Environment with a required reviewer): build env-specific frontend images + the env-agnostic API image, push to Artifact Registry (SHA tags), `gcloud run deploy --set-secrets`, deploy API→web→admin, post-deploy readiness gate, revision-based rollback. Region is a configurable workflow variable (decide at deploy time).
 
 ---
 
@@ -156,11 +158,19 @@ Plan and implement **Milestone 0.10** (CI/CD — the final Phase-0 milestone): G
 - **Verification:** typecheck + lint + build + format + test all green (Turbo). Coverage: shared auth 100%, api auth 87.9% / errors 92.6% (floors pass); moderate ~66% global (ratchet later). Playwright chromium smoke 2/2.
 - **Risks resolved in-flight:** memory-server default mongod 8.2.6 (ubuntu2404) **SIGSEGV** on this host → pinned `MONGOMS_VERSION=6.0.14` (overridable); type-aware lint vs Supertest `any`/unbound methods → test-file rule relaxations; NodeNext `.js`→`.ts` resolution → resolver plugin (proven by the green suites). Retires **D8**; retires test-side **D13**.
 
+#### Milestone 0.10a — CI pipeline (GitHub Actions)
+- **Goal:** Stand up the CI gate pipeline for every PR and push, enforce the Node 22 contract, cache aggressively, publish coverage, and validate the Docker images — **no GCP/CD** (split out to 0.10b). Reconcile tags (D9) and branches.
+- **Implemented:** `.github/workflows/ci.yml` (no deps). **`quality` job:** `corepack enable` → `setup-node` (`node-version-file: .nvmrc`, `cache: pnpm`) → **Node-22 guard** (fail if major ≠ 22) → `pnpm install --frozen-lockfile` → `pnpm exec turbo run lint typecheck build --cache-dir=.turbo` → `pnpm exec turbo run test --cache-dir=.turbo -- --coverage` → upload `coverage/` artifacts. **`e2e` job:** cached chromium Playwright → build `@sajawat/web` → smoke spec. **`docker` job:** push-events only, matrix api/web/admin, `build-push-action` (`push: false`) validating each 0.8 Dockerfile with GHA layer cache. `concurrency` cancels superseded runs; `permissions: contents: read`; `MONGOMS_VERSION=6.0.14` at workflow env.
+- **Key decisions:** AD-39 GitHub Actions sole provider; AD-40 Node 22 = setup-node + guard (engine-strict stays false; **D1 closure is a runtime pin**); AD-41 Corepack before setup-node; AD-42 frozen lockfile; AD-43 Turbo-driven gates + `.turbo` cache (remote cache deferred); AD-44 coverage artifacts + Vitest floors (no Codecov); AD-45 **no real secrets in gates** (test/setup.ts self-provisions; only `MONGOMS_VERSION`) → **CI-side D13 closure**; AD-46 Docker build-validated (push/deploy is 0.10b).
+- **Caching:** pnpm store (setup-node), Turbo (`.turbo`), `mongodb-binaries` (keyed on `MONGOMS_VERSION`), Playwright browsers (keyed on `pnpm-lock.yaml`), Docker layers (`type=gha`).
+- **Tags/branches (D9):** retro-tagged `v0.4.1-phase0`→`v0.9.0-phase0` at recorded commits + `v0.10.0-phase0`; `develop` fast-forwarded to `main` and both pushed.
+- **Resolves:** D1, D9, CI-side D13. **Adds:** D16 (CD deferred to 0.10b).
+
 ### Planned
 
 | Milestone | Goal (summary) |
 |-----------|----------------|
-| 0.10 | GitHub Actions: Node 22 + Corepack, install → lint → typecheck → test → build; staging auto / prod manual; enforce Node 22 (closes D1); CI env (closes D13); git tags (D9). |
+| 0.10b | CD: Cloud Run + Artifact Registry + WIF/OIDC + Secret Manager; build env-specific frontend + env-agnostic API images, SHA-tagged push, `gcloud run deploy --set-secrets`; staging-auto (`develop`) / prod-manual (`main`, required reviewer); post-deploy readiness gate; revision rollback. Needs GCP provisioned (D16). |
 
 ---
 
@@ -178,18 +188,16 @@ Authoritative copy in `sajawat-open-debt.md`. Open items:
 
 | ID | Severity | Description | Planned Resolution | Milestone |
 |----|----------|-------------|--------------------|-----------|
-| D1 | Medium | `engine-strict=false`; Node 22 advisory locally. | Enforce in CI/Docker. | 0.10 |
-| D3 | Low | Local pnpm via npm prefix (Corepack broken on Node 25). | Documented; CI uses Corepack. | — |
+| D3 | Low | Local pnpm via npm prefix (Corepack broken on Node 25). | Documented; CI/Docker use Corepack. | — |
 | D4 | Low | Next.js starter boilerplate in apps. | Replace at Phase 1 UI. | Phase 1 |
 | D5 | Low | `.prettierignore` excludes all Markdown. | Optionally narrow scope. | optional |
 | D7 | Low | `@sajawat/config` lint-exempt. | Accepted. | — |
-| D13 | Low | **CI-side only** now: the 0.10 CI must inject env/secrets + pin `MONGOMS_VERSION`. (Test-side retired in 0.9 — the harness self-provisions via `test/setup.ts` + memory-server.) | Inject in the 0.10 CI matrix. | 0.10 |
-| D9 | Low | No git tags / release versioning. | Adopt tagging (see §6). | 0.10 |
 | D10 | Low | `services/api` `dist/` git-ignored; API not consumed by another workspace. | Accepted; revisit if imported elsewhere. | — |
 | D14 | Low | Readiness 503 logs at error level (pino-http 5xx→error) — noisy under sustained DB outage. | Optionally downgrade/skip readiness-probe logging. | optional |
 | D15 | Medium | Stateless refresh tokens (0.7) — no server-side revocation/rotation until a Phase-1 session store; leaked refresh valid until expiry. Accepted. | Phase-1 session/refresh store (rotation + reuse-detection); claims already carry `jti`/`family`. | Phase 1 |
+| D16 | Low | **CD not implemented.** No Cloud Run / Artifact Registry / WIF / Secret Manager deploy workflows; CI build-validates images but never pushes/deploys. | Implement 0.10b once GCP is provisioned. | 0.10b |
 
-(D6 — non-type-aware ESLint — **resolved in 0.4**. helmet/cors/rate-limit gap **resolved in 0.4.1**. **D11 (CSRF) resolved in 0.7**. **D8 (placeholder `test` scripts) resolved in 0.9** — all three now `vitest run`; only the accepted `@sajawat/config` lint/typecheck stubs remain (D7). CSP remains a frontend concern (D12).)
+(D6 — non-type-aware ESLint — **resolved in 0.4**. helmet/cors/rate-limit gap **resolved in 0.4.1**. **D11 (CSRF) resolved in 0.7**. **D8 (placeholder `test` scripts) resolved in 0.9**. **D1 (Node-22 enforcement), D9 (tags/releases), and CI-side D13 (CI env/secrets) resolved in 0.10a.** Only the accepted `@sajawat/config` lint/typecheck stubs remain (D7). CSP remains a frontend concern (D12).)
 
 ---
 
@@ -218,34 +226,26 @@ Specs (source of truth): `sajawat-prd.md`, `-system-architecture.md`, `-database
 - `e2e/smoke.spec.ts` (0.9 Playwright chromium smoke); `integration/`, `performance/` (`.gitkeep`). Unit/integration live colocated per package; root `playwright.config.ts` + `tests/e2e`.
 
 ### infrastructure/
-- `docker/` — **`api.Dockerfile`, `web.Dockerfile`, `admin.Dockerfile`** (0.8, multi-stage `node:22-bookworm-slim`). `deployment/`, `monitoring/`, `backups/`, `scripts/` (`.gitkeep`; CI deploy in 0.10).
+- `docker/` — **`api.Dockerfile`, `web.Dockerfile`, `admin.Dockerfile`** (0.8, multi-stage `node:22-bookworm-slim`). `deployment/`, `monitoring/`, `backups/`, `scripts/` (`.gitkeep`; Cloud Run deploy scripts land in 0.10b).
+
+### .github/
+- `workflows/ci.yml` (0.10a — GitHub Actions: `quality` + `e2e` + `docker` jobs). Deploy workflows (`deploy-staging.yml`, `deploy-production.yml`) land in 0.10b.
 
 ### Root
-`package.json`, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig.json` (solution), `eslint.config.mjs`, `prettier.config.js`, `commitlint.config.cjs`, `.lintstagedrc.json`, `.npmrc`, `.nvmrc`, `.gitignore`, `.prettierignore`, `.dockerignore` (0.8), `.env.example`, `docker-compose.yml` (0.8), `playwright.config.ts` (0.9), `README.md`, `CLAUDE.md`, `.husky/{pre-commit,commit-msg}`. `scripts/check-staged-secrets.sh`.
+`package.json`, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig.json` (solution), `eslint.config.mjs`, `prettier.config.js`, `commitlint.config.cjs`, `.lintstagedrc.json`, `.npmrc`, `.nvmrc`, `.gitignore`, `.prettierignore`, `.dockerignore` (0.8), `.env.example`, `docker-compose.yml` (0.8), `playwright.config.ts` (0.9), `.github/workflows/ci.yml` (0.10a), `README.md`, `CLAUDE.md`, `.husky/{pre-commit,commit-msg}`. `scripts/check-staged-secrets.sh`.
 
 ---
 
 ## 6. Git Snapshot
 
 - **Current branch:** `main`
-- **Tags:** none
-- **Working tree (before this handoff commit):** clean; the only changes are these three handoff docs.
-- **Latest commits (3 exist):**
-  ```
-  6df12ff feat(config): milestone 0.3 eslint flat config, zero-warning, workspace-wide lint
-  c301edc feat(repo): milestone 0.2 typescript foundation, project refs, commit hygiene
-  2e3fe4d chore(phase-0): milestone 0.1 monorepo skeleton
-  ```
-- **Uncommitted / modified / staged:** only `docs/sajawat-project-state.md`, `docs/sajawat-current-architecture.md`, `docs/sajawat-open-debt.md` (this handoff).
-- **`develop` branch:** created in 0.1; `main` is currently ahead (milestone commits landed on `main`). Recommend reconciling before team workflow (see below).
+- **Tags (D9 — resolved in 0.10a):** one annotated `vX.Y.0-phase0` per milestone — `v0.1.0`…`v0.4.0`, `v0.4.1`, `v0.5.0`, `v0.6.0`, `v0.7.0`, `v0.8.0`, `v0.9.0`, `v0.10.0-phase0`. First production release `v1.0.0` at the end of Phase 1.
+- **Remote:** `origin = github.com:Adhirajsingh2507/sajawat`. `main`, `develop`, and tags pushed.
+- **`develop` branch:** fast-forwarded to `main` in 0.10a and pushed; the (0.10b) `develop`→staging mapping can now fire.
 
-### Recommended tagging strategy (D9)
-- **Scheme:** SemVer-ish phase tags during Phase 0: `v0.1.0-phase0`, `v0.2.0-phase0`, `v0.3.0-phase0`, … one annotated tag per completed milestone. First production release at end of Phase 1 → `v1.0.0`.
-- **Action now:** tag the three completed milestones retroactively:
-  - `git tag -a v0.1.0-phase0 2e3fe4d -m "Milestone 0.1"`
-  - `git tag -a v0.2.0-phase0 c301edc -m "Milestone 0.2"`
-  - `git tag -a v0.3.0-phase0 6df12ff -m "Milestone 0.3"`
-- **Branching going forward:** land milestone work on `feature/*` → PR into `develop` → release into `main` (per deployment-plan). Reconcile the current `main`-ahead state by fast-forwarding `develop` to `main` once.
+### Tagging strategy (D9 — implemented in 0.10a)
+- **Scheme:** annotated phase tags `vX.Y.0-phase0` (patches like `v0.4.1-phase0`), one per milestone. First production release `v1.0.0` at end of Phase 1; CI may cut a GitHub Release on tag push (optional, 0.10b+).
+- **Branching going forward:** land milestone work on `feature/*` → PR into `develop` (CI gates + 0.10b staging) → release into `main` (0.10b production behind a required reviewer), per deployment-plan.
 
 ---
 
@@ -338,13 +338,19 @@ STEP 7 — WAIT for explicit approval before implementing. Then implement,
   file changes · what was implemented · key decisions · verification results ·
   remaining technical debt. Then stop.
 
-The next milestone to implement is 0.10 (CI/CD — the final Phase-0 milestone):
-GitHub Actions on Node 22 + Corepack; pipeline install → lint → typecheck →
-test (+coverage) → build; cache pnpm store / Turbo / the memory-server binary
-(pin MONGOMS_VERSION=6.0.14); inject CI env (closes CI-side D13); enforce Node 22
-(closes D1); optional chromium e2e job; staging-auto / prod-manual Cloud Run
-deploy via Secret Manager; git tags per milestone (D9). 0.9 (testing foundation)
-is complete — `turbo run test` green (61 Vitest + 2 Playwright); coverage via
-`pnpm test:coverage`; e2e via `pnpm test:e2e`. Plan 0.10 before coding. Mongoose
-9 is the approved baseline.
+The next milestone to implement is 0.10b (CD — Cloud Run), DEFERRED until GCP is
+provisioned (tracked as D16). 0.10a (CI) is complete: `.github/workflows/ci.yml`
+runs Corepack pnpm, Node 22 (pinned via .nvmrc + a guard step), frozen install,
+Turbo lint/typecheck/build/test(+coverage), chromium e2e smoke, and Docker build
+validation; caching covers pnpm/Turbo/mongod (MONGOMS_VERSION=6.0.14)/Playwright;
+coverage is uploaded as an artifact. D1, D9, and CI-side D13 are resolved.
+For 0.10b: provision the GCP project + Workload Identity Federation (OIDC,
+keyless) + Artifact Registry + Secret Manager (MONGODB_URI, JWT_*) + least-
+privilege service accounts (separate CI-deployer from Cloud Run runtime SA), then
+author deploy-staging.yml (auto on develop) + deploy-production.yml (main, behind
+a GitHub Environment with a required reviewer): build env-specific frontend +
+env-agnostic API images, SHA-tagged push, gcloud run deploy --set-secrets, deploy
+API→web→admin, post-deploy readiness gate, revision rollback. Region is a
+configurable workflow variable. Plan 0.10b before coding. Mongoose 9 is the
+approved baseline.
 ```
