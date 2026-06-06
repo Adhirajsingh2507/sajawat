@@ -522,6 +522,16 @@ closed if omitted). App secrets come from Secret Manager via the `api-run`
 runtime SA; **no** GitHub secrets, **no** long-lived keys, nothing secret in
 logs. `JWT_ISSUER`/`JWT_AUDIENCE` are plain env vars (AD-52).
 
+**Legacy secret-type conversion.** The hand-deployed staging service bound
+`JWT_ISSUER`/`JWT_AUDIENCE` as *secret* env vars; Cloud Run rejects changing a
+key's TYPE in place (`…already been set with a different type`). The deploy step
+therefore inspects the existing service (via `jq` on `--format=json`) for those
+two keys bound as secrets and, if found, drops the binding with
+`--remove-secrets` **in the same `--no-traffic` candidate revision** that sets the
+literals — so the live revision is never mutated and a fresh service is a no-op.
+AD-52 (plain env vars) is preserved; the public issuer/audience values are not
+promoted into Secret Manager.
+
 **Branch hygiene:** `develop` was re-synced to `main` (`eeb6c00`) before authoring
 so the `develop` trigger reflects current code (target topology: `main` source of
 truth → `develop` synced → feature branches off `develop`).
@@ -578,7 +588,9 @@ required-reviewer gate — the reviewer gate is thus enforced at the **identity
 layer** (a compromised workflow cannot mint the prod claim without a human
 approving the job). App secrets come from production Secret Manager via the
 `api-run` runtime SA; **no** GitHub secrets, **no** long-lived keys, nothing
-secret in logs. `JWT_ISSUER`/`JWT_AUDIENCE` remain plain env vars (AD-52).
+secret in logs. `JWT_ISSUER`/`JWT_AUDIENCE` remain plain env vars (AD-52); the
+candidate-deploy step carries the same legacy secret→literal conversion guard as
+staging (§17), so production cannot hit the Cloud Run type conflict.
 
 **Required `production` Environment configuration:** required reviewer(s);
 deployment policy restricted to **tags matching `v*`**; variables `GCP_PROJECT_ID`,

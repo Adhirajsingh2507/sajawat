@@ -107,6 +107,28 @@ jobs:
           set -euo pipefail
 
           echo "Deploying $IMAGE to $SERVICE (no traffic, tag=candidate)…"
+
+          # AD-52: JWT_ISSUER/JWT_AUDIENCE are PLAIN env vars (non-secret public
+          # identifiers). A pre-existing revision (e.g. the hand-deployed staging
+          # service) may bind them as SECRET env vars; Cloud Run refuses to change
+          # a key's TYPE in place ("...already been set with a different type").
+          # Detect any such legacy secret binding and drop it in the SAME
+          # --no-traffic revision we set the literals in — the live serving
+          # revision is never mutated. Fresh service => detection is a no-op.
+          CONVERT=()
+          if gcloud run services describe "$SERVICE" \
+               --region="$REGION" --project="$PROJECT" --format=json >/tmp/svc.json 2>/dev/null; then
+            STALE="$(jq -r '
+              [.spec.template.spec.containers[].env[]?
+                 | select(.valueFrom != null) | .name]
+              | map(select(. == "JWT_ISSUER" or . == "JWT_AUDIENCE"))
+              | unique | join(",")' /tmp/svc.json)"
+            if [ -n "$STALE" ]; then
+              echo "Converting legacy secret-backed env vars to plain literals (AD-52): $STALE"
+              CONVERT+=("--remove-secrets=$STALE")
+            fi
+          fi
+
           gcloud run deploy "$SERVICE" \
             --image="$IMAGE" \
             --region="$REGION" --project="$PROJECT" \
@@ -114,6 +136,7 @@ jobs:
             --no-traffic --tag=candidate \
             --allow-unauthenticated \
             --min-instances=0 \
+            "${CONVERT[@]}" \
             --set-secrets="MONGODB_URI=MONGODB_URI:latest,JWT_ACCESS_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest" \
             --set-env-vars="NODE_ENV=staging,JWT_ISSUER=${JWT_ISSUER},JWT_AUDIENCE=${JWT_AUDIENCE},CORS_ORIGINS=${CORS_ORIGINS},API_BASE_URL=${API_BASE_URL}"
 
