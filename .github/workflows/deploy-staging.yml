@@ -1,0 +1,148 @@
+# Deploy — staging (Milestone 0.10b.2) · API ONLY
+#
+# SCOPE DECISION (AD-54): apps/web and apps/admin are still unmodified
+# create-next-app starter boilerplate (D4) — no product UI, no Cloud Run
+# services. Deploying them now (env-specific images, NEXT_PUBLIC wiring,
+# per-service readiness/traffic-shift) would be placeholder complexity with no
+# product value. Frontend deploy automation lands with the Phase-1 web (1.4) and
+# admin (1.7) UIs; adding them to this workflow later is incremental.
+#
+# Trigger: every push to develop (after the shared quality gate passes) + manual
+# dispatch. Auth is keyless via Workload Identity Federation (0.10b.1): the job
+# declares `environment: staging`, so the OIDC token carries the environment
+# claim the deployer-SA binding requires. Deploys by IMMUTABLE DIGEST with a
+# no-traffic readiness gate before shifting traffic, so a bad revision never
+# serves users. D16 stays OPEN until 0.10b.3 adds production CD + rollback.
+#
+# Prerequisites (operator): 0.10b.1 provisioned on sajawat-staging
+# (provision.sh + verify.sh green), secret VALUES injected, and the `staging`
+# GitHub Environment populated with the variables referenced below.
+
+name: Deploy (staging)
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch: {}
+
+# Never cancel an in-flight deploy; queue the next one.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # required to mint the WIF OIDC token
+
+jobs:
+  # Same gate set as CI — never deploy code that hasn't passed lint/type/build/test.
+  verify:
+    name: Quality gate
+    uses: ./.github/workflows/_quality.yml
+
+  build:
+    name: Build & push API image
+    needs: verify
+    runs-on: ubuntu-22.04
+    environment: staging # binds the OIDC `environment` claim -> WIF deployer SA
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (WIF, keyless)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push API image (SHA-tagged)
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infrastructure/docker/api.Dockerfile
+          push: true
+          tags: ${{ vars.GCP_AR_IMAGE_PREFIX }}/api:${{ github.sha }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+  deploy:
+    name: Deploy API to Cloud Run (staging)
+    needs: build
+    runs-on: ubuntu-22.04
+    environment: staging
+    steps:
+      - name: Authenticate to Google Cloud (WIF, keyless)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy (no traffic) → readiness gate → shift traffic
+        env:
+          SERVICE: ${{ vars.API_SERVICE }}
+          REGION: ${{ vars.GCP_REGION }}
+          PROJECT: ${{ vars.GCP_PROJECT_ID }}
+          IMAGE: ${{ vars.GCP_AR_IMAGE_PREFIX }}/api@${{ needs.build.outputs.digest }}
+          RUNTIME_SA: ${{ vars.API_RUNTIME_SA }}
+          JWT_ISSUER: ${{ vars.APP_JWT_ISSUER }}
+          JWT_AUDIENCE: ${{ vars.APP_JWT_AUDIENCE }}
+          CORS_ORIGINS: ${{ vars.APP_CORS_ORIGINS }}
+          API_BASE_URL: ${{ vars.APP_API_BASE_URL }}
+        run: |
+          set -euo pipefail
+
+          echo "Deploying $IMAGE to $SERVICE (no traffic, tag=candidate)…"
+          gcloud run deploy "$SERVICE" \
+            --image="$IMAGE" \
+            --region="$REGION" --project="$PROJECT" \
+            --service-account="$RUNTIME_SA" \
+            --no-traffic --tag=candidate \
+            --allow-unauthenticated \
+            --min-instances=0 \
+            --set-secrets="MONGODB_URI=MONGODB_URI:latest,JWT_ACCESS_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest" \
+            --set-env-vars="NODE_ENV=staging,JWT_ISSUER=${JWT_ISSUER},JWT_AUDIENCE=${JWT_AUDIENCE},CORS_ORIGINS=${CORS_ORIGINS},API_BASE_URL=${API_BASE_URL}"
+
+          BASE_URL="$(gcloud run services describe "$SERVICE" \
+            --region="$REGION" --project="$PROJECT" --format='value(status.url)')"
+          # Cloud Run tag URL pattern: https://TAG---SERVICE-HASH.run.app
+          CANDIDATE_URL="https://candidate---${BASE_URL#https://}"
+          echo "Candidate revision URL: $CANDIDATE_URL"
+
+          echo "Readiness gate: GET $CANDIDATE_URL/api/v1/health (expect 200; 503 while DB not ready)…"
+          ok=0
+          for i in $(seq 1 30); do
+            code="$(curl -s -o /tmp/health.json -w '%{http_code}' "$CANDIDATE_URL/api/v1/health" || true)"
+            if [ "$code" = "200" ]; then
+              echo "Healthy on attempt $i:"; cat /tmp/health.json; echo
+              ok=1; break
+            fi
+            echo "attempt $i/30: HTTP ${code:-000}; retrying in 5s…"
+            sleep 5
+          done
+
+          if [ "$ok" != "1" ]; then
+            echo "::error::Readiness gate FAILED — candidate unhealthy. Traffic NOT shifted; previous revision still serves."
+            exit 1
+          fi
+
+          echo "Shifting 100% traffic to the candidate revision…"
+          gcloud run services update-traffic "$SERVICE" \
+            --region="$REGION" --project="$PROJECT" \
+            --to-tags=candidate=100
+
+          echo "✓ Deploy complete. Live URL: $BASE_URL"

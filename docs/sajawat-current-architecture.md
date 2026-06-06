@@ -49,6 +49,9 @@
 | CD identity | **Keyless WIF/OIDC**, repo-pinned, bound on GitHub Environment claim; per-service runtime SAs (only `api-run` reads secrets); least-privilege deployer SA | No long-lived keys; prod reviewer gate enforced at the identity layer (AD-48, AD-50, AD-51) | 🚧 Scripted (0.10b.1) |
 | CD secrets | **Secret Manager** for `MONGODB_URI`/`JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` (values injected out-of-band via stdin); `JWT_ISSUER`/`JWT_AUDIENCE` plain Cloud Run env vars | Secrets never in git/argv/CI logs (AD-52) | 🚧 Containers scripted (0.10b.1) |
 | CD tooling | **Idempotent gcloud scripts** (not Terraform), per-env config | Reproducible, low-overhead, operator-runnable (AD-53) | 🚧 Implemented (0.10b.1) |
+| CD scope (staging) | **API-only** staging deploy workflow; web/admin deferred | web/admin are starter boilerplate (D4) with no Cloud Run targets — no placeholder deploys (AD-54) | 🚧 Authored (0.10b.2) |
+| CD safety | **Deploy by digest**, `--no-traffic --tag=candidate` → readiness gate → traffic shift | A bad revision never serves; rollback is the default state (AD-55) | 🚧 Authored (0.10b.2) |
+| CI/CD DRY | **Reusable `_quality.yml`** gate shared by CI + staging deploy | One gate definition; deploy can't drift from CI | ✅ Implemented (0.10b.2) |
 | Payments | **Razorpay** behind a `PaymentProvider` abstraction | Provider-agnostic | ⏳ Phase 1 |
 | Messaging | **MSG91** (SMS) · **WhatsApp Business API** (Meta), provider-abstracted | Decided | ⏳ Phase 1 |
 | Caching | **Redis** — Phase 2, planned, not implemented | Cache-aside, never a correctness dependency | ⏳ Phase 2 |
@@ -480,3 +483,46 @@ provider/binding + prints the GitHub variables), `provision.sh <env>`
 **Outputs for 0.10b.2/0.10b.3** (printed by `05`, recorded as non-secret GitHub
 variables): `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_WIF_PROVIDER`,
 `GCP_DEPLOYER_SA`, `GCP_AR_IMAGE_PREFIX`.
+
+---
+
+## 17. CD — Staging Deploy Workflow (Milestone 0.10b.2, API-only)
+
+> **Status:** workflows authored + statically validated (`actionlint 1.7.7`,
+> embedded `shellcheck`, YAML parse, `bash -n` — all clean); **not yet activated**
+> (needs 0.10b.1 run, secret values injected, and the `staging` GitHub
+> Environment populated). **D16 stays open** (production CD + rollback is 0.10b.3).
+
+**Scope decision (AD-54 — API-only).** `apps/web`/`apps/admin` are unmodified
+`create-next-app` starter pages (D4) with no product UI and no Cloud Run
+services. Per "no placeholder deployment complexity to satisfy future
+architecture," the staging workflow deploys **the API only**. Frontend deploy
+automation lands with the Phase-1 web (1.4) / admin (1.7) UIs; the workflow is
+structured so adding them later is incremental (a parallel build + a deploy
+block), not a rewrite.
+
+**Files (`.github/workflows/`):**
+- `_quality.yml` — **reusable** (`workflow_call`) lint/typecheck/build/test gate, extracted from the 0.10a `ci.yml` and shared by both `ci.yml` and `deploy-staging.yml` (one definition, zero drift). Carries the `MONGOMS_VERSION` pin and `contents: read`.
+- `ci.yml` — refactored: its `quality` job now `uses: ./.github/workflows/_quality.yml`; `e2e` + `docker` unchanged.
+- `deploy-staging.yml` — three jobs: **verify** (`uses: _quality.yml`) → **build** → **deploy**.
+
+**Pipeline (`deploy-staging.yml`):**
+- **Trigger:** `push: develop` (+ `workflow_dispatch`). `concurrency: deploy-staging`, `cancel-in-progress: false` (queue, never half-deploy). `permissions: contents: read` + `id-token: write`.
+- **build** (`environment: staging`): WIF auth (`google-github-actions/auth@v2` with `vars.GCP_WIF_PROVIDER` + `vars.GCP_DEPLOYER_SA`) → `gcloud auth configure-docker` → `docker/build-push-action@v6` builds `infrastructure/docker/api.Dockerfile` from repo root, pushes `…/api:<git-sha>`, exposes the `@sha256` **digest** as a job output.
+- **deploy** (`environment: staging`): WIF auth → `gcloud run deploy $API_SERVICE --image …/api@<digest> --service-account api-run --no-traffic --tag=candidate --allow-unauthenticated --min-instances=0 --set-secrets MONGODB_URI/JWT_ACCESS_SECRET/JWT_REFRESH_SECRET=:latest --set-env-vars NODE_ENV=staging,JWT_ISSUER,JWT_AUDIENCE,CORS_ORIGINS,API_BASE_URL`.
+- **Readiness gate (AD-55):** resolve the candidate tag URL (`https://candidate---<base>`), poll `GET /api/v1/health` for HTTP 200 (readiness returns 503 until Mongo is up) up to 30×5s ≈ 2.5 min, then `gcloud run services update-traffic --to-tags candidate=100`. A failed gate **fails the job and never shifts traffic** — the prior revision keeps serving (rollback is the default state). Full *post-shift* automated rollback is 0.10b.3.
+
+**Identity & secrets:** keyless WIF only; the job's `environment: staging`
+supplies the OIDC `environment` claim the deployer-SA binding requires (fails
+closed if omitted). App secrets come from Secret Manager via the `api-run`
+runtime SA; **no** GitHub secrets, **no** long-lived keys, nothing secret in
+logs. `JWT_ISSUER`/`JWT_AUDIENCE` are plain env vars (AD-52).
+
+**Branch hygiene:** `develop` was re-synced to `main` (`eeb6c00`) before authoring
+so the `develop` trigger reflects current code (target topology: `main` source of
+truth → `develop` synced → feature branches off `develop`).
+
+**Required `staging` Environment variables (non-secret):** `GCP_PROJECT_ID`,
+`GCP_REGION`, `GCP_WIF_PROVIDER`, `GCP_DEPLOYER_SA`, `GCP_AR_IMAGE_PREFIX`,
+`API_SERVICE`, `API_RUNTIME_SA`, `APP_JWT_ISSUER`, `APP_JWT_AUDIENCE`,
+`APP_CORS_ORIGINS`, `APP_API_BASE_URL`.

@@ -56,16 +56,16 @@
 ### Pending milestones
 - 🚧 **0.10b** — **Automated CD**, split into three sub-milestones (tracked as D16, still **open**):
   - **0.10b.1 — Infrastructure automation (scripts authored + statically validated; operator-execution pending).** Idempotent gcloud provisioning scripts under `infrastructure/scripts/gcp/` for **two separate projects** (`sajawat-staging` + a new production project), keyless **Workload Identity Federation** (repo-pinned, bound on the GitHub Environment claim — `staging`/`production`), Artifact Registry, **empty** Secret Manager containers (`MONGODB_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`; values injected out-of-band via stdin), per-service runtime SAs (only `api-run` reads secrets), and a least-privilege deployer SA. `JWT_ISSUER`/`JWT_AUDIENCE` are plain env vars. Includes an orchestrator (`provision.sh`), a read-only `verify.sh`, an optional guarded `00-bootstrap-project.sh`, and a runbook. **Validation:** `bash -n` + `shellcheck -x` clean on all 11 files. **Not yet run against GCP** (operator-executed). AD-47…AD-53.
-  - ⏳ **0.10b.2 — Staging deploy workflow** (auto on `develop`). Not started.
+  - **0.10b.2 — Staging deploy workflow (authored + statically validated; awaiting GitHub Environment config + operator activation).** **Scoped API-only (AD-54)** — `apps/web`/`apps/admin` are still unmodified `create-next-app` starter boilerplate (D4) with no product UI and **no** `*-web/admin-staging` Cloud Run services; deploying them now would be placeholder complexity, so frontend deploy automation defers to Phase 1.4 (web) / 1.7 (admin). Added `.github/workflows/_quality.yml` (reusable gate, **shared with `ci.yml`** — refactored 0.10a) and `.github/workflows/deploy-staging.yml`: trigger `push:develop` (+ manual), keyless **WIF** (`environment: staging`), build+push the env-agnostic API image SHA-tagged to Artifact Registry, deploy **by digest** with `--no-traffic --tag=candidate` → `/api/v1/health` readiness gate → traffic shift (bad revision never serves). Secrets via `--set-secrets`; `JWT_ISSUER`/`JWT_AUDIENCE` + `NODE_ENV`/`CORS_ORIGINS`/`API_BASE_URL` via `--set-env-vars`; `api-run` runtime SA. **Validation:** `actionlint 1.7.7` + embedded `shellcheck` + Python YAML parse + `bash -n` all clean. **Not yet activated** (needs 0.10b.1 run + secrets injected + `staging` Environment variables). Branch hygiene: **`develop` re-synced to `main`** (`eeb6c00`) so the `develop` trigger reflects current code.
   - ⏳ **0.10b.3 — Production deploy workflow + rollback + closeout** (tag `v*`, required-reviewer Environment). Not started; **D16 closes here**.
-  - The current live staging service remains a **manual** deploy until 0.10b.2 redeploys it through the pipeline.
+  - The current live staging service remains a **manual** deploy until 0.10b.2 (once activated) redeploys it through the pipeline. (api already has a prior revision, so `--no-traffic` behaves correctly on cutover.)
 
 ### Repository structure (top level)
 ```
 apps/{web,admin}   services/api   packages/{ui,types,shared,config}
 docs/   scripts/   tests/{e2e,integration,performance}
 infrastructure/{docker,deployment,monitoring,backups,scripts}
-.husky/   .github/workflows/ (0.10a CI)
+.husky/   .github/workflows/ (ci.yml + _quality.yml + deploy-staging.yml)
 ```
 
 ### Installed technologies
@@ -190,7 +190,7 @@ Implement **Milestone 0.10b** (automated CD — Cloud Run). GCP is **now provisi
 | Milestone | Goal (summary) |
 |-----------|----------------|
 | 0.10b.1 | **Infra automation (in progress — scripts done, not yet run).** Idempotent gcloud scripts (`infrastructure/scripts/gcp/`): two projects, WIF (keyless, repo-pinned, env-claim-bound), Artifact Registry, Secret Manager containers, per-service runtime SAs + least-priv deployer SA. `bash -n` + `shellcheck -x` clean. Operator-executed next. |
-| 0.10b.2 | Staging deploy workflow (auto on `develop`): build env-specific frontend + env-agnostic API images, SHA-tagged push, `gcloud run deploy --set-secrets`, deploy api→web→admin, post-deploy readiness gate. Redeploys the current manual service through the pipeline. |
+| 0.10b.2 | **Staging deploy workflow — API-only (authored + validated).** `_quality.yml` (reusable gate, shared with CI) + `deploy-staging.yml`: `push:develop`, keyless WIF, SHA-tagged API image to Artifact Registry, deploy by digest with `--no-traffic`→readiness→traffic-shift. Web/admin deferred (starter boilerplate, AD-54). Awaiting Environment config + activation. |
 | 0.10b.3 | Production deploy workflow (tag `v*`, required-reviewer GitHub Environment) + revision rollback + closeout. **D16 closes here.** |
 
 ---
@@ -250,7 +250,7 @@ Specs (source of truth): `sajawat-prd.md`, `-system-architecture.md`, `-database
 - `docker/` — **`api.Dockerfile`, `web.Dockerfile`, `admin.Dockerfile`** (0.8, multi-stage `node:22-bookworm-slim`). **`scripts/gcp/`** (0.10b.1) — idempotent GCP provisioning scripts (`lib.sh`, `config.{staging,production}.sh`, `00-bootstrap-project.sh`, `01..05-*.sh`, `provision.sh`, `verify.sh`, `README.md`). `deployment/`, `monitoring/`, `backups/` (`.gitkeep`; CD workflows land in 0.10b.2/0.10b.3).
 
 ### .github/
-- `workflows/ci.yml` (0.10a — GitHub Actions: `quality` + `e2e` + `docker` jobs). Deploy workflows (`deploy-staging.yml`, `deploy-production.yml`) land in 0.10b.
+- `workflows/ci.yml` (0.10a, refactored 0.10b.2 — `quality` now calls the reusable `_quality.yml`; plus `e2e` + `docker`). `workflows/_quality.yml` (0.10b.2 — reusable lint/typecheck/build/test gate, shared by CI + staging deploy). `workflows/deploy-staging.yml` (0.10b.2 — **API-only** keyless WIF deploy: build→push→deploy-by-digest→readiness→traffic-shift). `deploy-production.yml` lands in 0.10b.3.
 
 ### Root
 `package.json`, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig.json` (solution), `eslint.config.mjs`, `prettier.config.js`, `commitlint.config.cjs`, `.lintstagedrc.json`, `.npmrc`, `.nvmrc`, `.gitignore`, `.prettierignore`, `.dockerignore` (0.8), `.env.example`, `docker-compose.yml` (0.8), `playwright.config.ts` (0.9), `.github/workflows/ci.yml` (0.10a), `README.md`, `CLAUDE.md`, `.husky/{pre-commit,commit-msg}`. `scripts/check-staged-secrets.sh`.

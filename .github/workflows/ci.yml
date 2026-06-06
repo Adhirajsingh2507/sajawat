@@ -1,16 +1,13 @@
-# CI — Milestone 0.10a (Phase 0 final)
+# CI — Milestone 0.10a (refactored in 0.10b.2 to share the quality gate)
 #
 # Gate pipeline for every PR and every push to main/develop:
-#   install (frozen) -> lint -> typecheck -> build -> test (+coverage) -> e2e smoke
-# plus a Docker build-validation job on pushes.
+#   quality (reusable _quality.yml) + e2e smoke + Docker build-validation.
 #
-# Deployment (Cloud Run / Artifact Registry / WIF / Secret Manager) is DEFERRED
-# to Milestone 0.10b — intentionally absent here.
+# The quality job now lives in .github/workflows/_quality.yml and is shared with
+# deploy-staging.yml so both run the IDENTICAL gate set.
 #
-# Contract enforced (closes D1): Node 22 via .nvmrc + an explicit guard.
-# Provisioning matches Docker (0.8): Corepack-activated pnpm from packageManager.
-# CI-side D13: gate jobs need NO real secrets — test/setup.ts self-provisions test
-# env; only MONGOMS_VERSION is pinned here (also keys the mongod binary cache).
+# Deployment lives in deploy-staging.yml (0.10b.2, API-only). Production CD
+# (tag-triggered, reviewer-gated) + rollback is still pending in 0.10b.3.
 
 name: CI
 
@@ -28,73 +25,10 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  # Default mongod (8.x) SIGSEGVs on some hosts; 6.0.14 is the validated pin (0.9).
-  # Also referenced by the binary cache key below. Overridable per environment.
-  MONGOMS_VERSION: 6.0.14
-
 jobs:
   quality:
-    name: Lint · Typecheck · Build · Test
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # Corepack must be enabled BEFORE setup-node so its `cache: pnpm` finds pnpm.
-      - name: Enable Corepack (pnpm from packageManager)
-        run: corepack enable
-
-      - name: Setup Node 22 (.nvmrc)
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Enforce Node 22 (D1)
-        run: |
-          MAJOR="$(node -p "process.versions.node.split('.')[0]")"
-          echo "Node $(node -v) / pnpm $(pnpm -v)"
-          if [ "$MAJOR" != "22" ]; then
-            echo "::error::Expected Node 22 (contract), got $(node -v)"
-            exit 1
-          fi
-
-      - name: Restore Turbo cache
-        uses: actions/cache@v4
-        with:
-          path: .turbo
-          key: turbo-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-
-
-      - name: Cache mongodb-memory-server binary
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/mongodb-binaries
-          key: mongodb-binaries-${{ runner.os }}-${{ env.MONGOMS_VERSION }}
-
-      - name: Install (frozen lockfile)
-        run: pnpm install --frozen-lockfile
-
-      - name: Lint · Typecheck · Build
-        run: pnpm exec turbo run lint typecheck build --cache-dir=.turbo
-
-      - name: Test (with coverage)
-        run: pnpm exec turbo run test --cache-dir=.turbo -- --coverage
-
-      - name: Upload coverage artifacts
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage
-          if-no-files-found: ignore
-          retention-days: 14
-          path: |
-            services/api/coverage
-            packages/shared/coverage
-            apps/web/coverage
-            apps/admin/coverage
+    name: Quality gate
+    uses: ./.github/workflows/_quality.yml
 
   e2e:
     name: E2E smoke (chromium)
