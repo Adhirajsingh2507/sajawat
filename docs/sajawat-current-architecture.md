@@ -44,14 +44,15 @@
 | Local orchestration | **`docker-compose.yml`** (api+web+admin+`mongo:7`) — dev only | Integrated local runs + local MongoDB | ✅ Implemented (0.8) |
 | Testing | **Vitest** (unit+integration) + **Supertest** on `createApp()` + **mongodb-memory-server** + **Playwright** (chromium smoke) | Fast, hermetic, ESM-native; tests run against source | ✅ Implemented (0.9) |
 | CI | **GitHub Actions** (`.github/workflows/ci.yml`): Corepack pnpm, **Node 22 pinned + guarded**, frozen install, Turbo-driven `lint/typecheck/build/test(+coverage)`, chromium e2e smoke, Docker build validation; pnpm/Turbo/mongod/Playwright caching; coverage artifacts | One CI provider; reproducible; matches Docker provisioning (AD-39…AD-46) | ✅ Implemented (0.10a) |
-| CD | **Cloud Run + Artifact Registry + WIF + Secret Manager** (staging-auto / prod-manual) | Keyless OIDC, runtime secret injection, revision rollback (AD-47…AD-53) | 🚧 **In progress (0.10b / D16 open).** 0.10b.1 **infra-provisioning scripts authored + statically validated** (§16, `infrastructure/scripts/gcp/`); not yet run against GCP. Deploy **workflows** (0.10b.2/0.10b.3) not started. A **manual** staging deploy is live (§15). |
+| CD | **Cloud Run + Artifact Registry + WIF + Secret Manager** (staging tag-auto / prod tag-gated) | Keyless OIDC, runtime secret injection, digest promotion, revision rollback (AD-47…AD-57) | 🚧 **Fully authored; activation pending (0.10b / D16 implementation-complete).** 0.10b.1 provisioning scripts (§16), 0.10b.2 `deploy-staging.yml` (§17), 0.10b.3 `deploy-production.yml` (§18) all authored + statically validated; **not yet run against GCP** and no deploy has succeeded. A **manual** staging deploy is live (§15). |
 | CD env isolation | **Separate `staging` + `production` GCP projects** | IAM/secret/billing blast-radius isolation (AD-47) | 🚧 Scripted (0.10b.1) |
 | CD identity | **Keyless WIF/OIDC**, repo-pinned, bound on GitHub Environment claim; per-service runtime SAs (only `api-run` reads secrets); least-privilege deployer SA | No long-lived keys; prod reviewer gate enforced at the identity layer (AD-48, AD-50, AD-51) | 🚧 Scripted (0.10b.1) |
 | CD secrets | **Secret Manager** for `MONGODB_URI`/`JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` (values injected out-of-band via stdin); `JWT_ISSUER`/`JWT_AUDIENCE` plain Cloud Run env vars | Secrets never in git/argv/CI logs (AD-52) | 🚧 Containers scripted (0.10b.1) |
 | CD tooling | **Idempotent gcloud scripts** (not Terraform), per-env config | Reproducible, low-overhead, operator-runnable (AD-53) | 🚧 Implemented (0.10b.1) |
-| CD scope (staging) | **API-only** staging deploy workflow; web/admin deferred | web/admin are starter boilerplate (D4) with no Cloud Run targets — no placeholder deploys (AD-54) | 🚧 Authored (0.10b.2) |
-| CD safety | **Deploy by digest**, `--no-traffic --tag=candidate` → readiness gate → traffic shift | A bad revision never serves; rollback is the default state (AD-55) | 🚧 Authored (0.10b.2) |
-| CI/CD DRY | **Reusable `_quality.yml`** gate shared by CI + staging deploy | One gate definition; deploy can't drift from CI | ✅ Implemented (0.10b.2) |
+| CD scope | **API-only** (staging + production); web/admin deferred | web/admin are starter boilerplate (D4) with no Cloud Run targets — no placeholder deploys (AD-54) | 🚧 Authored (0.10b.2/0.10b.3) |
+| CD promotion | **Tag `v*` → staging-digest promotion** (copy into prod AR, deploy by digest); required-reviewer `production` Environment | Prod ships the exact bytes staging validated; no rebuild; reviewer gate at the identity layer (AD-56) | 🚧 Authored (0.10b.3) |
+| CD safety | **Deploy by digest**, `--no-traffic --tag=candidate` → readiness gate → traffic shift → post-shift **automated rollback** | A bad revision never serves (pre-shift); prod restores the prior revision on post-shift failure (AD-55, AD-57) | 🚧 Authored (0.10b.2 pre-shift / 0.10b.3 rollback) |
+| CI/CD DRY | **Reusable `_quality.yml`** gate shared by CI + staging + production deploy | One gate definition; deploys can't drift from CI | ✅ Implemented (0.10b.2) |
 | Payments | **Razorpay** behind a `PaymentProvider` abstraction | Provider-agnostic | ⏳ Phase 1 |
 | Messaging | **MSG91** (SMS) · **WhatsApp Business API** (Meta), provider-abstracted | Decided | ⏳ Phase 1 |
 | Caching | **Redis** — Phase 2, planned, not implemented | Cache-aside, never a correctness dependency | ⏳ Phase 2 |
@@ -445,8 +446,9 @@ Phase-1 work but should land before any production deploy.
 ## 16. CD Infrastructure Automation (Milestone 0.10b.1)
 
 > **Status:** scripts authored + statically validated (`bash -n` + `shellcheck
-> -x` clean); **not yet executed against GCP** (operator-run). No deploy
-> workflows yet (0.10b.2/0.10b.3). **D16 stays open.**
+> -x` clean); **not yet executed against GCP** (operator-run). Deploy workflows
+> now authored: staging (§17, 0.10b.2) and production (§18, 0.10b.3). **D16 is
+> implementation-complete; closure pending operator activation.**
 
 Idempotent `gcloud` provisioning scripts under `infrastructure/scripts/gcp/`,
 parameterized per environment via committed **non-secret** config files. They
@@ -491,7 +493,9 @@ variables): `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_WIF_PROVIDER`,
 > **Status:** workflows authored + statically validated (`actionlint 1.7.7`,
 > embedded `shellcheck`, YAML parse, `bash -n` — all clean); **not yet activated**
 > (needs 0.10b.1 run, secret values injected, and the `staging` GitHub
-> Environment populated). **D16 stays open** (production CD + rollback is 0.10b.3).
+> Environment populated). **Verified:** the one run to date failed at WIF auth
+> because the `staging` Environment has no variables. Production CD + rollback is
+> now authored (§18, 0.10b.3).
 
 **Scope decision (AD-54 — API-only).** `apps/web`/`apps/admin` are unmodified
 `create-next-app` starter pages (D4) with no product UI and no Cloud Run
@@ -526,3 +530,64 @@ truth → `develop` synced → feature branches off `develop`).
 `GCP_REGION`, `GCP_WIF_PROVIDER`, `GCP_DEPLOYER_SA`, `GCP_AR_IMAGE_PREFIX`,
 `API_SERVICE`, `API_RUNTIME_SA`, `APP_JWT_ISSUER`, `APP_JWT_AUDIENCE`,
 `APP_CORS_ORIGINS`, `APP_API_BASE_URL`.
+
+---
+
+## 18. CD — Production Deploy Workflow (Milestone 0.10b.3, API-only) — closes D16
+
+> **Status:** `deploy-production.yml` authored + statically validated
+> (`actionlint 1.7.7` with integrated `shellcheck`, YAML parse, `bash -n` on all
+> embedded scripts — all clean). **D16 is implementation-complete but NOT yet
+> closed:** closure requires operator activation (provisioning, the `production`
+> GitHub Environment with a required reviewer, prod secret injection, the
+> cross-project reader grant, one successful staging deploy to produce a
+> promotable digest, one gated production deploy, and one rollback drill). See the
+> D16 closure criteria in `sajawat-open-debt.md`.
+
+**Trigger & promotion model.** Pushing an annotated release tag `v*` (or
+`workflow_dispatch` with an existing tag) fires the workflow — the explicit
+staging→production promotion path (AD-50: `develop`⇒staging auto, tag `v*`⇒
+production gated). Promotion is operator-initiated by cutting a tag; it is never
+automatic from `develop`. A tag can only be deployed if the commit it points at
+was already built **and** deployed to staging, so production only ever ships a
+staging-validated artifact.
+
+**Files (`.github/workflows/`):** `deploy-production.yml` — two jobs: **verify**
+(`uses: ./.github/workflows/_quality.yml`, the same DRY gate as CI + staging,
+read from the tagged tree) → **deploy** (`environment: production`).
+
+**Pipeline (`deploy-production.yml` → `deploy` job):**
+- Resolve `TAG` → checkout that ref → `git rev-parse HEAD` → commit `SHA` (uniform across tag-push and dispatch).
+- WIF auth as the **production** deployer SA (job is `environment: production`); `setup-gcloud`; one `configure-docker` (the single `REGION-docker.pkg.dev` host fronts both projects' repos).
+- **Resolve + promote (AD-56):** `gcloud artifacts docker images describe ${STAGING_AR_IMAGE_PREFIX}/api:${SHA}` → staging digest (fail-fast with a clear message if absent — enforces "tag must point at a staging-built commit"); `gcloud artifacts docker images copy ${STAGING}/api@<digest> ${PROD}/api:${SHA}`; re-`describe` the **production** tag → authoritative `PROD_DIGEST`.
+- **Capture rollback target:** the revision currently serving 100% (empty on the first prod deploy).
+- **Deploy candidate (AD-55):** `gcloud run deploy $API_SERVICE --image ${PROD}/api@${PROD_DIGEST} --service-account api-run --no-traffic --tag=candidate --allow-unauthenticated --min-instances=1 --set-secrets MONGODB_URI/JWT_ACCESS_SECRET/JWT_REFRESH_SECRET=:latest --set-env-vars NODE_ENV=production,JWT_ISSUER,JWT_AUDIENCE,CORS_ORIGINS,API_BASE_URL`.
+- **Readiness gate (pre-shift):** poll the candidate tag URL `GET /api/v1/health` for 200 (30×5s ≈ 2.5 min). Fail → exit, **no traffic shifted**, prior revision keeps serving, **no rollback needed**.
+- **Traffic shift:** `update-traffic --to-tags candidate=100` (records `shifted=true`).
+- **Post-shift validation:** poll the **live** base URL (`/api/v1/health` + `/health`) 6×5s — tests what users now hit, not the candidate tag.
+- **Automated rollback (AD-57)** — `if: failure() && steps.shift.outputs.shifted == 'true'`: `update-traffic --to-revisions ${PREV_REVISION}=100`, re-assert health on the restored revision, then keep the job red and emit a `::warning::` (bad candidate left in place for post-mortem; no delete). If `PREV_REVISION` is empty (first-ever prod deploy) it emits a `::error::` demanding manual intervention rather than crashing.
+
+**Decisions added in 0.10b.3:**
+- **AD-56 — Digest promotion, not rebuild.** Production deploys the byte-identical image staging validated. The `deploy` job copies the staging digest into the **production** Artifact Registry (preserving AD-47 isolation) and deploys from the prod-local digest. The only cross-project crossing is a **deploy-time image READ**: the production deployer SA is granted repo-scoped `roles/artifactregistry.reader` on the **staging** repo (operator action). There are **no cross-project runtime pulls** — production Cloud Run pulls solely from the production repo via its own `api-run` runtime SA. (Rejected alternative: granting prod runtime SA cross-project read — breaks runtime isolation.)
+- **AD-57 — Automated post-shift rollback.** Staging (0.10b.2) only had *pre-shift* abort (a bad candidate never gets traffic). Production adds *post-shift* recovery: if validation fails after the 100% shift, traffic is automatically restored to the previously-serving revision and re-health-checked, and the job fails loudly. This is the capability that completes the D16 "rollback" requirement.
+- **Production runtime sizing.** `--allow-unauthenticated` (public storefront API) and `--min-instances=1` (avoid cold-start on first real traffic); staging stays `--min-instances=0` for cost.
+
+**Identity & secrets:** keyless WIF only; `environment: production` supplies the
+`production` OIDC claim the deployer-SA binding requires AND triggers the GitHub
+required-reviewer gate — the reviewer gate is thus enforced at the **identity
+layer** (a compromised workflow cannot mint the prod claim without a human
+approving the job). App secrets come from production Secret Manager via the
+`api-run` runtime SA; **no** GitHub secrets, **no** long-lived keys, nothing
+secret in logs. `JWT_ISSUER`/`JWT_AUDIENCE` remain plain env vars (AD-52).
+
+**Required `production` Environment configuration:** required reviewer(s);
+deployment policy restricted to **tags matching `v*`**; variables `GCP_PROJECT_ID`,
+`GCP_REGION`, `GCP_WIF_PROVIDER`, `GCP_DEPLOYER_SA`, `GCP_AR_IMAGE_PREFIX`
+(production), **`STAGING_AR_IMAGE_PREFIX`** (promotion source), `API_SERVICE`,
+`API_RUNTIME_SA`, `APP_JWT_ISSUER`, `APP_JWT_AUDIENCE`, `APP_CORS_ORIGINS`,
+`APP_API_BASE_URL` (production values, distinct from staging).
+
+**Versioning:** Phase-0 closeout is tagged **`v0.10.1-phase0`** (continues the D9
+`vX.Y.Z-phase0` scheme); it is both the milestone marker and the first artifact
+promoted through this pipeline. `v1.0.0` remains reserved for the first Phase-1
+production release.

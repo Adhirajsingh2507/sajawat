@@ -9,7 +9,7 @@
 
 - **Project:** Sajawat Jewellery — luxury jewelry e-commerce (B2C + B2B leads + CRM + admin).
 - **Current status:** Phase 0 (Foundation) in progress — infrastructure only, **no business features**.
-- **Current milestone:** **0.10a complete** (CI pipeline — GitHub Actions). A **manual** staging deploy to Cloud Run is **live and verified** (see "Manual staging deploy" below), but **automated CD (0.10b) is NOT implemented** — no deploy workflows, WIF, Artifact Registry, or Secret Manager wiring exist in the repo. D16 stays **open**.
+- **Current milestone:** **0.10a complete** (CI pipeline). **0.10b automated CD is now fully AUTHORED** — provisioning scripts (0.10b.1), `deploy-staging.yml` (0.10b.2), and `deploy-production.yml` (0.10b.3: tag `v*`, required-reviewer `production` Environment, staging→prod digest promotion, automated post-shift rollback) all exist and are statically validated (`actionlint`/`shellcheck`/YAML/`bash -n` clean). **It is not yet ACTIVATED:** verified via GitHub API — the `staging` Environment has 0 variables, its single deploy run failed at WIF auth, the `production` Environment does not exist, and no GCP provisioning has run. So **D16 is implementation-complete but NOT closed** — closure is the operator-activation checklist in `sajawat-open-debt.md`. A **manual** staging deploy to Cloud Run is **live and verified** (see "Manual staging deploy" below) but is **not** 0.10b.
 - **As of:** Milestone 0.10a tree (`ece7971`, tag `v0.10.0-phase0`) is the **last meaningful Phase-0 milestone commit** on branch `main`. The commits on `main` *after* `ece7971` (`bbf068d`, `876bca8`, …) are **auto-generated `.claude/settings.local.json` permission commits** — an editor/hook commits that local-settings file (with a hardcoded, inaccurate `feat(api): add auth middleware` message) whenever the Bash permission allowlist changes. They ship **no application code**, are untagged, and are **not** milestones. They are **kept in history** (no rewrite); the deployable application code is identical to `v0.10.0-phase0`. Phase 0 ~95% — 0.1–0.9 + 0.10a done; **automated 0.10b CD remains**.
 - **Phase 0 status:** foundation in place — monorepo, TS, ESLint/Prettier, Express 5 API, security middleware, MongoDB Atlas, env strategy, auth primitives, containerization, automated testing, **CI (GitHub Actions: gates + caching + coverage artifacts + Docker build validation)**, plus a **verified manual Cloud Run staging deploy**. Remaining: **0.10b automated CD** (deploy workflows + WIF + Artifact Registry + Secret Manager + least-privilege SAs + SHA-tagged push + rollback) — **not yet built**, tracked as D16. Mongoose 9 is the **approved baseline**. (Auth endpoints/session store + domain models are Phase 1.)
 
@@ -31,7 +31,8 @@
 | 0.8 | `114cfcb` |
 | 0.9 | `94e9fc6` |
 | 0.10a | `ece7971` (tag `v0.10.0-phase0`) |
-| 0.10b (automated CD) | **none — not implemented** (D16 open) |
+| 0.10b (automated CD) | **authored, not activated** — 0.10b.1 scripts + 0.10b.2 `deploy-staging.yml` + 0.10b.3 `deploy-production.yml` (D16 implementation-complete, closure pending operator activation) |
+| 0.10b.3 (production CD + rollback) | this commit — `deploy-production.yml` + doc updates; Phase-0 closeout tag will be `v0.10.1-phase0` once a gated prod deploy + rollback drill pass |
 | Manual staging deploy | **no code commit** — ad-hoc `gcloud run deploy` of the `ece7971` image; not versioned in-repo |
 
 > Note: `main` HEAD `bbf068d` ("feat(api): add auth middleware") is a **post-0.10a

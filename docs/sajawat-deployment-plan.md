@@ -606,3 +606,63 @@ A deployment is successful when:
 - Monitoring works
 - Backups work
 - No critical errors exist
+
+---
+
+# PRODUCTION PROMOTION & ROLLBACK RUNBOOK (Milestone 0.10b.3)
+
+> Operator runbook for the `deploy-production.yml` pipeline. API-only (AD-54).
+> Keyless WIF; no long-lived keys; no secrets in logs.
+
+## One-time activation (closes D16 once complete)
+
+1. **Provision both projects:** `./provision.sh staging && ./verify.sh staging`,
+   then create the production project and `./provision.sh production && ./verify.sh production`.
+2. **Inject rotated secrets** (`MONGODB_URI`, `JWT_ACCESS_SECRET`,
+   `JWT_REFRESH_SECRET`) via stdin into **both** projects' Secret Manager
+   (see `infrastructure/scripts/gcp/README.md`).
+3. **Cross-project reader grant** — production deployer SA gets repo-scoped
+   `artifactregistry.reader` on the **staging** repo (promotion source; README §"Production promotion").
+4. **`staging` GitHub Environment:** populate all non-secret variables (see §17 of
+   `sajawat-current-architecture.md`). Push to `develop` → confirm **one green
+   staging deploy** (this produces the promotable digest).
+5. **`production` GitHub Environment:** create with a **required reviewer**, set
+   deployment policy to **tags `v*`**, and add all variables including
+   `STAGING_AR_IMAGE_PREFIX`.
+
+## Cutting a production release
+
+```bash
+# Tag a commit that has ALREADY been deployed to staging (digest must exist):
+git tag -a v0.10.1-phase0 <commit-sha> -m "Phase-0 closeout: production CD"
+git push origin v0.10.1-phase0
+```
+
+This fires `deploy-production.yml`: quality gate → resolve staging digest →
+**copy digest into prod AR** → **[REQUIRED REVIEWER GATE — approve in the Actions
+UI]** → deploy `--no-traffic --tag=candidate --min-instances=1` → readiness gate
+(candidate URL) → 100% traffic shift → post-shift validation (live URL).
+
+To redeploy an existing tag without re-tagging: **Actions → Deploy (production) →
+Run workflow → enter the tag**.
+
+## Failure & rollback behaviour
+
+- **Tag not built in staging** → job fails at digest resolution with a clear
+  message; nothing deploys. Fix: deploy that commit to staging first.
+- **Readiness gate fails (pre-shift)** → traffic never moves; prior revision keeps
+  serving; no rollback needed. Inspect the candidate revision logs.
+- **Post-shift validation fails** → **automated rollback (AD-57)**: traffic is
+  restored to the previously-serving revision and re-health-checked; the job ends
+  red with a `::warning::`. The bad candidate is left in place for post-mortem.
+- **First-ever prod deploy fails post-shift** → no prior revision exists to roll
+  back to; the job emits `::error::` demanding manual intervention (redeploy a
+  known-good image or fix secrets/data plane).
+
+## Rollback drill (required for D16 closure)
+
+After the first successful prod deploy, prove AD-57 once: temporarily point
+`APP_API_BASE_URL`/health to force a post-shift failure (or deploy a deliberately
+unhealthy candidate via `workflow_dispatch` on a bad tag in a throwaway window),
+confirm traffic auto-restores to the prior revision, then revert. Record the run
+URL in `sajawat-open-debt.md` when moving D16 to Resolved.

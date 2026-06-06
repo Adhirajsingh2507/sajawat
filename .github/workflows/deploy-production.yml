@@ -1,0 +1,313 @@
+# Deploy — production (Milestone 0.10b.3) · API ONLY · closes D16
+#
+# SCOPE DECISION (AD-54, unchanged from 0.10b.2): apps/web and apps/admin are
+# still unmodified create-next-app starter boilerplate (D4) with no Cloud Run
+# services. Production deploy automation is therefore API-only; frontend deploy
+# lands with the Phase-1 web (1.4) / admin (1.7) UIs.
+#
+# TRIGGER: pushing an annotated release tag matching `v*` (AD-50: develop=>staging,
+# tag v*=>production), or manual dispatch of an existing tag. This is the explicit
+# staging->production PROMOTION pipeline.
+#
+# PROMOTION, NOT REBUILD (AD-56): production ships the EXACT bytes validated in
+# staging. The tagged commit's image was already built+pushed to the STAGING
+# Artifact Registry by deploy-staging.yml as `api:<sha>`. This workflow resolves
+# that staging digest and COPIES it (by digest) into the PRODUCTION Artifact
+# Registry, then deploys production from the prod-local digest. No `docker build`
+# runs here, so prod cannot drift from what staging proved.
+#
+# ISOLATION (AD-47, preserved): the cross-project crossing is a deploy-time IMAGE
+# READ ONLY — the production deployer SA holds repo-scoped `artifactregistry.reader`
+# on the STAGING repo (operator-granted). Production Cloud Run pulls only from the
+# PRODUCTION repo via its own runtime SA; there are NO cross-project RUNTIME pulls.
+#
+# GATE (AD-50): the deploy job declares `environment: production`. That GitHub
+# Environment carries a REQUIRED REVIEWER, so the job pauses for human approval;
+# and the OIDC token only then carries the `production` environment claim the
+# deployer-SA WIF binding requires — so the reviewer gate is enforced at the
+# IDENTITY layer, not merely by convention. Keyless WIF only; no long-lived keys.
+#
+# SAFETY (AD-55 + AD-57): deploy by IMMUTABLE DIGEST with `--no-traffic
+# --tag=candidate` -> readiness gate -> traffic shift -> POST-SHIFT validation.
+# A failed readiness gate never shifts traffic (prior revision keeps serving). A
+# failed post-shift validation triggers AUTOMATED ROLLBACK to the previously
+# serving revision (AD-57) — the new capability 0.10b.2 lacked.
+#
+# Prerequisites (operator): production project provisioned (provision.sh /
+# verify.sh green), prod secrets injected (rotated), the prod deployer SA granted
+# artifactregistry.reader on the staging repo, and the `production` GitHub
+# Environment created with a required reviewer + the variables referenced below.
+
+name: Deploy (production)
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to (re)deploy to production (e.g. v0.10.1-phase0)'
+        required: true
+
+# Never cancel an in-flight production deploy; queue the next one.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # required to mint the WIF OIDC token
+
+jobs:
+  # Same gate set as CI and staging — never deploy code that hasn't passed
+  # lint/type/build/test. Reads from the tagged tree, so _quality.yml is present.
+  verify:
+    name: Quality gate
+    uses: ./.github/workflows/_quality.yml
+
+  deploy:
+    name: Promote & deploy API to Cloud Run (production)
+    needs: verify
+    runs-on: ubuntu-22.04
+    environment: production # REQUIRED-REVIEWER gate + binds the OIDC `production` claim
+    steps:
+      - name: Resolve release ref (tag -> commit SHA)
+        id: ref
+        env:
+          DISPATCH_TAG: ${{ github.event.inputs.tag }}
+          PUSH_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          TAG="${DISPATCH_TAG:-$PUSH_REF}"
+          if [ -z "$TAG" ]; then
+            echo "::error::No release tag resolved."; exit 1
+          fi
+          echo "tag=$TAG" >>"$GITHUB_OUTPUT"
+          echo "Resolved release tag: $TAG"
+
+      - name: Checkout tagged commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Resolve commit SHA of tag
+        id: sha
+        run: |
+          set -euo pipefail
+          SHA="$(git rev-parse HEAD)"
+          echo "sha=$SHA" >>"$GITHUB_OUTPUT"
+          echo "Tag ${{ steps.ref.outputs.tag }} -> commit $SHA"
+
+      - name: Authenticate to Google Cloud (WIF, keyless)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        # One host (REGION-docker.pkg.dev) fronts both the staging and production
+        # repos, so a single configure-docker call covers the cross-project copy.
+        run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+
+      - name: Resolve staging digest & promote to production AR (by digest)
+        id: promote
+        env:
+          STAGING_PREFIX: ${{ vars.STAGING_AR_IMAGE_PREFIX }}
+          PROD_PREFIX: ${{ vars.GCP_AR_IMAGE_PREFIX }}
+          SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          echo "Resolving staging digest for api:$SHA …"
+          DIGEST="$(gcloud artifacts docker images describe \
+            "${STAGING_PREFIX}/api:${SHA}" \
+            --format='value(image_summary.digest)' 2>/dev/null || true)"
+
+          if [ -z "$DIGEST" ]; then
+            echo "::error::No staging image found for commit $SHA in ${STAGING_PREFIX}." \
+                 "A release tag MUST point at a commit already built & deployed by" \
+                 "deploy-staging.yml. Deploy that commit to staging first, then re-tag/redeploy."
+            exit 1
+          fi
+          echo "Staging digest: $DIGEST"
+
+          echo "Promoting (copy by digest) staging -> production AR …"
+          gcloud artifacts docker images copy \
+            "${STAGING_PREFIX}/api@${DIGEST}" \
+            "${PROD_PREFIX}/api:${SHA}" \
+            --quiet
+
+          # Re-resolve the digest from the PRODUCTION repo (authoritative for deploy).
+          PROD_DIGEST="$(gcloud artifacts docker images describe \
+            "${PROD_PREFIX}/api:${SHA}" \
+            --format='value(image_summary.digest)')"
+          echo "prod_digest=$PROD_DIGEST" >>"$GITHUB_OUTPUT"
+          echo "Production digest: $PROD_DIGEST"
+
+      - name: Capture currently-serving revision (rollback target)
+        id: current
+        env:
+          SERVICE: ${{ vars.API_SERVICE }}
+          REGION: ${{ vars.GCP_REGION }}
+          PROJECT: ${{ vars.GCP_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          # The revision serving 100% live traffic, if the service exists at all.
+          # gcloud-native: --flatten expands each traffic entry, --filter picks the
+          # one at 100% (gcloud's --format has no .filter() transform).
+          RAW="$(gcloud run services describe "$SERVICE" \
+            --region="$REGION" --project="$PROJECT" \
+            --flatten='status.traffic[]' \
+            --filter='status.traffic.percent=100' \
+            --format='value(status.traffic.revisionName)' 2>/dev/null || true)"
+          PREV="$(printf '%s\n' "$RAW" | head -n1)"
+          if [ -z "$PREV" ]; then
+            echo "No prior serving revision (first production deploy of $SERVICE)."
+          else
+            echo "Current serving revision: $PREV"
+          fi
+          echo "prev_revision=$PREV" >>"$GITHUB_OUTPUT"
+
+      - name: Deploy candidate (no traffic) + readiness gate
+        id: candidate
+        env:
+          SERVICE: ${{ vars.API_SERVICE }}
+          REGION: ${{ vars.GCP_REGION }}
+          PROJECT: ${{ vars.GCP_PROJECT_ID }}
+          IMAGE: ${{ vars.GCP_AR_IMAGE_PREFIX }}/api@${{ steps.promote.outputs.prod_digest }}
+          RUNTIME_SA: ${{ vars.API_RUNTIME_SA }}
+          JWT_ISSUER: ${{ vars.APP_JWT_ISSUER }}
+          JWT_AUDIENCE: ${{ vars.APP_JWT_AUDIENCE }}
+          CORS_ORIGINS: ${{ vars.APP_CORS_ORIGINS }}
+          API_BASE_URL: ${{ vars.APP_API_BASE_URL }}
+        run: |
+          set -euo pipefail
+
+          echo "Deploying $IMAGE to $SERVICE (no traffic, tag=candidate, min-instances=1)…"
+          gcloud run deploy "$SERVICE" \
+            --image="$IMAGE" \
+            --region="$REGION" --project="$PROJECT" \
+            --service-account="$RUNTIME_SA" \
+            --no-traffic --tag=candidate \
+            --allow-unauthenticated \
+            --min-instances=1 \
+            --set-secrets="MONGODB_URI=MONGODB_URI:latest,JWT_ACCESS_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest" \
+            --set-env-vars="NODE_ENV=production,JWT_ISSUER=${JWT_ISSUER},JWT_AUDIENCE=${JWT_AUDIENCE},CORS_ORIGINS=${CORS_ORIGINS},API_BASE_URL=${API_BASE_URL}"
+
+          # Record the candidate revision name (for diagnostics / post-mortem). We
+          # just deployed --no-traffic, so it is the latest CREATED revision.
+          CANDIDATE_REV="$(gcloud run services describe "$SERVICE" \
+            --region="$REGION" --project="$PROJECT" \
+            --format='value(status.latestCreatedRevisionName)')"
+          echo "candidate_revision=$CANDIDATE_REV" >>"$GITHUB_OUTPUT"
+          echo "Candidate revision: $CANDIDATE_REV"
+
+          BASE_URL="$(gcloud run services describe "$SERVICE" \
+            --region="$REGION" --project="$PROJECT" --format='value(status.url)')"
+          echo "base_url=$BASE_URL" >>"$GITHUB_OUTPUT"
+          # Cloud Run tag URL pattern: https://TAG---SERVICE-HASH.run.app
+          CANDIDATE_URL="https://candidate---${BASE_URL#https://}"
+          echo "Candidate revision URL: $CANDIDATE_URL"
+
+          echo "Readiness gate: GET $CANDIDATE_URL/api/v1/health (expect 200; 503 while DB not ready)…"
+          ok=0
+          for i in $(seq 1 30); do
+            code="$(curl -s -o /tmp/health.json -w '%{http_code}' "$CANDIDATE_URL/api/v1/health" || true)"
+            if [ "$code" = "200" ]; then
+              echo "Healthy on attempt $i:"; cat /tmp/health.json; echo
+              ok=1; break
+            fi
+            echo "attempt $i/30: HTTP ${code:-000}; retrying in 5s…"
+            sleep 5
+          done
+
+          if [ "$ok" != "1" ]; then
+            echo "::error::Readiness gate FAILED — candidate unhealthy. Traffic NOT shifted; previous revision still serves. No rollback needed."
+            exit 1
+          fi
+
+      - name: Shift 100% traffic to candidate
+        id: shift
+        env:
+          SERVICE: ${{ vars.API_SERVICE }}
+          REGION: ${{ vars.GCP_REGION }}
+          PROJECT: ${{ vars.GCP_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          echo "Shifting 100% traffic to the candidate revision…"
+          gcloud run services update-traffic "$SERVICE" \
+            --region="$REGION" --project="$PROJECT" \
+            --to-tags=candidate=100
+          # Mark that traffic HAS moved — the rollback step keys off this.
+          echo "shifted=true" >>"$GITHUB_OUTPUT"
+
+      - name: Post-shift validation (live URL)
+        id: validate
+        env:
+          BASE_URL: ${{ steps.candidate.outputs.base_url }}
+        run: |
+          set -euo pipefail
+          echo "Validating LIVE service at $BASE_URL (what users now hit)…"
+          ok=0
+          for i in $(seq 1 6); do
+            live="$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/health" || true)"
+            life="$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/health" || true)"
+            if [ "$live" = "200" ] && [ "$life" = "200" ]; then
+              echo "Live healthy on attempt $i (readiness=$live, liveness=$life)."
+              ok=1; break
+            fi
+            echo "attempt $i/6: readiness=${live:-000} liveness=${life:-000}; retrying in 5s…"
+            sleep 5
+          done
+          if [ "$ok" != "1" ]; then
+            echo "::error::Post-shift validation FAILED on the live URL — triggering automated rollback."
+            exit 1
+          fi
+          echo "✓ Production deploy validated. Live URL: $BASE_URL"
+
+      - name: Automated rollback (only if traffic was shifted and a later step failed)
+        if: ${{ failure() && steps.shift.outputs.shifted == 'true' }}
+        env:
+          SERVICE: ${{ vars.API_SERVICE }}
+          REGION: ${{ vars.GCP_REGION }}
+          PROJECT: ${{ vars.GCP_PROJECT_ID }}
+          PREV_REVISION: ${{ steps.current.outputs.prev_revision }}
+          BASE_URL: ${{ steps.candidate.outputs.base_url }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$PREV_REVISION" ]; then
+            echo "::error::Post-shift failure on the FIRST production deploy — there is no" \
+                 "previous revision to roll back to. The candidate is still serving and may be" \
+                 "unhealthy. MANUAL intervention required (inspect/redeploy a known-good image)."
+            exit 1
+          fi
+
+          echo "Rolling traffic back to last-known-good revision: $PREV_REVISION …"
+          gcloud run services update-traffic "$SERVICE" \
+            --region="$REGION" --project="$PROJECT" \
+            --to-revisions="${PREV_REVISION}=100"
+
+          echo "Re-asserting health on the restored revision at $BASE_URL …"
+          ok=0
+          for i in $(seq 1 6); do
+            code="$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/health" || true)"
+            if [ "$code" = "200" ]; then
+              echo "Restored revision healthy on attempt $i."
+              ok=1; break
+            fi
+            echo "attempt $i/6: HTTP ${code:-000}; retrying in 5s…"
+            sleep 5
+          done
+
+          if [ "$ok" != "1" ]; then
+            echo "::error::ROLLBACK COMPLETED traffic shift to $PREV_REVISION but health is still" \
+                 "not 200 — escalate immediately (possible data-plane/secret outage)."
+            exit 1
+          fi
+          echo "::warning::Deploy FAILED and was automatically rolled back to $PREV_REVISION (now healthy)." \
+               "The bad candidate revision (${{ steps.candidate.outputs.candidate_revision }}) is left in place for post-mortem."

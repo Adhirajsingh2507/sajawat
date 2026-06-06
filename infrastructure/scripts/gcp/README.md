@@ -104,6 +104,28 @@ The deploy workflows must declare `environment: staging` / `environment: product
 so the OIDC token carries the matching claim the deployer binding requires; the
 `production` GitHub Environment must have a **required reviewer**.
 
+### Production promotion (0.10b.3) — extra operator steps
+
+`deploy-production.yml` **promotes the staging digest** into the production
+Artifact Registry rather than rebuilding (AD-56). Two additional setup steps:
+
+1. **Cross-project reader grant (deploy-time image READ only).** The *production*
+   deployer SA must read the *staging* AR repo to resolve + copy the digest. Grant
+   it repo-scoped reader on staging (one-way; no runtime cross-project pulls):
+
+   ```bash
+   gcloud artifacts repositories add-iam-policy-binding sajawat \
+     --location=asia-south1 --project=sajawat-staging \
+     --member="serviceAccount:sajawat-deployer@sajawat-production.iam.gserviceaccount.com" \
+     --role=roles/artifactregistry.reader
+   ```
+
+2. **Extra `production` Environment variable:** `STAGING_AR_IMAGE_PREFIX` =
+   `asia-south1-docker.pkg.dev/sajawat-staging/sajawat` (the promotion source), in
+   addition to the standard non-secret vars above plus `API_SERVICE`,
+   `API_RUNTIME_SA`, `APP_JWT_ISSUER`, `APP_JWT_AUDIENCE`, `APP_CORS_ORIGINS`,
+   `APP_API_BASE_URL`. Also set the Environment's deployment policy to **tags `v*`**.
+
 ## Troubleshooting
 
 - *"No active gcloud account"* → `gcloud auth login`.
