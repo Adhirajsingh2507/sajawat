@@ -54,7 +54,11 @@
 - ✅ **0.10a** — CI pipeline (GitHub Actions `ci.yml`: Corepack pnpm, **Node 22 pinned + guarded**, frozen install, Turbo `lint/typecheck/build/test(+coverage)`, chromium e2e smoke, Docker build validation; pnpm/Turbo/mongod/Playwright caching; coverage artifacts). **Resolves D1 + D9 + CI-side D13.** Retro-tagged 0.4.1→0.9; reconciled `develop`. **No runtime/dev deps; no GCP.**
 
 ### Pending milestones
-- ⏳ **0.10b** — **Automated CD** (Cloud Run + Artifact Registry + WIF/OIDC + Secret Manager; staging-auto / prod-manual). **Not implemented** (tracked as D16). GCP is now provisioned (a manual staging deploy is live), so the original "deferred until GCP exists" blocker is cleared — what remains is authoring the keyless, repeatable, reviewable pipeline and capturing the infra as code/config. The current live service is a **manual** deploy and does not satisfy this milestone.
+- 🚧 **0.10b** — **Automated CD**, split into three sub-milestones (tracked as D16, still **open**):
+  - **0.10b.1 — Infrastructure automation (scripts authored + statically validated; operator-execution pending).** Idempotent gcloud provisioning scripts under `infrastructure/scripts/gcp/` for **two separate projects** (`sajawat-staging` + a new production project), keyless **Workload Identity Federation** (repo-pinned, bound on the GitHub Environment claim — `staging`/`production`), Artifact Registry, **empty** Secret Manager containers (`MONGODB_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`; values injected out-of-band via stdin), per-service runtime SAs (only `api-run` reads secrets), and a least-privilege deployer SA. `JWT_ISSUER`/`JWT_AUDIENCE` are plain env vars. Includes an orchestrator (`provision.sh`), a read-only `verify.sh`, an optional guarded `00-bootstrap-project.sh`, and a runbook. **Validation:** `bash -n` + `shellcheck -x` clean on all 11 files. **Not yet run against GCP** (operator-executed). AD-47…AD-53.
+  - ⏳ **0.10b.2 — Staging deploy workflow** (auto on `develop`). Not started.
+  - ⏳ **0.10b.3 — Production deploy workflow + rollback + closeout** (tag `v*`, required-reviewer Environment). Not started; **D16 closes here**.
+  - The current live staging service remains a **manual** deploy until 0.10b.2 redeploys it through the pipeline.
 
 ### Repository structure (top level)
 ```
@@ -185,7 +189,9 @@ Implement **Milestone 0.10b** (automated CD — Cloud Run). GCP is **now provisi
 
 | Milestone | Goal (summary) |
 |-----------|----------------|
-| 0.10b | CD: Cloud Run + Artifact Registry + WIF/OIDC + Secret Manager; build env-specific frontend + env-agnostic API images, SHA-tagged push, `gcloud run deploy --set-secrets`; staging-auto (`develop`) / prod-manual (`main`, required reviewer); post-deploy readiness gate; revision rollback. Needs GCP provisioned (D16). |
+| 0.10b.1 | **Infra automation (in progress — scripts done, not yet run).** Idempotent gcloud scripts (`infrastructure/scripts/gcp/`): two projects, WIF (keyless, repo-pinned, env-claim-bound), Artifact Registry, Secret Manager containers, per-service runtime SAs + least-priv deployer SA. `bash -n` + `shellcheck -x` clean. Operator-executed next. |
+| 0.10b.2 | Staging deploy workflow (auto on `develop`): build env-specific frontend + env-agnostic API images, SHA-tagged push, `gcloud run deploy --set-secrets`, deploy api→web→admin, post-deploy readiness gate. Redeploys the current manual service through the pipeline. |
+| 0.10b.3 | Production deploy workflow (tag `v*`, required-reviewer GitHub Environment) + revision rollback + closeout. **D16 closes here.** |
 
 ---
 
@@ -241,7 +247,7 @@ Specs (source of truth): `sajawat-prd.md`, `-system-architecture.md`, `-database
 - `e2e/smoke.spec.ts` (0.9 Playwright chromium smoke); `integration/`, `performance/` (`.gitkeep`). Unit/integration live colocated per package; root `playwright.config.ts` + `tests/e2e`.
 
 ### infrastructure/
-- `docker/` — **`api.Dockerfile`, `web.Dockerfile`, `admin.Dockerfile`** (0.8, multi-stage `node:22-bookworm-slim`). `deployment/`, `monitoring/`, `backups/`, `scripts/` (`.gitkeep`; Cloud Run deploy scripts land in 0.10b).
+- `docker/` — **`api.Dockerfile`, `web.Dockerfile`, `admin.Dockerfile`** (0.8, multi-stage `node:22-bookworm-slim`). **`scripts/gcp/`** (0.10b.1) — idempotent GCP provisioning scripts (`lib.sh`, `config.{staging,production}.sh`, `00-bootstrap-project.sh`, `01..05-*.sh`, `provision.sh`, `verify.sh`, `README.md`). `deployment/`, `monitoring/`, `backups/` (`.gitkeep`; CD workflows land in 0.10b.2/0.10b.3).
 
 ### .github/
 - `workflows/ci.yml` (0.10a — GitHub Actions: `quality` + `e2e` + `docker` jobs). Deploy workflows (`deploy-staging.yml`, `deploy-production.yml`) land in 0.10b.

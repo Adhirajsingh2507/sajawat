@@ -44,7 +44,11 @@
 | Local orchestration | **`docker-compose.yml`** (api+web+admin+`mongo:7`) — dev only | Integrated local runs + local MongoDB | ✅ Implemented (0.8) |
 | Testing | **Vitest** (unit+integration) + **Supertest** on `createApp()` + **mongodb-memory-server** + **Playwright** (chromium smoke) | Fast, hermetic, ESM-native; tests run against source | ✅ Implemented (0.9) |
 | CI | **GitHub Actions** (`.github/workflows/ci.yml`): Corepack pnpm, **Node 22 pinned + guarded**, frozen install, Turbo-driven `lint/typecheck/build/test(+coverage)`, chromium e2e smoke, Docker build validation; pnpm/Turbo/mongod/Playwright caching; coverage artifacts | One CI provider; reproducible; matches Docker provisioning (AD-39…AD-46) | ✅ Implemented (0.10a) |
-| CD | **Cloud Run + Artifact Registry + WIF + Secret Manager** (staging-auto / prod-manual) | Keyless OIDC, runtime secret injection, revision rollback (AD-47…AD-50) | ⏳ **Not implemented (0.10b / D16)** — a **manual** staging deploy is live (§15), but no pipeline/WIF/Artifact Registry/Secret Manager exists in-repo |
+| CD | **Cloud Run + Artifact Registry + WIF + Secret Manager** (staging-auto / prod-manual) | Keyless OIDC, runtime secret injection, revision rollback (AD-47…AD-53) | 🚧 **In progress (0.10b / D16 open).** 0.10b.1 **infra-provisioning scripts authored + statically validated** (§16, `infrastructure/scripts/gcp/`); not yet run against GCP. Deploy **workflows** (0.10b.2/0.10b.3) not started. A **manual** staging deploy is live (§15). |
+| CD env isolation | **Separate `staging` + `production` GCP projects** | IAM/secret/billing blast-radius isolation (AD-47) | 🚧 Scripted (0.10b.1) |
+| CD identity | **Keyless WIF/OIDC**, repo-pinned, bound on GitHub Environment claim; per-service runtime SAs (only `api-run` reads secrets); least-privilege deployer SA | No long-lived keys; prod reviewer gate enforced at the identity layer (AD-48, AD-50, AD-51) | 🚧 Scripted (0.10b.1) |
+| CD secrets | **Secret Manager** for `MONGODB_URI`/`JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` (values injected out-of-band via stdin); `JWT_ISSUER`/`JWT_AUDIENCE` plain Cloud Run env vars | Secrets never in git/argv/CI logs (AD-52) | 🚧 Containers scripted (0.10b.1) |
+| CD tooling | **Idempotent gcloud scripts** (not Terraform), per-env config | Reproducible, low-overhead, operator-runnable (AD-53) | 🚧 Implemented (0.10b.1) |
 | Payments | **Razorpay** behind a `PaymentProvider` abstraction | Provider-agnostic | ⏳ Phase 1 |
 | Messaging | **MSG91** (SMS) · **WhatsApp Business API** (Meta), provider-abstracted | Decided | ⏳ Phase 1 |
 | Caching | **Redis** — Phase 2, planned, not implemented | Cache-aside, never a correctness dependency | ⏳ Phase 2 |
@@ -432,3 +436,47 @@ Operational Hardening (1.0-OH)** task (Atlas password rotation, JWT secret
 rotation, exposed-test-credential replacement, Secret Manager verification,
 documented rotation procedure). Per decision this is **non-blocking** for other
 Phase-1 work but should land before any production deploy.
+
+---
+
+## 16. CD Infrastructure Automation (Milestone 0.10b.1)
+
+> **Status:** scripts authored + statically validated (`bash -n` + `shellcheck
+> -x` clean); **not yet executed against GCP** (operator-run). No deploy
+> workflows yet (0.10b.2/0.10b.3). **D16 stays open.**
+
+Idempotent `gcloud` provisioning scripts under `infrastructure/scripts/gcp/`,
+parameterized per environment via committed **non-secret** config files. They
+provision the GCP side of CD for **two separate projects** (AD-47) so a staging
+compromise can never reach production identities or secrets.
+
+**Decisions (AD-47 … AD-53):**
+- **AD-47** Separate `staging` (`sajawat-staging`, project `1019894285252`) and `production` GCP projects.
+- **AD-48** **Keyless WIF/OIDC** — GitHub Actions federates in; **no exported SA keys** anywhere.
+- **AD-49** (applies in 0.10b.2) env-specific frontend images / env-agnostic API image.
+- **AD-50** Branch/tag→env: `develop`→staging (auto), tag `v*`→production (required-reviewer GitHub Environment). The WIF deployer binding is scoped to the **GitHub Environment claim** (`staging`/`production`), so the production reviewer gate is enforced at the **identity layer**, not just by convention.
+- **AD-51** **Per-service runtime SAs** (`sajawat-{api,web,admin}-run`); only `api-run` holds `secretmanager.secretAccessor` (scoped to the three secrets); web/admin runtimes read nothing. Deployer SA (`sajawat-deployer`) holds `artifactregistry.writer` (repo-scoped), `run.admin` (project), and `iam.serviceAccountUser` on the runtime SAs only.
+- **AD-52** Secrets in **Secret Manager**: `MONGODB_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`. Scripts create **empty containers**; **values are injected out-of-band via stdin** (`--data-file=-`), never in git, argv, or CI logs. `JWT_ISSUER`/`JWT_AUDIENCE` are **plain Cloud Run env vars** (set by the deploy workflow), not secrets.
+- **AD-53** **Idempotent gcloud scripts** (not Terraform); describe-or-create + idempotent IAM bindings; **create/bind only, never delete**; explicit `--project` on every call; confirmation prompt echoing the target project.
+
+**WIF design:** pool `github-pool` + OIDC provider `github-oidc` per project.
+Provider attribute-condition pins `repository_owner == 'Adhirajsingh2507' &&
+repository == 'Adhirajsingh2507/sajawat'` (rejects all other repos at the
+provider). Attribute mapping exposes `repository`, `repository_owner`,
+`environment`, `ref`. The deployer SA is bound (`workloadIdentityUser`) to
+`principalSet://…/attribute.environment/<env>` — so only jobs declaring the
+matching GitHub Environment can impersonate it.
+
+**Script inventory (`infrastructure/scripts/gcp/`):** `lib.sh` (shared helpers,
+config loader, WIF math, auth/cmd guards), `config.staging.sh` /
+`config.production.sh` (non-secret), `00-bootstrap-project.sh` (optional, guarded
+— project create + billing link), `01-enable-apis.sh`, `02-artifact-registry.sh`,
+`03-secrets.sh` (containers + prints stdin injection commands),
+`04-service-accounts.sh` (SAs + least-priv IAM), `05-workload-identity.sh` (pool/
+provider/binding + prints the GitHub variables), `provision.sh <env>`
+(orchestrator), `verify.sh <env>` (read-only assertions, non-zero on any gap),
+`README.md` (runbook). All operator-run (Claude cannot authenticate to GCP).
+
+**Outputs for 0.10b.2/0.10b.3** (printed by `05`, recorded as non-secret GitHub
+variables): `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_WIF_PROVIDER`,
+`GCP_DEPLOYER_SA`, `GCP_AR_IMAGE_PREFIX`.
