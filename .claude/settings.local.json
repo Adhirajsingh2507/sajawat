@@ -96,7 +96,8 @@
       "Bash(pip install *)",
       "Bash(git tag *)",
       "Bash(git ls-remote *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git fetch *)"
     ]
   }
 }
