@@ -4,9 +4,10 @@
 > the latest completed milestone. The aspirational/target specs remain in
 > `sajawat-system-architecture.md`; this file is the ground truth of what exists.
 
-- **As of:** Milestone 0.10a complete (CI pipeline — GitHub Actions)
+- **As of:** Milestone 0.10a complete (CI pipeline — GitHub Actions); canonical code tree `ece7971` / `v0.10.0-phase0`
 - **Latest completed milestone:** 0.10a (CI gates + caching + coverage artifacts + Docker build validation; tags + branch reconciliation)
-- **Phase:** 0 — Foundation (infrastructure only; no business features — no auth *endpoints* yet). **CD (Cloud Run) deferred to 0.10b.**
+- **Phase:** 0 — Foundation (infrastructure only; no business features — no auth *endpoints* yet). **Automated CD (Cloud Run) is 0.10b — NOT implemented (D16).** A **manual** Cloud Run staging deploy is live and verified (see §15) but is ad-hoc, not a pipeline.
+- **Note:** `main` HEAD `bbf068d` ("feat(api): add auth middleware") is a **post-0.10a administrative commit** (only `.claude/settings.local.json`; no app code), **kept in history (no rewrite)**; the architecture below reflects the `ece7971` tree.
 
 ---
 
@@ -43,7 +44,7 @@
 | Local orchestration | **`docker-compose.yml`** (api+web+admin+`mongo:7`) — dev only | Integrated local runs + local MongoDB | ✅ Implemented (0.8) |
 | Testing | **Vitest** (unit+integration) + **Supertest** on `createApp()` + **mongodb-memory-server** + **Playwright** (chromium smoke) | Fast, hermetic, ESM-native; tests run against source | ✅ Implemented (0.9) |
 | CI | **GitHub Actions** (`.github/workflows/ci.yml`): Corepack pnpm, **Node 22 pinned + guarded**, frozen install, Turbo-driven `lint/typecheck/build/test(+coverage)`, chromium e2e smoke, Docker build validation; pnpm/Turbo/mongod/Playwright caching; coverage artifacts | One CI provider; reproducible; matches Docker provisioning (AD-39…AD-46) | ✅ Implemented (0.10a) |
-| CD | **Cloud Run + Artifact Registry + WIF + Secret Manager** (staging-auto / prod-manual) | Keyless OIDC, runtime secret injection, revision rollback (AD-47…AD-50) | ⏳ Deferred (0.10b) |
+| CD | **Cloud Run + Artifact Registry + WIF + Secret Manager** (staging-auto / prod-manual) | Keyless OIDC, runtime secret injection, revision rollback (AD-47…AD-50) | ⏳ **Not implemented (0.10b / D16)** — a **manual** staging deploy is live (§15), but no pipeline/WIF/Artifact Registry/Secret Manager exists in-repo |
 | Payments | **Razorpay** behind a `PaymentProvider` abstraction | Provider-agnostic | ⏳ Phase 1 |
 | Messaging | **MSG91** (SMS) · **WhatsApp Business API** (Meta), provider-abstracted | Decided | ⏳ Phase 1 |
 | Caching | **Redis** — Phase 2, planned, not implemented | Cache-aside, never a correctness dependency | ⏳ Phase 2 |
@@ -398,6 +399,36 @@ least-privilege `permissions: contents: read`. **CD (Cloud Run) is deferred to
 
 **Release / branching (D9):** annotated `vX.Y.0-phase0` per milestone; the
 previously-untagged milestones (0.4.1 → 0.9) were retro-tagged at their recorded
-commits, plus `v0.10.0-phase0`. `develop` is fast-forwarded to `main` and both
-are pushed so the (0.10b) `develop`→staging mapping can fire. First production
-release `v1.0.0` at the end of Phase 1.
+commits, plus `v0.10.0-phase0`. `develop` was fast-forwarded to `main` in 0.10a;
+it has since **drifted one commit behind** (`origin/develop` = `ece7971`, while
+`origin/main` = the administrative `bbf068d`) — **re-synced to `main` before
+Phase-1 work** (decision). First production release `v1.0.0` at the end of Phase 1.
+
+---
+
+## 15. Manual Cloud Run Staging Deploy (verified — NOT milestone 0.10b)
+
+> A live staging service exists, but it was created by an **ad-hoc
+> `gcloud run deploy`**, not by the automated CD pipeline that milestone 0.10b
+> defines. This section records what is real so a future reader does not mistake
+> the live URL for a finished CD story. **D16 stays open.**
+
+- **Service URL:** `https://sajawat-api-staging-1019894285252.asia-south1.run.app`
+- **Region:** `asia-south1` (Mumbai) · **GCP project number:** `1019894285252`
+- **Image:** the 0.8 API image (`infrastructure/docker/api.Dockerfile`) built from the `ece7971` / `v0.10.0-phase0` tree.
+- **Verified (by user):** `GET /health` ✅ · `GET /api/v1/health` ✅ (readiness) · **MongoDB Atlas connected** ✅. Confirms Cloud-Run-readiness from §11 (single `$PORT`, JSON stdout logs, SIGTERM-graceful, connect-before-listen) holds against real Atlas.
+
+**What is intentionally NOT present (the 0.10b deliverables — D16):**
+- No `deploy-staging.yml` / `deploy-production.yml` (only `ci.yml` exists).
+- No **Workload Identity Federation** (keyless OIDC) — the manual deploy used a developer/local credential, not a least-privilege CI deployer SA.
+- No **Artifact Registry** config or SHA-tagged push pipeline.
+- No **Secret Manager** wiring: the service's secrets (`MONGODB_URI`, `JWT_*`) were injected **by hand** at deploy time and are **not** captured as code/config. AD-13 (cloud uses Secret Manager, no container `.env`) is **honored in spirit but not yet codified**.
+- No separate CI-deployer vs Cloud Run runtime SAs, no `develop`→staging / `main`→production mapping, no post-deploy readiness gate, no revision-rollback automation.
+
+**Security note:** because the live secrets were placed manually and live only in
+the running revision's config, they are not rotated, reviewed, or reproducible.
+Sourcing them from Secret Manager + rotation is tracked in the **Phase-1.0
+Operational Hardening (1.0-OH)** task (Atlas password rotation, JWT secret
+rotation, exposed-test-credential replacement, Secret Manager verification,
+documented rotation procedure). Per decision this is **non-blocking** for other
+Phase-1 work but should land before any production deploy.

@@ -9,9 +9,16 @@
 
 - **Project:** Sajawat Jewellery — luxury jewelry e-commerce (B2C + B2B leads + CRM + admin).
 - **Current status:** Phase 0 (Foundation) in progress — infrastructure only, **no business features**.
-- **Current milestone:** **0.10a complete** (CI pipeline — GitHub Actions). Next up: **0.10b (CD: Cloud Run / Artifact Registry / WIF / Secret Manager)** — **deferred until GCP is provisioned**.
-- **As of:** Milestone 0.10a commit on branch `main` (Phase 0 ~95% — 0.1–0.9 + 0.10a done; **only 0.10b CD remains**).
-- **Phase 0 status:** foundation in place — monorepo, TS, ESLint/Prettier, Express 5 API, security middleware, MongoDB Atlas, env strategy, auth primitives, containerization, automated testing, **CI (GitHub Actions: gates + caching + coverage artifacts + Docker build validation)**. Remaining: **0.10b** Cloud Run CD (deferred — needs GCP). Mongoose 9 is the **approved baseline**. (Auth endpoints/session store + domain models are Phase 1.)
+- **Current milestone:** **0.10a complete** (CI pipeline — GitHub Actions). A **manual** staging deploy to Cloud Run is **live and verified** (see "Manual staging deploy" below), but **automated CD (0.10b) is NOT implemented** — no deploy workflows, WIF, Artifact Registry, or Secret Manager wiring exist in the repo. D16 stays **open**.
+- **As of:** Milestone 0.10a tree (`ece7971`, tag `v0.10.0-phase0`) is the **last meaningful Phase-0 milestone commit** on branch `main`. The commits on `main` *after* `ece7971` (`bbf068d`, `876bca8`, …) are **auto-generated `.claude/settings.local.json` permission commits** — an editor/hook commits that local-settings file (with a hardcoded, inaccurate `feat(api): add auth middleware` message) whenever the Bash permission allowlist changes. They ship **no application code**, are untagged, and are **not** milestones. They are **kept in history** (no rewrite); the deployable application code is identical to `v0.10.0-phase0`. Phase 0 ~95% — 0.1–0.9 + 0.10a done; **automated 0.10b CD remains**.
+- **Phase 0 status:** foundation in place — monorepo, TS, ESLint/Prettier, Express 5 API, security middleware, MongoDB Atlas, env strategy, auth primitives, containerization, automated testing, **CI (GitHub Actions: gates + caching + coverage artifacts + Docker build validation)**, plus a **verified manual Cloud Run staging deploy**. Remaining: **0.10b automated CD** (deploy workflows + WIF + Artifact Registry + Secret Manager + least-privilege SAs + SHA-tagged push + rollback) — **not yet built**, tracked as D16. Mongoose 9 is the **approved baseline**. (Auth endpoints/session store + domain models are Phase 1.)
+
+### Manual staging deploy (verified — NOT milestone 0.10b)
+- **Service URL:** `https://sajawat-api-staging-1019894285252.asia-south1.run.app`
+- **Region:** `asia-south1` (Mumbai). **GCP project number:** `1019894285252`.
+- **Health checks (verified by user):** `/health` ✅ · `/api/v1/health` ✅ · MongoDB Atlas connected ✅.
+- **What this is:** an **ad-hoc `gcloud run deploy`** of the 0.8 API image built from the `v0.10.0-phase0` tree. It proves the image runs on Cloud Run against Atlas.
+- **What this is NOT:** it is **not** the 0.10b automated CD milestone. There is **no** repeatable pipeline, no Workload Identity Federation, no Artifact Registry config, no Secret Manager wiring, no least-privilege deployer/runtime SAs, no SHA-tagged push, and no revision-rollback path committed. The secret(s) the live service uses were injected manually and are **not** captured as code/config. D16 remains **open**.
 
 ### Milestone commit hashes
 | Milestone | Commit |
@@ -23,7 +30,15 @@
 | 0.7 | `805798e` |
 | 0.8 | `114cfcb` |
 | 0.9 | `94e9fc6` |
-| 0.10a | (this commit — see `git log`) |
+| 0.10a | `ece7971` (tag `v0.10.0-phase0`) |
+| 0.10b (automated CD) | **none — not implemented** (D16 open) |
+| Manual staging deploy | **no code commit** — ad-hoc `gcloud run deploy` of the `ece7971` image; not versioned in-repo |
+
+> Note: `main` HEAD `bbf068d` ("feat(api): add auth middleware") is a **post-0.10a
+> administrative commit** — it touches only `.claude/settings.local.json` and ships **no
+> application code** (its `feat(api)` message does not match its contents). **Kept in
+> history (no rewrite)**; **not** a milestone and **untagged**. The deployable tree equals
+> `v0.10.0-phase0` (`ece7971`).
 
 ### Completed milestones
 - ✅ **0.1** — Monorepo skeleton
@@ -39,7 +54,7 @@
 - ✅ **0.10a** — CI pipeline (GitHub Actions `ci.yml`: Corepack pnpm, **Node 22 pinned + guarded**, frozen install, Turbo `lint/typecheck/build/test(+coverage)`, chromium e2e smoke, Docker build validation; pnpm/Turbo/mongod/Playwright caching; coverage artifacts). **Resolves D1 + D9 + CI-side D13.** Retro-tagged 0.4.1→0.9; reconciled `develop`. **No runtime/dev deps; no GCP.**
 
 ### Pending milestones
-- ⏳ **0.10b** — CD (Cloud Run + Artifact Registry + WIF/OIDC + Secret Manager; staging-auto / prod-manual). **Deferred until GCP is provisioned** (tracked as D16).
+- ⏳ **0.10b** — **Automated CD** (Cloud Run + Artifact Registry + WIF/OIDC + Secret Manager; staging-auto / prod-manual). **Not implemented** (tracked as D16). GCP is now provisioned (a manual staging deploy is live), so the original "deferred until GCP exists" blocker is cleared — what remains is authoring the keyless, repeatable, reviewable pipeline and capturing the infra as code/config. The current live service is a **manual** deploy and does not satisfy this milestone.
 
 ### Repository structure (top level)
 ```
@@ -82,7 +97,7 @@ See `sajawat-current-architecture.md` §1–2 for the authoritative list (Turbor
 - Local (non-Docker) toolchain runs on Node 25; the **Docker images use the contracted Node 22** (Corepack pnpm).
 
 ### Next recommended action
-Implement **Milestone 0.10b** (CD — Cloud Run) once GCP is provisioned (tracked as **D16**): GCP project + **Workload Identity Federation** (OIDC, keyless), **Artifact Registry** repo, **Secret Manager** entries (`MONGODB_URI`, `JWT_*`), and least-privilege service accounts (separate CI-deployer SA from the Cloud Run runtime SA). Then author `deploy-staging.yml` (auto on `develop`) + `deploy-production.yml` (`main`, behind a GitHub Environment with a required reviewer): build env-specific frontend images + the env-agnostic API image, push to Artifact Registry (SHA tags), `gcloud run deploy --set-secrets`, deploy API→web→admin, post-deploy readiness gate, revision-based rollback. Region is a configurable workflow variable (decide at deploy time).
+Implement **Milestone 0.10b** (automated CD — Cloud Run). GCP is **now provisioned** (a manual staging deploy is live), so D16's original blocker is cleared; the work is to replace the ad-hoc `gcloud run deploy` with a keyless, repeatable, reviewable pipeline **and migrate the manually-injected secret(s) into Secret Manager**. Steps (tracked as **D16**): GCP project + **Workload Identity Federation** (OIDC, keyless), **Artifact Registry** repo, **Secret Manager** entries (`MONGODB_URI`, `JWT_*`), and least-privilege service accounts (separate CI-deployer SA from the Cloud Run runtime SA). Then author `deploy-staging.yml` (auto on `develop`) + `deploy-production.yml` (`main`, behind a GitHub Environment with a required reviewer): build env-specific frontend images + the env-agnostic API image, push to Artifact Registry (SHA tags), `gcloud run deploy --set-secrets`, deploy API→web→admin, post-deploy readiness gate, revision-based rollback. Region is a configurable workflow variable (decide at deploy time).
 
 ---
 
@@ -195,7 +210,7 @@ Authoritative copy in `sajawat-open-debt.md`. Open items:
 | D10 | Low | `services/api` `dist/` git-ignored; API not consumed by another workspace. | Accepted; revisit if imported elsewhere. | — |
 | D14 | Low | Readiness 503 logs at error level (pino-http 5xx→error) — noisy under sustained DB outage. | Optionally downgrade/skip readiness-probe logging. | optional |
 | D15 | Medium | Stateless refresh tokens (0.7) — no server-side revocation/rotation until a Phase-1 session store; leaked refresh valid until expiry. Accepted. | Phase-1 session/refresh store (rotation + reuse-detection); claims already carry `jti`/`family`. | Phase 1 |
-| D16 | Low | **CD not implemented.** No Cloud Run / Artifact Registry / WIF / Secret Manager deploy workflows; CI build-validates images but never pushes/deploys. | Implement 0.10b once GCP is provisioned. | 0.10b |
+| D16 | Medium | **Automated CD not implemented.** No Cloud Run / Artifact Registry / WIF / Secret Manager deploy workflows; CI build-validates images but never pushes/deploys. A **manual** `gcloud run deploy` staging service is live, but it is ad-hoc, unversioned, and its secrets were injected by hand (not captured as code/config). | Implement 0.10b: keyless repeatable pipeline + migrate live secrets into Secret Manager. GCP is now provisioned, so the original blocker is cleared. | 0.10b |
 
 (D6 — non-type-aware ESLint — **resolved in 0.4**. helmet/cors/rate-limit gap **resolved in 0.4.1**. **D11 (CSRF) resolved in 0.7**. **D8 (placeholder `test` scripts) resolved in 0.9**. **D1 (Node-22 enforcement), D9 (tags/releases), and CI-side D13 (CI env/secrets) resolved in 0.10a.** Only the accepted `@sajawat/config` lint/typecheck stubs remain (D7). CSP remains a frontend concern (D12).)
 
@@ -238,10 +253,10 @@ Specs (source of truth): `sajawat-prd.md`, `-system-architecture.md`, `-database
 
 ## 6. Git Snapshot
 
-- **Current branch:** `main`
-- **Tags (D9 — resolved in 0.10a):** one annotated `vX.Y.0-phase0` per milestone — `v0.1.0`…`v0.4.0`, `v0.4.1`, `v0.5.0`, `v0.6.0`, `v0.7.0`, `v0.8.0`, `v0.9.0`, `v0.10.0-phase0`. First production release `v1.0.0` at the end of Phase 1.
-- **Remote:** `origin = github.com:Adhirajsingh2507/sajawat`. `main`, `develop`, and tags pushed.
-- **`develop` branch:** fast-forwarded to `main` in 0.10a and pushed; the (0.10b) `develop`→staging mapping can now fire.
+- **Current branch:** `main`. The commits after `ece7971` (`bbf068d`, `876bca8`, plus this docs commit) are **auto-generated `.claude/settings.local.json` permission commits** (mislabeled `feat(api): add auth middleware` by the settings-commit hook) and the docs-state update — **no application code**, **kept in history (no rewrite)**. The canonical end-of-Phase-0 code tree is `ece7971` / `v0.10.0-phase0`.
+- **Tags (D9 — resolved in 0.10a):** one annotated `vX.Y.0-phase0` per milestone — `v0.1.0`…`v0.4.0`, `v0.4.1`, `v0.5.0`, `v0.6.0`, `v0.7.0`, `v0.8.0`, `v0.9.0`, `v0.10.0-phase0`. `bbf068d` is **untagged**. First production release `v1.0.0` at the end of Phase 1.
+- **Remote:** `origin = github.com:Adhirajsingh2507/sajawat`. `main` and tags pushed (`origin/main` = `bbf068d`).
+- **`develop` branch:** **drifted** — `origin/develop` is at `ece7971` (0.10a), **one commit behind** `origin/main`. Re-sync `develop` → `main` before Phase-1 feature branches so the `develop`→staging mapping (once 0.10b exists) is correct.
 
 ### Tagging strategy (D9 — implemented in 0.10a)
 - **Scheme:** annotated phase tags `vX.Y.0-phase0` (patches like `v0.4.1-phase0`), one per milestone. First production release `v1.0.0` at end of Phase 1; CI may cut a GitHub Release on tag push (optional, 0.10b+).
@@ -288,6 +303,93 @@ Specs (source of truth): `sajawat-prd.md`, `-system-architecture.md`, `-database
 | mongodb-memory-server | ^10 | hermetic Mongo for integration (0.9; pin `MONGOMS_VERSION=6.0.14`) |
 | jsdom · @testing-library/{react,jest-dom,user-event} | — | web/admin component tests (0.9) |
 | @playwright/test | ^1 | chromium e2e smoke (0.9) |
+
+---
+
+## 8. Phase 0 — Final Closure
+
+> Status: **substantially closed.** Phase 0's goal was a production-grade
+> foundation with no business features. Every foundation milestone (0.1–0.10a) is
+> complete, verified, tagged, and on `main`. A live Cloud Run staging service
+> proves the container runs against Atlas in GCP. **One item is explicitly left
+> open:** automated CD (0.10b / D16). We are closing Phase 0 with that single,
+> documented carry-forward rather than pretending it is done.
+
+### Delivered (verified)
+| # | Milestone | Outcome | Tag |
+|---|-----------|---------|-----|
+| 0.1 | Monorepo skeleton | Turborepo + pnpm workspaces build clean | `v0.1.0-phase0` |
+| 0.2 | TypeScript foundation | strict TS, project refs, commit hygiene | `v0.2.0-phase0` |
+| 0.3 | ESLint flat config | single root config, zero-warning policy | `v0.3.0-phase0` |
+| 0.4 | API foundation | Express 5 app factory, pino, envelopes, Zod, error hierarchy | `v0.4.0-phase0` |
+| 0.4.1 | Security hardening | helmet, CORS allow-list, global rate limiter | `v0.4.1-phase0` |
+| 0.5 | MongoDB Atlas | Mongoose 9 connection lifecycle + DB readiness | `v0.5.0-phase0` |
+| 0.6 | Env strategy | Node-native layered `--env-file`, prod guards, secret guard | `v0.6.0-phase0` |
+| 0.7 | Auth foundation | jose JWT, Argon2id, centralized RBAC, CSRF, auth limiter | `v0.7.0-phase0` |
+| 0.8 | Containerization | 3 hardened multi-stage images + compose w/ `mongo:7` | `v0.8.0-phase0` |
+| 0.9 | Testing foundation | Vitest + Supertest + memory-server + Playwright (63 tests) | `v0.9.0-phase0` |
+| 0.10a | CI pipeline | GitHub Actions gates + caching + coverage + Docker build validation | `v0.10.0-phase0` |
+
+### Verified beyond the milestones
+- **Manual Cloud Run staging deploy** of the `ece7971` image: `/health`, `/api/v1/health`, and Atlas connectivity all green at `asia-south1`. Confirms Cloud Run + Atlas runtime compatibility ahead of automated CD.
+
+### Carry-forward into Phase 1 (open debt at closure)
+| ID | Sev | Item |
+|----|-----|------|
+| **D16** | Medium | **Automated CD (0.10b) not built.** Live staging is a manual, unversioned deploy with hand-injected secrets. Needs the keyless pipeline + Secret Manager migration. |
+| **D15** | Medium | Stateless refresh tokens — no server-side revocation/rotation until the Phase-1 session store. |
+| D4 | Low | Next.js starter boilerplate still in both apps (replaced when Phase-1 UI begins). |
+| D12 | Low | helmet CSP disabled (JSON API) — frontend CSP lands with Phase-1 UI. |
+| D14 | Low | Readiness-503 logs at error level under sustained DB outage (optional). |
+| D3, D5, D7, D10 | Low | Accepted/doc-only (local Corepack divergence, markdown format scope, config-pkg lint exemption, api `dist` not cross-consumed). |
+
+### Closure caveats (honesty notes)
+- `main` HEAD `bbf068d` is a **post-0.10a administrative commit** (only `.claude/settings.local.json`; no app code). **Decision: kept in history, no rewrite**; treated as a docs/local-settings state commit, **not** a milestone. `ece7971` / `v0.10.0-phase0` is the canonical end-of-Phase-0 code state.
+- `origin/develop` is one commit behind `origin/main` (at `ece7971`). **Decision: re-sync `develop` → `main` before any Phase-1 work** so the target topology holds (`main` = source of truth, `develop` = synced with `main`, feature branches cut from `develop`).
+
+---
+
+## 9. Phase 1 — Implementation Roadmap (proposed — NOT YET APPROVED)
+
+> Phase 1 turns the foundation into a shippable storefront. Per CLAUDE.md, **each
+> milestone below is architecture-first**: invoke the relevant agent, produce an
+> architecture + implementation plan, get approval, then implement. The order
+> front-loads the data layer and auth endpoints (everything else depends on them)
+> and closes the two medium-severity debts (D15, D16) early.
+
+**Sequencing rationale:** finish the CD + secrets story (1.0) so every later
+milestone deploys safely; then the persistence + auth-endpoint spine (1.1–1.2)
+that unblocks all domain work; then catalog → cart → checkout/payments (the
+revenue path); then content/SEO and admin; hardening last.
+
+| # | Milestone | Scope (summary) | Lead agent(s) | Closes |
+|---|-----------|-----------------|---------------|--------|
+| **1.0** | **Automated CD (close D16)** | Author `deploy-staging.yml` (auto on `develop`) + `deploy-production.yml` (`main`, GitHub Environment + required reviewer): WIF/OIDC (keyless), Artifact Registry, Secret Manager wiring, separate CI-deployer vs Cloud Run runtime SAs, SHA-tagged push, `gcloud run deploy --set-secrets`, post-deploy readiness gate, revision rollback. Re-deploy the current manual service *through* the pipeline. | devops, security | **D16** |
+| **1.0-OH** | **Operational Hardening (parallel, non-blocking)** | Not a gate on other Phase-1 work. Covers: **Atlas password rotation**, **JWT secret rotation**, **replacement of any exposed test credentials**, **Secret Manager verification** (live secrets sourced from Secret Manager, not hand-injected), and a **documented secret-rotation procedure**. | security, devops | — |
+| **1.1** | **Persistence layer + `BaseRepository`** | First real models (`User`, `Role`) on the 0.5 `baseSchemaPlugin`; implement `BaseRepository` (AD-6) against them; `syncIndexes()`; seed/migration scripts in `scripts/`. | database, architect | — |
+| **1.2** | **Auth endpoints + session store** | register/login/refresh/logout/me on the 0.7 primitives; **persisted refresh/session store** with rotation + reuse-detection (revoke `family`); wire `csrfGuard` on cookie routes; OTP/email-verify hooks behind the notification abstraction. | backend, security | **D15** |
+| **1.3** | **Catalog domain** | `Category`, `Collection`, `Product` (+ variants/inventory) models, repositories, services, REST endpoints (static-before-param routing rule); image pipeline → Google Cloud Storage; admin CRUD endpoints + RBAC. | backend, database, ecommerce | — |
+| **1.4** | **Storefront UI (web)** | Replace Next starter (D4): home, category/PLP, product/PDP, search; SEO from day one (metadata, structured data, OG, sitemap, canonical); Core Web Vitals budget; image optimization. | frontend, seo, ecommerce | **D4** (web) |
+| **1.5** | **Cart + wishlist** | Server-authoritative cart + wishlist models/endpoints; guest→user merge; coupon validation hooks. | backend, ecommerce | — |
+| **1.6** | **Checkout + payments** | `Order`/`OrderItem`/`Payment`/`Address`; **Razorpay** behind `PaymentProvider`; **architecture-first per PAYMENT RULES** (payment architecture, webhook handling, failure recovery, order-consistency strategy); never confirm an order without verified payment + idempotent webhooks. | ecommerce, backend, security | — |
+| **1.7** | **Admin panel** | Replace admin starter (D4); product/order/inventory/coupon management UIs against 1.3–1.6 endpoints; role-gated nav from the shared RBAC catalog. | frontend, ecommerce | **D4** (admin) |
+| **1.8** | **B2B leads + CRM + notifications** | Wholesale lead capture + CRM pipeline; MSG91 (SMS) + WhatsApp Business API behind the notification abstraction; transactional templates. | backend, ecommerce | — |
+| **1.9** | **Frontend CSP + security hardening** | Per-app CSP in `apps/web`/`apps/admin` (closes D12); auth/OTP strict limiters in production; dependency + secret scanning in CI; pre-launch security review (security-review skill). | security, frontend | **D12** |
+| **1.10** | **Launch readiness** | E2E business journeys (replace the 0.9 smoke scaffold); performance/load tests (`tests/performance/`); coverage ratchet; observability/alerting (`infrastructure/monitoring/`); backups (`infrastructure/backups/`); **`v1.0.0` production release**. | devops, architect, seo | — |
+
+**Cross-cutting (every milestone):** architecture-first planning + approval gate;
+Conventional Commits + annotated tags; CI gates green; threat-model new surfaces
+(authn/authz, rate limiting, input validation, NoSQL-injection, XSS/CSRF);
+SEO + Core Web Vitals for any user-facing page; document state/debt updates.
+
+**Decisions locked (per approval):**
+- `bbf068d` kept in history (no rewrite); `ece7971` / `v0.10.0-phase0` is the last meaningful Phase-0 milestone commit.
+- `develop` re-synced to `main` before any Phase-1 work; topology = `main` (source of truth) → `develop` (synced) → feature branches off `develop`.
+- Secret rotation is **not** a Phase-1 blocker; it lives in the **1.0-OH Operational Hardening** task.
+
+**Open questions to resolve before 1.0 kickoff:**
+1. Production region(s) + custom domain (Cloudflare DNS) + GCP project layout (single project vs separate staging/prod projects) — needed to parameterize 1.0.
+2. Confirm Razorpay account/keys availability ahead of 1.6.
 
 ---
 
@@ -338,8 +440,15 @@ STEP 7 — WAIT for explicit approval before implementing. Then implement,
   file changes · what was implemented · key decisions · verification results ·
   remaining technical debt. Then stop.
 
-The next milestone to implement is 0.10b (CD — Cloud Run), DEFERRED until GCP is
-provisioned (tracked as D16). 0.10a (CI) is complete: `.github/workflows/ci.yml`
+The next milestone to implement is 0.10b / Phase-1.0 (AUTOMATED CD — Cloud Run),
+tracked as D16. GCP is now PROVISIONED and a MANUAL staging deploy is live
+(`https://sajawat-api-staging-1019894285252.asia-south1.run.app`, region
+asia-south1) — but that manual deploy is ad-hoc and does NOT satisfy the
+milestone; the repo has no deploy workflows/WIF/Artifact Registry/Secret Manager.
+Note `main` HEAD `bbf068d` is a post-0.10a administrative commit (only
+`.claude/settings.local.json`; no app code, kept in history); the canonical
+Phase-0 tree is `ece7971` / `v0.10.0-phase0`. 0.10a (CI) is complete:
+`.github/workflows/ci.yml`
 runs Corepack pnpm, Node 22 (pinned via .nvmrc + a guard step), frozen install,
 Turbo lint/typecheck/build/test(+coverage), chromium e2e smoke, and Docker build
 validation; caching covers pnpm/Turbo/mongod (MONGOMS_VERSION=6.0.14)/Playwright;
