@@ -106,36 +106,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          # AD-52: JWT_ISSUER/JWT_AUDIENCE are PLAIN env vars (non-secret public
-          # identifiers). A pre-existing revision (e.g. the hand-deployed staging
-          # service) may bind them as SECRET env vars. gcloud CANNOT flip a key
-          # secret->literal in one invocation: it validates the new literal against
-          # the still-secret CURRENT binding and errors ("...already been set with a
-          # different type") — true for --set-secrets+--set-env-vars AND for
-          # --remove-secrets+--update-env-vars. The only working path is TWO steps:
-          # first DROP the secret binding, then the main deploy sets the literal.
-          # The key-absent intermediate fails our boot env validation (config/env.ts
-          # process.exit(1) if JWT_ISSUER missing), so the removal MUST NOT be
-          # health-gated: run it --async (the Service spec is patched synchronously
-          # so the deploy below no longer sees a secret binding; gcloud just doesn't
-          # wait on the doomed --no-traffic revision). The live revision keeps
-          # serving. Idempotent: once literal, STALE is empty; fresh service skips.
-          if gcloud run services describe "$SERVICE" \
-               --region="$REGION" --project="$PROJECT" --format=json >/tmp/svc.json 2>/dev/null; then
-            STALE="$(jq -r '
-              [.spec.template.spec.containers[].env[]?
-                 | select(.valueFrom != null) | .name]
-              | map(select(. == "JWT_ISSUER" or . == "JWT_AUDIENCE"))
-              | unique | join(",")' /tmp/svc.json)"
-            if [ -n "$STALE" ]; then
-              echo "Dropping legacy secret-backed bindings ($STALE) so the deploy can set them as literals (AD-52)…"
-              gcloud run services update "$SERVICE" \
-                --region="$REGION" --project="$PROJECT" \
-                --no-traffic --async \
-                --remove-secrets="$STALE"
-            fi
-          fi
-
+          # `gcloud run deploy` is CREATE-OR-UPDATE: it provisions the staging
+          # service on the first run and updates it on subsequent runs — no manual
+          # pre-creation needed. AD-52: JWT_ISSUER/JWT_AUDIENCE are PLAIN env vars
+          # (--set-env-vars), never Secret Manager. The earlier hand-deployed
+          # staging service is treated as DISPOSABLE and deleted out-of-band (see
+          # the deployment-plan runbook / open-debt D16); a pipeline-created service
+          # has no secret-typed JWT_ISSUER/JWT_AUDIENCE, so no in-place
+          # secret->literal conversion is required here.
           echo "Deploying $IMAGE to $SERVICE (no traffic, tag=candidate)…"
           gcloud run deploy "$SERVICE" \
             --image="$IMAGE" \

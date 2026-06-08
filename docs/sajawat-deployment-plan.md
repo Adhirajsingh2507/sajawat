@@ -623,10 +623,22 @@ A deployment is successful when:
    (see `infrastructure/scripts/gcp/README.md`).
 3. **Cross-project reader grant** — production deployer SA gets repo-scoped
    `artifactregistry.reader` on the **staging** repo (promotion source; README §"Production promotion").
-4. **`staging` GitHub Environment:** populate all non-secret variables (see §17 of
+4. **Delete the legacy hand-deployed staging service** (treated as disposable —
+   it carries incompatible legacy config: secret-typed `JWT_ISSUER`/`JWT_AUDIENCE`
+   and a foreign runtime SA). The pipeline recreates a clean service on first run
+   (`gcloud run deploy` is create-or-update). Confirm the name first, then delete:
+   ```bash
+   gcloud run services list --region=asia-south1 --project=sajawat-staging
+   gcloud run services delete sajawat-api-staging --region=asia-south1 --project=sajawat-staging --quiet
+   ```
+   (Use whatever name your `API_SERVICE` staging variable holds — the pipeline will
+   recreate that exact service. Staging downtime is acceptable; the manual service
+   is not a milestone deliverable.)
+5. **`staging` GitHub Environment:** populate all non-secret variables (see §17 of
    `sajawat-current-architecture.md`). Push to `develop` → confirm **one green
-   staging deploy** (this produces the promotable digest).
-5. **`production` GitHub Environment:** create with a **required reviewer**, set
+   staging deploy** (the pipeline creates the service from scratch and produces the
+   promotable digest).
+6. **`production` GitHub Environment:** create with a **required reviewer**, set
    deployment policy to **tags `v*`**, and add all variables including
    `STAGING_AR_IMAGE_PREFIX`.
 
