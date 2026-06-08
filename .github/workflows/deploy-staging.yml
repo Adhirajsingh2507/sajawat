@@ -114,12 +114,28 @@ jobs:
           # the deployment-plan runbook / open-debt D16); a pipeline-created service
           # has no secret-typed JWT_ISSUER/JWT_AUDIENCE, so no in-place
           # secret->literal conversion is required here.
-          echo "Deploying $IMAGE to $SERVICE (no traffic, tag=candidate)…"
+          # Cloud Run forbids --no-traffic when CREATING a new service, so adapt to
+          # whether the service already exists:
+          #   * FIRST deploy (absent): plain create — the sole new revision must take
+          #     100% traffic — then health-check the LIVE url; no candidate, no shift.
+          #   * EXISTING: safe candidate flow — --no-traffic --tag=candidate, readiness
+          #     gate on the candidate url, and shift traffic ONLY after it passes.
+          if gcloud run services describe "$SERVICE" \
+               --region="$REGION" --project="$PROJECT" >/dev/null 2>&1; then
+            EXISTS=1
+            CANDIDATE_FLAGS=(--no-traffic --tag=candidate)
+            echo "Service $SERVICE exists → candidate flow. Deploying $IMAGE (no traffic, tag=candidate)…"
+          else
+            EXISTS=0
+            CANDIDATE_FLAGS=()
+            echo "Service $SERVICE does not exist → first deploy. Creating from $IMAGE (serves immediately)…"
+          fi
+
           gcloud run deploy "$SERVICE" \
             --image="$IMAGE" \
             --region="$REGION" --project="$PROJECT" \
             --service-account="$RUNTIME_SA" \
-            --no-traffic --tag=candidate \
+            "${CANDIDATE_FLAGS[@]}" \
             --allow-unauthenticated \
             --min-instances=0 \
             --set-secrets="MONGODB_URI=MONGODB_URI:latest,JWT_ACCESS_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest" \
@@ -127,14 +143,19 @@ jobs:
 
           BASE_URL="$(gcloud run services describe "$SERVICE" \
             --region="$REGION" --project="$PROJECT" --format='value(status.url)')"
-          # Cloud Run tag URL pattern: https://TAG---SERVICE-HASH.run.app
-          CANDIDATE_URL="https://candidate---${BASE_URL#https://}"
-          echo "Candidate revision URL: $CANDIDATE_URL"
+          if [ "$EXISTS" = "1" ]; then
+            # Cloud Run tag URL pattern: https://TAG---SERVICE-HASH.run.app
+            CHECK_URL="https://candidate---${BASE_URL#https://}"
+            echo "Candidate revision URL: $CHECK_URL"
+          else
+            CHECK_URL="$BASE_URL"
+            echo "Live service URL: $CHECK_URL"
+          fi
 
-          echo "Readiness gate: GET $CANDIDATE_URL/api/v1/health (expect 200; 503 while DB not ready)…"
+          echo "Readiness gate: GET $CHECK_URL/api/v1/health (expect 200; 503 while DB not ready)…"
           ok=0
           for i in $(seq 1 30); do
-            code="$(curl -s -o /tmp/health.json -w '%{http_code}' "$CANDIDATE_URL/api/v1/health" || true)"
+            code="$(curl -s -o /tmp/health.json -w '%{http_code}' "$CHECK_URL/api/v1/health" || true)"
             if [ "$code" = "200" ]; then
               echo "Healthy on attempt $i:"; cat /tmp/health.json; echo
               ok=1; break
@@ -144,13 +165,19 @@ jobs:
           done
 
           if [ "$ok" != "1" ]; then
-            echo "::error::Readiness gate FAILED — candidate unhealthy. Traffic NOT shifted; previous revision still serves."
+            if [ "$EXISTS" = "1" ]; then
+              echo "::error::Readiness gate FAILED — candidate unhealthy. Traffic NOT shifted; previous revision still serves."
+            else
+              echo "::error::First-deploy health check FAILED — the newly created service is unhealthy (it already serves 100% traffic; inspect Cloud Run logs / secrets / env)."
+            fi
             exit 1
           fi
 
-          echo "Shifting 100% traffic to the candidate revision…"
-          gcloud run services update-traffic "$SERVICE" \
-            --region="$REGION" --project="$PROJECT" \
-            --to-tags=candidate=100
+          if [ "$EXISTS" = "1" ]; then
+            echo "Shifting 100% traffic to the candidate revision…"
+            gcloud run services update-traffic "$SERVICE" \
+              --region="$REGION" --project="$PROJECT" \
+              --to-tags=candidate=100
+          fi
 
           echo "✓ Deploy complete. Live URL: $BASE_URL"
