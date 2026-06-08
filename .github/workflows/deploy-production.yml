@@ -187,17 +187,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          # AD-52: JWT_ISSUER/JWT_AUDIENCE are PLAIN env vars (non-secret public
-          # identifiers). If a prior revision ever bound them as SECRET env vars,
-          # Cloud Run refuses to change a key's TYPE in place, and gcloud forbids
-          # --remove-secrets in the SAME invocation as --set-secrets ("at most one
-          # of ...-secrets"). So when a legacy secret binding exists, CONVERT it
-          # FIRST in its own --no-traffic update via the documented secret->literal
-          # idiom (--remove-secrets + --update-env-vars together) — dropping the
-          # secret and setting the literal in one step, keeping that throwaway
-          # revision healthy and never touching the live one. The main --set-secrets
-          # deploy below then sees the keys already as literals => no type conflict.
-          # Idempotent / fresh-service-safe (same guard staging uses).
+          # AD-52: JWT_ISSUER/JWT_AUDIENCE are PLAIN env vars. If a prior revision
+          # ever bound them as SECRET env vars, gcloud CANNOT flip a key
+          # secret->literal in one invocation — it validates the new literal against
+          # the still-secret CURRENT binding and errors ("...already been set with a
+          # different type"), for both --set-secrets+--set-env-vars and
+          # --remove-secrets+--update-env-vars. The only working path is TWO steps:
+          # DROP the secret binding, then the main deploy sets the literal. The
+          # key-absent intermediate fails boot env validation (config/env.ts
+          # process.exit(1)), so the removal runs --async (Service spec patched
+          # synchronously; gcloud doesn't wait on the doomed --no-traffic revision).
+          # Live revision keeps serving. Idempotent / fresh-service-safe.
           if gcloud run services describe "$SERVICE" \
                --region="$REGION" --project="$PROJECT" --format=json >/tmp/svc.json 2>/dev/null; then
             STALE="$(jq -r '
@@ -206,11 +206,11 @@ jobs:
               | map(select(. == "JWT_ISSUER" or . == "JWT_AUDIENCE"))
               | unique | join(",")' /tmp/svc.json)"
             if [ -n "$STALE" ]; then
-              echo "Converting legacy secret-backed env vars to plain literals (AD-52): $STALE"
+              echo "Dropping legacy secret-backed bindings ($STALE) so the deploy can set them as literals (AD-52)…"
               gcloud run services update "$SERVICE" \
-                --region="$REGION" --project="$PROJECT" --no-traffic \
-                --remove-secrets="$STALE" \
-                --update-env-vars="JWT_ISSUER=${JWT_ISSUER},JWT_AUDIENCE=${JWT_AUDIENCE}"
+                --region="$REGION" --project="$PROJECT" \
+                --no-traffic --async \
+                --remove-secrets="$STALE"
             fi
           fi
 
