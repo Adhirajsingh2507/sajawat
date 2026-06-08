@@ -187,15 +187,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "Deploying $IMAGE to $SERVICE (no traffic, tag=candidate, min-instances=1)…"
-
           # AD-52: JWT_ISSUER/JWT_AUDIENCE are PLAIN env vars (non-secret public
           # identifiers). If a prior revision ever bound them as SECRET env vars,
-          # Cloud Run refuses to change a key's TYPE in place. Detect any such
-          # legacy secret binding and drop it in the SAME --no-traffic revision we
-          # set the literals in (live revision never mutated). Same guard the
-          # staging workflow uses, so production cannot hit the type conflict.
-          CONVERT=()
+          # Cloud Run refuses to change a key's TYPE in place, and gcloud forbids
+          # --remove-secrets in the SAME invocation as --set-secrets ("at most one
+          # of ...-secrets"). So when a legacy secret binding exists, CONVERT it
+          # FIRST in its own --no-traffic update via the documented secret->literal
+          # idiom (--remove-secrets + --update-env-vars together) — dropping the
+          # secret and setting the literal in one step, keeping that throwaway
+          # revision healthy and never touching the live one. The main --set-secrets
+          # deploy below then sees the keys already as literals => no type conflict.
+          # Idempotent / fresh-service-safe (same guard staging uses).
           if gcloud run services describe "$SERVICE" \
                --region="$REGION" --project="$PROJECT" --format=json >/tmp/svc.json 2>/dev/null; then
             STALE="$(jq -r '
@@ -205,10 +207,14 @@ jobs:
               | unique | join(",")' /tmp/svc.json)"
             if [ -n "$STALE" ]; then
               echo "Converting legacy secret-backed env vars to plain literals (AD-52): $STALE"
-              CONVERT+=("--remove-secrets=$STALE")
+              gcloud run services update "$SERVICE" \
+                --region="$REGION" --project="$PROJECT" --no-traffic \
+                --remove-secrets="$STALE" \
+                --update-env-vars="JWT_ISSUER=${JWT_ISSUER},JWT_AUDIENCE=${JWT_AUDIENCE}"
             fi
           fi
 
+          echo "Deploying $IMAGE to $SERVICE (no traffic, tag=candidate, min-instances=1)…"
           gcloud run deploy "$SERVICE" \
             --image="$IMAGE" \
             --region="$REGION" --project="$PROJECT" \
@@ -216,7 +222,6 @@ jobs:
             --no-traffic --tag=candidate \
             --allow-unauthenticated \
             --min-instances=1 \
-            "${CONVERT[@]}" \
             --set-secrets="MONGODB_URI=MONGODB_URI:latest,JWT_ACCESS_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest" \
             --set-env-vars="NODE_ENV=production,JWT_ISSUER=${JWT_ISSUER},JWT_AUDIENCE=${JWT_AUDIENCE},CORS_ORIGINS=${CORS_ORIGINS},API_BASE_URL=${API_BASE_URL}"
 
