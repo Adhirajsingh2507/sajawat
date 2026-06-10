@@ -26,6 +26,22 @@ B2C E-Commerce
 +
 B2B Wholesale Supplier
 
+Architecture Model (canonical):
+
+SINGLE-COMPANY, FIRST-PARTY. NOT a marketplace — no third-party
+vendors/sellers. Sajawat owns all products, inventory, orders, payments,
+fulfillment, and support. Target shape ≈ Shopify + CRM + ERP-lite +
+Inventory + B2B portal.
+
+Two operating funnels:
+
+* Model A — B2C retail: cart → checkout → pay → ship, with
+  admin-configurable promotions (automatic cart-value thresholds and/or
+  coupon codes).
+* Model B — B2B bulk: wholesale enquiry form → stored as CRM lead +
+  instant WhatsApp alert to the admin number → staff follow-up. No
+  automated wholesale checkout. (Not a quotation/booking platform.)
+
 Brand Positioning:
 
 Premium Luxury Jewellery Brand

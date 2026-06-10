@@ -1,8 +1,28 @@
 # SAJAWAT JEWELLERY — PROJECT FOUNDATION
 
-Luxury jewelry e-commerce platform serving B2C customers, B2B wholesale leads,
+Luxury (imitation) jewelry brand serving B2C customers, B2B wholesale leads,
 admin staff, and super admins. Designed for long-term growth, initially
 supporting ~200–300 SKUs at the stability traffic tier.
+
+## Business Model — CANONICAL (do not re-derive)
+
+Sajawat is a **single-company, first-party** operation: **Manufacturer + B2C
+e-commerce + B2B wholesale supplier**. It is **NOT a marketplace** — there are
+no third-party vendors/sellers. Sajawat owns all products, inventory, orders,
+payments, fulfillment, and support. Architecture target ≈ **Shopify store + CRM
++ ERP-lite + Inventory + B2B portal**. **Forbidden patterns** (never introduce):
+vendor/seller entities, vendor dashboards/payouts/commissions, multi-vendor
+product ownership, per-vendor inventory, ownership FKs (`vendorId`/`sellerId`/
+`storeId`/`tenantId`). B2B is a customer *type*, never a seller.
+
+Two customer funnels (both single-company):
+- **Model A — B2C retail:** browse → search → add to cart → admin-configurable
+  promotions (automatic cart-value rules and/or coupon codes, recomputed
+  server-side) → checkout → Razorpay → order → fulfillment.
+- **Model B — B2B bulk:** wholesale enquiry form → persist as CRM lead **+
+  instant WhatsApp alert to the admin number (from settings)** → staff work it
+  in the CRM. **No automated wholesale checkout.** (This is NOT a
+  services/quotation/booking platform — an earlier review wrongly assumed that.)
 
 ## Tech Stack
 
