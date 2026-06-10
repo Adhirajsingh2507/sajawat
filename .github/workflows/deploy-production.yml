@@ -136,11 +136,15 @@ jobs:
           echo "Staging digest: $DIGEST"
 
           echo "Promoting (copy by digest) staging -> production AR …"
-          gcloud artifacts docker images copy \
-            "${STAGING_PREFIX}/api@${DIGEST}" \
-            "${PROD_PREFIX}/api:${SHA}" \
-            --quiet
+          docker pull \
+            "${STAGING_PREFIX}/api@${DIGEST}"
 
+          docker tag \
+            "${STAGING_PREFIX}/api@${DIGEST}" \
+            "${PROD_PREFIX}/api:${SHA}"
+
+          docker push \
+            "${PROD_PREFIX}/api:${SHA}"
           # Re-resolve the digest from the PRODUCTION repo (authoritative for deploy).
           PROD_DIGEST="$(gcloud artifacts docker images describe \
             "${PROD_PREFIX}/api:${SHA}" \
