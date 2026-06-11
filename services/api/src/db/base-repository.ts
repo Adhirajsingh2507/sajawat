@@ -119,6 +119,16 @@ export class BaseRepository<TDoc> {
     return { items, total, page, limit, pages: Math.ceil(total / limit) };
   }
 
+  /**
+   * Bulk update by filter (UNSCOPED — the caller's filter is authoritative).
+   * Returns the number of modified documents. Use for administrative/bulk ops
+   * like revoking a token family.
+   */
+  async updateMany(filter: DocFilter, update: UpdateQuery<TDoc>): Promise<number> {
+    const res = await this.model.updateMany(this.asFilter(filter), update).exec();
+    return res.modifiedCount;
+  }
+
   /** Update by id with validators run; returns the updated document (scoped). */
   updateById(
     id: string,

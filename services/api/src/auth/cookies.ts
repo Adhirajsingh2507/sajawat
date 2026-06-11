@@ -20,7 +20,7 @@ const UNIT_MS: Readonly<Record<string, number>> = {
 };
 
 /** Parse a jose-style duration ("15m", "7d") to milliseconds; 0 if unrecognized. */
-function durationToMs(value: string): number {
+export function durationToMs(value: string): number {
   const match = /^(\d+)\s*([smhd])$/.exec(value.trim());
   if (match === null) {
     return 0;

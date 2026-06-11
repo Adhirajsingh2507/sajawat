@@ -13,9 +13,10 @@ import type { Model } from 'mongoose';
 import { connectToDatabase, disconnectFromDatabase } from '../db/index.js';
 import { logger } from '../config/logger.js';
 import { User } from '../modules/user/user.model.js';
+import { Session } from '../modules/session/session.model.js';
 
 // Register every model whose indexes must be synced. Append as domains land.
-const MODELS: Model<unknown>[] = [User];
+const MODELS: Model<unknown>[] = [User, Session];
 
 async function syncIndexes(): Promise<void> {
   await connectToDatabase();

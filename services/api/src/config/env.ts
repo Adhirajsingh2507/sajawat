@@ -86,6 +86,13 @@ const EnvSchema = z.object({
     .positive()
     .default(15 * 60 * 1000),
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
+
+  // ---- Google OAuth (Milestone 1.2 — GIS ID-token flow) ----
+  // OPTIONAL. The Client ID is NOT secret (it is embedded in the frontend); set
+  // as a plain Cloud Run env var, not via Secret Manager. When absent,
+  // `POST /api/v1/auth/google` returns 501 "Google sign-in not configured".
+  // Real staging/production Client IDs are created during storefront work (1.4).
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
 });
 
 const EnvSchemaChecked = EnvSchema.superRefine((value, ctx) => {
