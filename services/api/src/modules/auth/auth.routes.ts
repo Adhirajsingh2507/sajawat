@@ -20,6 +20,6 @@ export const authRouter: Router = express.Router();
 authRouter.post('/register', authRateLimiter, validate(registerSchema), register);
 authRouter.post('/login', authRateLimiter, validate(loginSchema), login);
 authRouter.post('/google', authRateLimiter, validate(googleSchema), google);
-authRouter.post('/refresh', csrfGuard, refresh);
+authRouter.post('/refresh-token', csrfGuard, refresh);
 authRouter.post('/logout', csrfGuard, logout);
 authRouter.get('/me', requireAuth, me);

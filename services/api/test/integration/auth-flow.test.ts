@@ -61,7 +61,7 @@ describe('auth flow', () => {
     expect(me.body.data.user.email).toBe('flow@example.com');
 
     const refreshed = await request(app)
-      .post('/api/v1/auth/refresh')
+      .post('/api/v1/auth/refresh-token')
       .set('Cookie', [`sajawat_rt=${rt}`, `sajawat_csrf=${csrf}`])
       .set('x-csrf-token', csrf);
     expect(refreshed.status).toBe(200);
@@ -80,7 +80,9 @@ describe('auth flow', () => {
       .post('/api/v1/auth/register')
       .send({ firstName: 'C', lastName: 'S', email: 'csrf@example.com', password: 'Password123' });
     const rt = cookieValue(reg, 'sajawat_rt');
-    const res = await request(app).post('/api/v1/auth/refresh').set('Cookie', `sajawat_rt=${rt}`);
+    const res = await request(app)
+      .post('/api/v1/auth/refresh-token')
+      .set('Cookie', `sajawat_rt=${rt}`);
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('FORBIDDEN');
   });
