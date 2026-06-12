@@ -31,11 +31,11 @@ export interface ReadOptions {
 
 export interface PaginateOptions extends ReadOptions {
   /** 1-based page number (clamped to >= 1). */
-  page?: number;
+  page?: number | undefined;
   /** Page size (clamped to 1..100). */
-  limit?: number;
+  limit?: number | undefined;
   /** Sort spec, e.g. `{ createdAt: -1 }`. Defaults to newest-first. */
-  sort?: Record<string, 1 | -1>;
+  sort?: Record<string, 1 | -1> | undefined;
 }
 
 export interface PaginatedResult<T> {
