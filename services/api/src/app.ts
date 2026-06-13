@@ -24,6 +24,8 @@ import { healthRouter } from './routes/health.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { categoryRouter, categoryAdminRouter } from './modules/category/category.routes.js';
 import { collectionRouter, collectionAdminRouter } from './modules/collection/collection.routes.js';
+import { productRouter, productAdminRouter } from './modules/product/product.routes.js';
+import { inventoryAdminRouter } from './modules/inventory/inventory.routes.js';
 import { notFoundHandler } from './middleware/not-found.js';
 import { errorHandler } from './middleware/error-handler.js';
 
@@ -61,8 +63,11 @@ export function createApp(): Application {
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/categories', categoryRouter);
   app.use('/api/v1/collections', collectionRouter);
+  app.use('/api/v1/products', productRouter);
   app.use('/api/v1/admin/categories', categoryAdminRouter);
   app.use('/api/v1/admin/collections', collectionAdminRouter);
+  app.use('/api/v1/admin/products', productAdminRouter);
+  app.use('/api/v1/admin/inventory', inventoryAdminRouter);
 
   // Fall-through 404, then the single global error handler.
   app.use(notFoundHandler);

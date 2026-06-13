@@ -100,6 +100,11 @@ export class BaseRepository<TDoc> {
     return hit !== null;
   }
 
+  /** Find all documents matching a filter (soft-delete scoped). No pagination. */
+  find(filter: DocFilter = {}, opts: ReadOptions = {}): Promise<HydratedDocument<TDoc>[]> {
+    return this.model.find(this.asFilter(this.scoped(filter, opts.includeDeleted))).exec();
+  }
+
   async paginate(
     filter: DocFilter = {},
     opts: PaginateOptions = {},

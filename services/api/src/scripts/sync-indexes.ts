@@ -16,9 +16,20 @@ import { User } from '../modules/user/user.model.js';
 import { Session } from '../modules/session/session.model.js';
 import { Category } from '../modules/category/category.model.js';
 import { Collection } from '../modules/collection/collection.model.js';
+import { Product } from '../modules/product/product.model.js';
+import { Inventory } from '../modules/inventory/inventory.model.js';
+import { InventoryMovement } from '../modules/inventory/inventory-movement.model.js';
 
 // Register every model whose indexes must be synced. Append as domains land.
-const MODELS: Model<unknown>[] = [User, Session, Category, Collection];
+const MODELS: Model<unknown>[] = [
+  User,
+  Session,
+  Category,
+  Collection,
+  Product,
+  Inventory,
+  InventoryMovement,
+];
 
 async function syncIndexes(): Promise<void> {
   await connectToDatabase();

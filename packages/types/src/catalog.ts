@@ -29,3 +29,40 @@ export interface PublicCollection {
   description?: string | undefined;
   bannerImage?: string | undefined;
 }
+
+export interface ProductImage {
+  url: string;
+  alt?: string | undefined;
+  position: number;
+}
+
+export interface ProductVideo {
+  url: string;
+}
+
+export interface ProductSeo {
+  title?: string | undefined;
+  description?: string | undefined;
+  keywords: string[];
+}
+
+export interface PublicProduct {
+  id: string;
+  name: string;
+  slug: string;
+  shortDescription?: string | undefined;
+  description?: string | undefined;
+  sku: string;
+  price: number;
+  salePrice?: number | undefined;
+  categoryId: string;
+  collectionIds: string[];
+  images: ProductImage[];
+  video?: ProductVideo | undefined;
+  seo: ProductSeo;
+  ogImage?: string | undefined;
+  isFeatured: boolean;
+  isBestSeller: boolean;
+  /** Derived from the 1:1 inventory record (status !== out_of_stock). */
+  inStock: boolean;
+}
