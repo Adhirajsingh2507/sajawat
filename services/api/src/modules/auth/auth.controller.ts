@@ -57,6 +57,7 @@ export const google: RequestHandler = asyncHandler(async (req, res) => {
 export const refresh: RequestHandler = asyncHandler(async (req, res) => {
   const tokens = await authService.refresh(refreshTokenFrom(req), contextOf(req));
   setRefreshCookie(res, tokens.refreshToken);
+  issueCsrfToken(res); // rotate the (persistent) CSRF cookie alongside the refresh
   sendSuccess(res, { accessToken: tokens.accessToken });
 });
 

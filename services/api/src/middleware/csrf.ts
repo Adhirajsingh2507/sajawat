@@ -11,7 +11,8 @@
  */
 import type { RequestHandler, Response } from 'express';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { isProduction } from '../config/env.js';
+import { env, isProduction } from '../config/env.js';
+import { durationToMs } from '../auth/cookies.js';
 import { ForbiddenError } from '../errors/app-error.js';
 
 export const CSRF_COOKIE_NAME = 'sajawat_csrf';
@@ -24,6 +25,9 @@ export function issueCsrfToken(res: Response): string {
     secure: isProduction,
     sameSite: 'strict',
     path: '/',
+    // Persist for the refresh-token lifetime so a returning user can perform the
+    // silent refresh on app load (1.4 gated storefront); rotated on each refresh.
+    maxAge: durationToMs(env.JWT_REFRESH_EXPIRES_IN),
   });
   return token;
 }
