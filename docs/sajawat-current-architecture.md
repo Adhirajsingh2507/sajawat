@@ -610,3 +610,31 @@ deployment policy restricted to **tags matching `v*`**; variables `GCP_PROJECT_I
 `vX.Y.Z-phase0` scheme); it is both the milestone marker and the first artifact
 promoted through this pipeline. `v1.0.0` remains reserved for the first Phase-1
 production release.
+
+---
+
+## 19. Phase 1 — Implemented Domains (1.1–1.6)
+
+Backend domain modules follow **Controller → Service → Repository** with flat files
+per `modules/<domain>/` (AD: flat module layout, not the per-type subfolders in
+folder-structure.md). All extend `BaseRepository` (AD-6) on `baseSchemaPlugin`.
+Public DTOs live in **`@sajawat/types`** (type-only); runtime mappers stay in the API.
+
+| Module | Models | Public/Customer | Admin (RBAC) |
+|---|---|---|---|
+| **user** (1.1) | `User` (role enum AD-20, `customerType`, soft-delete) + `BaseRepository` | — | (seed-admin) |
+| **auth / session** (1.2) | `Session` (refresh store, TTL, rotation+reuse-detection → closes **D15**) | `/auth` register/login/refresh-token/logout/me/google | — |
+| **category, collection** (1.3a) | `Category`, `Collection` (slug-unique, soft-delete) | `GET /categories`,`/collections` (+`/:slug`) | CRUD (`category:write`/`collection:write`) |
+| **product, inventory** (1.3b) | `Product` (text index, embedded media refs), `Inventory` (1:1, derived `availableQuantity`/status), `InventoryMovement` (audit) | `GET /products` (filter/sort/page), `/search`, `/featured`,`/best-sellers`,`/new-arrivals`, `/:slug` (`inStock` joined) | product CRUD + inventory adjust/history |
+| **cart, wishlist** (1.5) | `Cart` (1/user), `Wishlist` (1/user) | `/cart` (add/update/remove, apply/remove coupon — **totals recomputed live**), `/wishlist` | — |
+| **promotion** (1.5a) | `Promotion` (automatic/coupon, %/fixed, limits) + **discount calculator** (coupon-wins-else-best-automatic, AD-1.5D) | (applied at cart) | CRUD (`coupon:write`) |
+| **order, payment** (1.6) | `Order` (embedded item/address/promotion snapshots), `Payment` | `/checkout/cod`, `/checkout` + `/verify-payment` (online), `/orders` (list/detail/cancel) | `/admin/orders` list/detail/status/payment |
+
+**Key cross-cutting decisions (Phase 1):**
+- **AD-1.5D** — single discount per cart: a valid entered coupon wins, else the best active automatic promotion (no stacking). Discounts recomputed server-side every read.
+- **Inventory integrity** — atomic conditional `$inc` (no-oversell); **reserve-on-create → commit-on-pay** for online, **commit at placement** for COD, **release/restock** on failure/cancel. No multi-doc transactions (works on Atlas + in-memory test server); every change writes an `InventoryMovement`.
+- **Payments (PAYMENT RULES)** — `PaymentProvider` abstraction; `RazorpayProvider` (fetch + `node:crypto`, no SDK) config-gated → **501 until keys**. Idempotency via an atomic `pending→paid` order transition shared by client-verify and the raw-body-HMAC **webhook (source of truth)**. Never paid without a verified signature/webhook.
+- **`sanitizeFilter` interaction (AD-9)** — developer operators (`$in`, `$text`, `$gte`) are wrapped in `mongoose.trusted()` at the trusted repository layer.
+- **Storefront** — fully **login-gated** (D17, owner decision): client-auth app with silent refresh-on-load; SEO intentionally dropped behind the gate. Design system in `@sajawat/ui`.
+
+**Deferred (tracked):** web shopping UI (cart/checkout/auth pages), 1.7 admin UI, 1.8 CRM + WhatsApp, web CSP (**D12**), audit-log + account-lockout, GCS media upload (1.3-media), web deploy automation, production CD drill (**D16**).
