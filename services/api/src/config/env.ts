@@ -93,6 +93,13 @@ const EnvSchema = z.object({
   // `POST /api/v1/auth/google` returns 501 "Google sign-in not configured".
   // Real staging/production Client IDs are created during storefront work (1.4).
   GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+
+  // ---- Razorpay (Milestone 1.6b) ---- [secret]
+  // OPTIONAL. When key id/secret are absent, online checkout returns 501 and
+  // only COD is available. Key secret + webhook secret come from Secret Manager.
+  RAZORPAY_KEY_ID: z.string().min(1).optional(),
+  RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().min(1).optional(),
 });
 
 const EnvSchemaChecked = EnvSchema.superRefine((value, ctx) => {

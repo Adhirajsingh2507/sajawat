@@ -6,7 +6,7 @@ import { sendSuccess } from '../../http/respond.js';
 import { asyncHandler } from '../../http/async-handler.js';
 import { UnauthorizedError } from '../../errors/app-error.js';
 import { orderService } from './order.service.js';
-import type { CodCheckoutBody, OrderListQuery } from './order.validation.js';
+import type { CodCheckoutBody, OrderListQuery, VerifyPaymentBody } from './order.validation.js';
 
 function userId(req: Request): string {
   const id = req.user?.id;
@@ -19,6 +19,16 @@ function userId(req: Request): string {
 export const checkoutCod: RequestHandler = asyncHandler(async (req, res) => {
   const body = req.validatedData?.body as CodCheckoutBody;
   sendSuccess(res, await orderService.placeCodOrder(userId(req), body), 201);
+});
+
+export const checkoutOnline: RequestHandler = asyncHandler(async (req, res) => {
+  const body = req.validatedData?.body as CodCheckoutBody;
+  sendSuccess(res, await orderService.initiateOnline(userId(req), body), 201);
+});
+
+export const verifyPayment: RequestHandler = asyncHandler(async (req, res) => {
+  const body = req.validatedData?.body as VerifyPaymentBody;
+  sendSuccess(res, await orderService.verifyOnlinePayment(userId(req), body));
 });
 
 export const listMine: RequestHandler = asyncHandler(async (req, res) => {

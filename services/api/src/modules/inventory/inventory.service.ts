@@ -169,6 +169,45 @@ async function history(query: {
   };
 }
 
+/** Reserve stock for a pending online order. Throws if insufficient. */
+async function reserve(productId: string, quantity: number): Promise<void> {
+  const updated = await inventoryRepository.reserveIfAvailable(productId, quantity);
+  if (updated === null) {
+    throw new BadRequestError('Insufficient stock for one or more items');
+  }
+  const status = deriveStatus(updated.availableQuantity, updated.lowStockThreshold);
+  if (status !== updated.status) {
+    await inventoryRepository.updateById(String(updated._id), { $set: { status } });
+  }
+}
+
+/** Convert a reservation into a sale on payment success (+ audit movement). */
+async function commitReserved(
+  productId: string,
+  quantity: number,
+  performedBy: string,
+): Promise<void> {
+  const updated = await inventoryRepository.commitReserved(productId, quantity);
+  if (updated === null) return;
+  await inventoryMovementRepository.create({
+    productId,
+    type: 'order',
+    quantity: -quantity,
+    reason: 'Order paid',
+    performedBy,
+  });
+}
+
+/** Release a reservation on failure/cancel (reserved → available). */
+async function release(productId: string, quantity: number): Promise<void> {
+  const updated = await inventoryRepository.releaseReserved(productId, quantity);
+  if (updated === null) return;
+  const status = deriveStatus(updated.availableQuantity, updated.lowStockThreshold);
+  if (status !== updated.status) {
+    await inventoryRepository.updateById(String(updated._id), { $set: { status } });
+  }
+}
+
 /** Commit stock for an order (atomic decrement + audit movement). Throws if short. */
 async function commit(productId: string, quantity: number, performedBy: string): Promise<void> {
   const updated = await inventoryRepository.decrementIfAvailable(productId, quantity);
@@ -228,6 +267,9 @@ export const inventoryService = {
   adjust,
   commit,
   restock,
+  reserve,
+  commitReserved,
+  release,
   listAdmin,
   history,
   getInStockMap,

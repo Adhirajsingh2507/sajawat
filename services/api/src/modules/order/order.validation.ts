@@ -21,6 +21,14 @@ export const codCheckoutSchema = z.object({
   }),
 });
 
+export const verifyPaymentSchema = z.object({
+  body: z.object({
+    razorpayOrderId: z.string().min(1),
+    razorpayPaymentId: z.string().min(1),
+    signature: z.string().min(1),
+  }),
+});
+
 export const orderListQuerySchema = z.object({
   query: z.object({
     page: z.coerce.number().int().positive().optional(),
@@ -31,4 +39,5 @@ export const orderListQuerySchema = z.object({
 export const idParamSchema = z.object({ params: z.object({ id: z.string().min(1) }) });
 
 export type CodCheckoutBody = z.infer<typeof codCheckoutSchema>['body'];
+export type VerifyPaymentBody = z.infer<typeof verifyPaymentSchema>['body'];
 export type OrderListQuery = z.infer<typeof orderListQuerySchema>['query'];

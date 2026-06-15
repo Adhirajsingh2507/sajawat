@@ -8,12 +8,26 @@ import express from 'express';
 import type { Router } from 'express';
 import { validate } from '../../middleware/validate.js';
 import { requireAuth } from '../../middleware/auth.js';
-import { codCheckoutSchema, idParamSchema, orderListQuerySchema } from './order.validation.js';
-import { cancelMine, checkoutCod, getMine, listMine } from './order.controller.js';
+import {
+  codCheckoutSchema,
+  idParamSchema,
+  orderListQuerySchema,
+  verifyPaymentSchema,
+} from './order.validation.js';
+import {
+  cancelMine,
+  checkoutCod,
+  checkoutOnline,
+  getMine,
+  listMine,
+  verifyPayment,
+} from './order.controller.js';
 
 export const checkoutRouter: Router = express.Router();
 checkoutRouter.use(requireAuth);
 checkoutRouter.post('/cod', validate(codCheckoutSchema), checkoutCod);
+checkoutRouter.post('/', validate(codCheckoutSchema), checkoutOnline);
+checkoutRouter.post('/verify-payment', validate(verifyPaymentSchema), verifyPayment);
 
 export const ordersRouter: Router = express.Router();
 ordersRouter.use(requireAuth);

@@ -66,6 +66,19 @@ export interface PublicOrderItem {
   lineTotal: number;
 }
 
+export interface RazorpayCheckout {
+  provider: 'razorpay';
+  orderId: string;
+  keyId: string;
+  amount: number;
+  currency: string;
+}
+
+export interface OnlineCheckoutResult {
+  order: PublicOrder;
+  payment: RazorpayCheckout;
+}
+
 export interface PublicOrder {
   id: string;
   orderNumber: string;

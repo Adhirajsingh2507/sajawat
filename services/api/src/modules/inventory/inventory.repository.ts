@@ -58,6 +58,52 @@ export class InventoryRepository extends BaseRepository<IInventory> {
       )
       .exec();
   }
+
+  /** Reserve stock for a pending online order (available→reserved) IFF available. */
+  reserveIfAvailable(
+    productId: string,
+    quantity: number,
+  ): Promise<HydratedDocument<IInventory> | null> {
+    const filter = {
+      productId,
+      availableQuantity: mongoose.trusted({ $gte: quantity }),
+    } as unknown as InventoryFilter;
+    return this.model
+      .findOneAndUpdate(
+        filter,
+        { $inc: { reservedQuantity: quantity, availableQuantity: -quantity } },
+        { returnDocument: 'after' },
+      )
+      .exec();
+  }
+
+  /** Convert a reservation into a sale on payment success (quantity & reserved down). */
+  commitReserved(
+    productId: string,
+    quantity: number,
+  ): Promise<HydratedDocument<IInventory> | null> {
+    return this.model
+      .findOneAndUpdate(
+        { productId } as unknown as InventoryFilter,
+        { $inc: { quantity: -quantity, reservedQuantity: -quantity } },
+        { returnDocument: 'after' },
+      )
+      .exec();
+  }
+
+  /** Release a reservation on failure/cancel (reserved→available). */
+  releaseReserved(
+    productId: string,
+    quantity: number,
+  ): Promise<HydratedDocument<IInventory> | null> {
+    return this.model
+      .findOneAndUpdate(
+        { productId } as unknown as InventoryFilter,
+        { $inc: { reservedQuantity: -quantity, availableQuantity: quantity } },
+        { returnDocument: 'after' },
+      )
+      .exec();
+  }
 }
 
 export const inventoryRepository = new InventoryRepository();

@@ -30,6 +30,7 @@ import { promotionAdminRouter } from './modules/promotion/promotion.routes.js';
 import { cartRouter } from './modules/cart/cart.routes.js';
 import { wishlistRouter } from './modules/wishlist/wishlist.routes.js';
 import { checkoutRouter, ordersRouter } from './modules/order/order.routes.js';
+import { webhookRouter } from './modules/payment/payment.routes.js';
 import { notFoundHandler } from './middleware/not-found.js';
 import { errorHandler } from './middleware/error-handler.js';
 
@@ -50,8 +51,16 @@ export function createApp(): Application {
   // Per-IP rate limiting (before body parsing; skips health probes).
   app.use(globalRateLimiter);
 
-  // Body parsing (bounded to mitigate large-payload abuse).
-  app.use(express.json({ limit: '1mb' }));
+  // Body parsing (bounded to mitigate large-payload abuse). Stash the raw buffer
+  // so webhook routes can verify HMAC signatures over the exact bytes.
+  app.use(
+    express.json({
+      limit: '1mb',
+      verify: (req, _res, buf) => {
+        (req as express.Request).rawBody = buf;
+      },
+    }),
+  );
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
   // Cookie parsing (refresh-token + CSRF cookies; 0.7), consumed by the auth routes.
@@ -72,6 +81,7 @@ export function createApp(): Application {
   app.use('/api/v1/wishlist', wishlistRouter);
   app.use('/api/v1/checkout', checkoutRouter);
   app.use('/api/v1/orders', ordersRouter);
+  app.use('/api/v1/webhooks', webhookRouter);
   app.use('/api/v1/admin/categories', categoryAdminRouter);
   app.use('/api/v1/admin/collections', collectionAdminRouter);
   app.use('/api/v1/admin/products', productAdminRouter);

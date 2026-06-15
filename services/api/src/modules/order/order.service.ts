@@ -8,16 +8,60 @@
  */
 import { randomUUID } from 'node:crypto';
 import type { HydratedDocument } from 'mongoose';
-import type { AppliedDiscount, OrderAddress, Paginated, PublicOrder } from '@sajawat/types';
-import { BadRequestError, NotFoundError } from '../../errors/app-error.js';
+import type {
+  AppliedDiscount,
+  OnlineCheckoutResult,
+  OrderAddress,
+  Paginated,
+  PublicOrder,
+} from '@sajawat/types';
+import { BadRequestError, NotFoundError, NotImplementedError } from '../../errors/app-error.js';
 import type { PaginatedResult } from '../../db/base-repository.js';
 import { cartService } from '../cart/cart.service.js';
 import { inventoryService } from '../inventory/inventory.service.js';
 import { promotionRepository } from '../promotion/promotion.repository.js';
+import { paymentRepository } from '../payment/payment.repository.js';
+import type { IPayment } from '../payment/payment.types.js';
+import { razorpayProvider } from '../../payments/razorpay-provider.js';
 import { orderRepository } from './order.repository.js';
-import type { IOrder, IOrderItem } from './order.types.js';
+import type { IOrder, IOrderItem, IOrderPromotion } from './order.types.js';
 
 type OrderDoc = HydratedDocument<IOrder>;
+type PaymentDoc = HydratedDocument<IPayment>;
+
+interface RazorpayWebhookEvent {
+  event?: string;
+  payload?: { payment?: { entity?: { id?: string; order_id?: string } } };
+}
+
+function snapshotItems(
+  items: {
+    productId: string;
+    name: string;
+    unitPrice: number;
+    quantity: number;
+    lineTotal: number;
+  }[],
+): IOrderItem[] {
+  return items.map((i) => ({
+    productId: i.productId,
+    name: i.name,
+    unitPrice: i.unitPrice,
+    quantity: i.quantity,
+    lineTotal: i.lineTotal,
+  }));
+}
+
+function promoSnapshot(promo: AppliedDiscount | null): IOrderPromotion | null {
+  return promo === null
+    ? null
+    : {
+        promotionId: promo.promotionId,
+        label: promo.label,
+        code: promo.code ?? null,
+        amount: promo.amount,
+      };
+}
 const CANCELLABLE = new Set<IOrder['status']>(['created', 'processing']);
 
 function toPublicOrder(doc: OrderDoc): PublicOrder {
@@ -122,41 +166,194 @@ async function placeCodOrder(userId: string, input: CheckoutInput): Promise<Publ
     throw err;
   }
 
-  const items: IOrderItem[] = cart.items.map((i) => ({
-    productId: i.productId,
-    name: i.name,
-    unitPrice: i.unitPrice,
-    quantity: i.quantity,
-    lineTotal: i.lineTotal,
-  }));
-
   const order = await orderRepository.create({
     orderNumber: await generateOrderNumber(),
     userId,
     status: 'processing',
     paymentStatus: 'pending',
     paymentMethod: 'cod',
-    items,
+    items: snapshotItems(cart.items),
     address: input.address,
     subtotal: cart.subtotal,
     discount: cart.discount,
     shipping: 0,
     tax: 0,
     total: cart.total,
-    appliedPromotion:
-      cart.appliedPromotion === null
-        ? null
-        : {
-            promotionId: cart.appliedPromotion.promotionId,
-            label: cart.appliedPromotion.label,
-            code: cart.appliedPromotion.code ?? null,
-            amount: cart.appliedPromotion.amount,
-          },
+    appliedPromotion: promoSnapshot(cart.appliedPromotion),
     notes: input.notes ?? null,
   });
 
   await cartService.clear(userId);
   return toPublicOrder(order);
+}
+
+export interface VerifyPaymentInput {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  signature: string;
+}
+
+/** Convert a paid order's reservations to sales, capture payment, clear cart. */
+async function fulfillPaidOrder(
+  order: OrderDoc,
+  payment: PaymentDoc,
+  paymentId: string,
+  signature: string | null,
+): Promise<void> {
+  for (const item of order.items) {
+    await inventoryService.commitReserved(
+      String(item.productId),
+      item.quantity,
+      String(order.userId),
+    );
+  }
+  await paymentRepository.updateById(String(payment._id), {
+    $set: { status: 'captured', transactionId: paymentId, signature },
+  });
+  await cartService.clear(String(order.userId));
+}
+
+async function initiateOnline(userId: string, input: CheckoutInput): Promise<OnlineCheckoutResult> {
+  if (!razorpayProvider.isConfigured()) {
+    throw new NotImplementedError('Online payments are not configured');
+  }
+  const cart = await cartService.getCart(userId);
+  if (cart.items.length === 0) {
+    throw new BadRequestError('Your cart is empty');
+  }
+  for (const item of cart.items) {
+    if (!item.inStock) {
+      throw new BadRequestError(`${item.name} is out of stock`);
+    }
+  }
+  if (cart.appliedPromotion !== null) {
+    await enforcePromotionLimits(cart.appliedPromotion.promotionId, userId);
+  }
+
+  const reserved: { productId: string; quantity: number }[] = [];
+  for (const item of cart.items) {
+    try {
+      await inventoryService.reserve(item.productId, item.quantity);
+      reserved.push({ productId: item.productId, quantity: item.quantity });
+    } catch (err) {
+      for (const r of reserved) await inventoryService.release(r.productId, r.quantity);
+      throw err;
+    }
+  }
+
+  const order = await orderRepository.create({
+    orderNumber: await generateOrderNumber(),
+    userId,
+    status: 'created',
+    paymentStatus: 'pending',
+    paymentMethod: 'online',
+    items: snapshotItems(cart.items),
+    address: input.address,
+    subtotal: cart.subtotal,
+    discount: cart.discount,
+    shipping: 0,
+    tax: 0,
+    total: cart.total,
+    appliedPromotion: promoSnapshot(cart.appliedPromotion),
+    notes: input.notes ?? null,
+  });
+
+  try {
+    const providerOrder = await razorpayProvider.createOrder(
+      Math.round(cart.total * 100),
+      'INR',
+      order.orderNumber,
+    );
+    await paymentRepository.create({
+      orderId: String(order._id),
+      provider: 'razorpay',
+      providerOrderId: providerOrder.providerOrderId,
+      status: 'created',
+      amount: cart.total,
+      currency: 'INR',
+    });
+    return {
+      order: toPublicOrder(order),
+      payment: {
+        provider: 'razorpay',
+        orderId: providerOrder.providerOrderId,
+        keyId: razorpayProvider.publicKeyId() ?? '',
+        amount: providerOrder.amount,
+        currency: providerOrder.currency,
+      },
+    };
+  } catch (err) {
+    await orderRepository.markFailedIfPending(String(order._id));
+    for (const r of reserved) await inventoryService.release(r.productId, r.quantity);
+    throw err;
+  }
+}
+
+async function verifyOnlinePayment(
+  userId: string,
+  input: VerifyPaymentInput,
+): Promise<PublicOrder> {
+  if (!razorpayProvider.isConfigured()) {
+    throw new NotImplementedError('Online payments are not configured');
+  }
+  if (
+    !razorpayProvider.verifyPaymentSignature(
+      input.razorpayOrderId,
+      input.razorpayPaymentId,
+      input.signature,
+    )
+  ) {
+    throw new BadRequestError('Payment verification failed');
+  }
+  const payment = await paymentRepository.findByProviderOrderId(input.razorpayOrderId);
+  if (payment === null) {
+    throw new NotFoundError('Payment not found');
+  }
+  const order = await orderRepository.findById(String(payment.orderId));
+  if (order === null || String(order.userId) !== userId) {
+    throw new NotFoundError('Order not found');
+  }
+  const transitioned = await orderRepository.markPaidIfPending(String(order._id));
+  if (transitioned !== null) {
+    await fulfillPaidOrder(transitioned, payment, input.razorpayPaymentId, input.signature);
+    return toPublicOrder(transitioned);
+  }
+  return toPublicOrder(order); // already paid — idempotent
+}
+
+/** Process a Razorpay webhook (raw body + signature). Idempotent. */
+async function handleRazorpayWebhook(
+  rawBody: Buffer,
+  signature: string | undefined,
+): Promise<void> {
+  if (!razorpayProvider.isConfigured()) return;
+  if (signature === undefined || !razorpayProvider.verifyWebhookSignature(rawBody, signature)) {
+    throw new BadRequestError('Invalid webhook signature');
+  }
+  const event = JSON.parse(rawBody.toString('utf8')) as RazorpayWebhookEvent;
+  const entity = event.payload?.payment?.entity;
+  const providerOrderId = entity?.order_id;
+  if (providerOrderId === undefined) return;
+
+  const payment = await paymentRepository.findByProviderOrderId(providerOrderId);
+  if (payment === null) return;
+  const order = await orderRepository.findById(String(payment.orderId));
+  if (order === null) return;
+
+  if (event.event === 'payment.captured') {
+    const transitioned = await orderRepository.markPaidIfPending(String(order._id));
+    if (transitioned !== null) {
+      await fulfillPaidOrder(transitioned, payment, entity?.id ?? '', null);
+    }
+  } else if (event.event === 'payment.failed') {
+    const failed = await orderRepository.markFailedIfPending(String(order._id));
+    if (failed !== null) {
+      for (const item of order.items) {
+        await inventoryService.release(String(item.productId), item.quantity);
+      }
+      await paymentRepository.updateById(String(payment._id), { $set: { status: 'failed' } });
+    }
+  }
 }
 
 async function listMine(
@@ -208,4 +405,12 @@ async function cancelMine(userId: string, id: string): Promise<PublicOrder> {
   return toPublicOrder(order);
 }
 
-export const orderService = { placeCodOrder, listMine, getMine, cancelMine };
+export const orderService = {
+  placeCodOrder,
+  initiateOnline,
+  verifyOnlinePayment,
+  handleRazorpayWebhook,
+  listMine,
+  getMine,
+  cancelMine,
+};

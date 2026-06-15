@@ -199,4 +199,14 @@ describe('COD checkout', () => {
     const res = await request(app).post('/api/v1/checkout/cod').send({ address: ADDRESS });
     expect(res.status).toBe(401);
   });
+
+  it('online checkout returns 501 when Razorpay is not configured', async () => {
+    await addToCart(1);
+    const res = await request(app)
+      .post('/api/v1/checkout')
+      .set('Authorization', auth)
+      .send({ address: ADDRESS });
+    expect(res.status).toBe(501);
+    expect(res.body.error.code).toBe('NOT_IMPLEMENTED');
+  });
 });

@@ -23,6 +23,7 @@ import { Promotion } from '../modules/promotion/promotion.model.js';
 import { Cart } from '../modules/cart/cart.model.js';
 import { Wishlist } from '../modules/wishlist/wishlist.model.js';
 import { Order } from '../modules/order/order.model.js';
+import { Payment } from '../modules/payment/payment.model.js';
 
 // Register every model whose indexes must be synced. Append as domains land.
 const MODELS: Model<unknown>[] = [
@@ -37,6 +38,7 @@ const MODELS: Model<unknown>[] = [
   Cart,
   Wishlist,
   Order,
+  Payment,
 ];
 
 async function syncIndexes(): Promise<void> {

@@ -1,14 +1,38 @@
 /**
  * Order repository (Milestone 1.6).
  */
-import type { HydratedDocument } from 'mongoose';
+import type { HydratedDocument, Model } from 'mongoose';
 import { BaseRepository } from '../../db/base-repository.js';
 import { Order } from './order.model.js';
 import type { IOrder } from './order.types.js';
 
+type OrderFilter = NonNullable<Parameters<Model<IOrder>['findOneAndUpdate']>[0]>;
+
 export class OrderRepository extends BaseRepository<IOrder> {
   constructor() {
     super(Order);
+  }
+
+  /** Atomic pending→paid transition (idempotency key for verify + webhook). */
+  markPaidIfPending(id: string): Promise<HydratedDocument<IOrder> | null> {
+    return this.model
+      .findOneAndUpdate(
+        { _id: id, paymentStatus: 'pending' } as unknown as OrderFilter,
+        { $set: { paymentStatus: 'paid', status: 'processing' } },
+        { returnDocument: 'after' },
+      )
+      .exec();
+  }
+
+  /** Atomic pending→failed transition. */
+  markFailedIfPending(id: string): Promise<HydratedDocument<IOrder> | null> {
+    return this.model
+      .findOneAndUpdate(
+        { _id: id, paymentStatus: 'pending' } as unknown as OrderFilter,
+        { $set: { paymentStatus: 'failed' } },
+        { returnDocument: 'after' },
+      )
+      .exec();
   }
 
   findForUser(id: string, userId: string): Promise<HydratedDocument<IOrder> | null> {
