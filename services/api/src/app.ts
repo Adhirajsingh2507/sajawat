@@ -26,6 +26,7 @@ import { categoryRouter, categoryAdminRouter } from './modules/category/category
 import { collectionRouter, collectionAdminRouter } from './modules/collection/collection.routes.js';
 import { productRouter, productAdminRouter } from './modules/product/product.routes.js';
 import { inventoryAdminRouter } from './modules/inventory/inventory.routes.js';
+import { promotionAdminRouter } from './modules/promotion/promotion.routes.js';
 import { notFoundHandler } from './middleware/not-found.js';
 import { errorHandler } from './middleware/error-handler.js';
 
@@ -68,6 +69,7 @@ export function createApp(): Application {
   app.use('/api/v1/admin/collections', collectionAdminRouter);
   app.use('/api/v1/admin/products', productAdminRouter);
   app.use('/api/v1/admin/inventory', inventoryAdminRouter);
+  app.use('/api/v1/admin/promotions', promotionAdminRouter);
 
   // Fall-through 404, then the single global error handler.
   app.use(notFoundHandler);
