@@ -6,15 +6,23 @@
  */
 import express from 'express';
 import type { Router } from 'express';
+import { PERMISSIONS } from '@sajawat/shared';
 import { validate } from '../../middleware/validate.js';
-import { requireAuth } from '../../middleware/auth.js';
+import { requireAuth, requirePermission } from '../../middleware/auth.js';
 import {
+  adminOrderListQuerySchema,
   codCheckoutSchema,
   idParamSchema,
   orderListQuerySchema,
+  updateOrderPaymentSchema,
+  updateOrderStatusSchema,
   verifyPaymentSchema,
 } from './order.validation.js';
 import {
+  adminGet,
+  adminList,
+  adminUpdatePayment,
+  adminUpdateStatus,
   cancelMine,
   checkoutCod,
   checkoutOnline,
@@ -34,3 +42,30 @@ ordersRouter.use(requireAuth);
 ordersRouter.get('/', validate(orderListQuerySchema), listMine);
 ordersRouter.get('/:id', validate(idParamSchema), getMine);
 ordersRouter.post('/:id/cancel', validate(idParamSchema), cancelMine);
+
+export const orderAdminRouter: Router = express.Router();
+orderAdminRouter.use(requireAuth);
+orderAdminRouter.get(
+  '/',
+  requirePermission(PERMISSIONS.ORDER_READ),
+  validate(adminOrderListQuerySchema),
+  adminList,
+);
+orderAdminRouter.get(
+  '/:id',
+  requirePermission(PERMISSIONS.ORDER_READ),
+  validate(idParamSchema),
+  adminGet,
+);
+orderAdminRouter.patch(
+  '/:id/status',
+  requirePermission(PERMISSIONS.ORDER_WRITE),
+  validate(updateOrderStatusSchema),
+  adminUpdateStatus,
+);
+orderAdminRouter.patch(
+  '/:id/payment',
+  requirePermission(PERMISSIONS.ORDER_WRITE),
+  validate(updateOrderPaymentSchema),
+  adminUpdatePayment,
+);

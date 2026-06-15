@@ -96,3 +96,8 @@ export interface PublicOrder {
   notes?: string | undefined;
   createdAt?: Date | undefined;
 }
+
+export interface AdminOrder extends PublicOrder {
+  userId: string;
+  updatedAt?: Date | undefined;
+}

@@ -6,7 +6,14 @@ import { sendSuccess } from '../../http/respond.js';
 import { asyncHandler } from '../../http/async-handler.js';
 import { UnauthorizedError } from '../../errors/app-error.js';
 import { orderService } from './order.service.js';
-import type { CodCheckoutBody, OrderListQuery, VerifyPaymentBody } from './order.validation.js';
+import type {
+  AdminOrderListQuery,
+  CodCheckoutBody,
+  OrderListQuery,
+  UpdateOrderPaymentBody,
+  UpdateOrderStatusBody,
+  VerifyPaymentBody,
+} from './order.validation.js';
 
 function userId(req: Request): string {
   const id = req.user?.id;
@@ -44,4 +51,26 @@ export const getMine: RequestHandler = asyncHandler(async (req, res) => {
 export const cancelMine: RequestHandler = asyncHandler(async (req, res) => {
   const { id } = req.validatedData?.params as { id: string };
   sendSuccess(res, await orderService.cancelMine(userId(req), id));
+});
+
+export const adminList: RequestHandler = asyncHandler(async (req, res) => {
+  const query = (req.validatedData?.query ?? {}) as AdminOrderListQuery;
+  sendSuccess(res, await orderService.adminList(query));
+});
+
+export const adminGet: RequestHandler = asyncHandler(async (req, res) => {
+  const { id } = req.validatedData?.params as { id: string };
+  sendSuccess(res, await orderService.adminGet(id));
+});
+
+export const adminUpdateStatus: RequestHandler = asyncHandler(async (req, res) => {
+  const { id } = req.validatedData?.params as { id: string };
+  const body = req.validatedData?.body as UpdateOrderStatusBody;
+  sendSuccess(res, await orderService.adminUpdateStatus(userId(req), id, body.status));
+});
+
+export const adminUpdatePayment: RequestHandler = asyncHandler(async (req, res) => {
+  const { id } = req.validatedData?.params as { id: string };
+  const body = req.validatedData?.body as UpdateOrderPaymentBody;
+  sendSuccess(res, await orderService.adminUpdatePaymentStatus(id, body.paymentStatus));
 });

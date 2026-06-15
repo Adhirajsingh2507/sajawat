@@ -9,10 +9,13 @@
 import { randomUUID } from 'node:crypto';
 import type { HydratedDocument } from 'mongoose';
 import type {
+  AdminOrder,
   AppliedDiscount,
   OnlineCheckoutResult,
   OrderAddress,
+  OrderStatus,
   Paginated,
+  PaymentStatus,
   PublicOrder,
 } from '@sajawat/types';
 import { BadRequestError, NotFoundError, NotImplementedError } from '../../errors/app-error.js';
@@ -106,6 +109,31 @@ function toPublicOrder(doc: OrderDoc): PublicOrder {
     notes: doc.notes ?? undefined,
     createdAt: doc.createdAt,
   };
+}
+
+function toAdminOrder(doc: OrderDoc): AdminOrder {
+  return { ...toPublicOrder(doc), userId: String(doc.userId), updatedAt: doc.updatedAt };
+}
+
+/**
+ * Return an order's stock on cancellation: release the reservation for an
+ * unpaid online order (stock was reserved, not sold), otherwise restock (it was
+ * committed at placement/payment).
+ */
+async function restockOrderInventory(order: OrderDoc, performedBy: string): Promise<void> {
+  const reservedOnly = order.paymentMethod === 'online' && order.paymentStatus === 'pending';
+  for (const item of order.items) {
+    if (reservedOnly) {
+      await inventoryService.release(String(item.productId), item.quantity);
+    } else {
+      await inventoryService.restock(
+        String(item.productId),
+        item.quantity,
+        performedBy,
+        `Order ${order.orderNumber} cancelled`,
+      );
+    }
+  }
 }
 
 async function generateOrderNumber(): Promise<string> {
@@ -392,17 +420,78 @@ async function cancelMine(userId: string, id: string): Promise<PublicOrder> {
   if (order.paymentStatus === 'paid') {
     throw new BadRequestError('Paid orders must be cancelled by support (refund required)');
   }
-  for (const item of order.items) {
-    await inventoryService.restock(
-      String(item.productId),
-      item.quantity,
-      userId,
-      `Order ${order.orderNumber} cancelled`,
-    );
-  }
+  await restockOrderInventory(order, userId);
   order.status = 'cancelled';
   await order.save();
   return toPublicOrder(order);
+}
+
+// ---- Admin order management (1.6c) ----
+
+const TERMINAL = new Set<OrderStatus>(['cancelled', 'refunded']);
+
+async function adminList(query: {
+  page?: number | undefined;
+  limit?: number | undefined;
+  status?: OrderStatus | undefined;
+  paymentStatus?: PaymentStatus | undefined;
+}): Promise<Paginated<AdminOrder>> {
+  const filter: Record<string, unknown> = {};
+  if (query.status !== undefined) filter.status = query.status;
+  if (query.paymentStatus !== undefined) filter.paymentStatus = query.paymentStatus;
+  const res: PaginatedResult<OrderDoc> = await orderRepository.paginate(filter, {
+    page: query.page,
+    limit: query.limit,
+    sort: { createdAt: -1 },
+  });
+  return {
+    items: res.items.map(toAdminOrder),
+    total: res.total,
+    page: res.page,
+    limit: res.limit,
+    pages: res.pages,
+  };
+}
+
+async function adminGet(id: string): Promise<AdminOrder> {
+  const order = await orderRepository.findById(id);
+  if (order === null) {
+    throw new NotFoundError('Order not found');
+  }
+  return toAdminOrder(order);
+}
+
+async function adminUpdateStatus(
+  adminId: string,
+  id: string,
+  status: OrderStatus,
+): Promise<AdminOrder> {
+  const order = await orderRepository.findById(id);
+  if (order === null) {
+    throw new NotFoundError('Order not found');
+  }
+  if (TERMINAL.has(order.status)) {
+    throw new BadRequestError('Order is in a terminal state and cannot be updated');
+  }
+  if (status === 'cancelled') {
+    await restockOrderInventory(order, adminId);
+  }
+  order.status = status;
+  await order.save();
+  return toAdminOrder(order);
+}
+
+async function adminUpdatePaymentStatus(
+  id: string,
+  paymentStatus: PaymentStatus,
+): Promise<AdminOrder> {
+  const order = await orderRepository.findById(id);
+  if (order === null) {
+    throw new NotFoundError('Order not found');
+  }
+  order.paymentStatus = paymentStatus;
+  await order.save();
+  return toAdminOrder(order);
 }
 
 export const orderService = {
@@ -413,4 +502,8 @@ export const orderService = {
   listMine,
   getMine,
   cancelMine,
+  adminList,
+  adminGet,
+  adminUpdateStatus,
+  adminUpdatePaymentStatus,
 };

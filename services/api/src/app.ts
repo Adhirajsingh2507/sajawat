@@ -29,7 +29,7 @@ import { inventoryAdminRouter } from './modules/inventory/inventory.routes.js';
 import { promotionAdminRouter } from './modules/promotion/promotion.routes.js';
 import { cartRouter } from './modules/cart/cart.routes.js';
 import { wishlistRouter } from './modules/wishlist/wishlist.routes.js';
-import { checkoutRouter, ordersRouter } from './modules/order/order.routes.js';
+import { checkoutRouter, orderAdminRouter, ordersRouter } from './modules/order/order.routes.js';
 import { webhookRouter } from './modules/payment/payment.routes.js';
 import { notFoundHandler } from './middleware/not-found.js';
 import { errorHandler } from './middleware/error-handler.js';
@@ -87,6 +87,7 @@ export function createApp(): Application {
   app.use('/api/v1/admin/products', productAdminRouter);
   app.use('/api/v1/admin/inventory', inventoryAdminRouter);
   app.use('/api/v1/admin/promotions', promotionAdminRouter);
+  app.use('/api/v1/admin/orders', orderAdminRouter);
 
   // Fall-through 404, then the single global error handler.
   app.use(notFoundHandler);
