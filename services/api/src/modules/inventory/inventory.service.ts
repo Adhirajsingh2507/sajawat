@@ -169,6 +169,47 @@ async function history(query: {
   };
 }
 
+/** Commit stock for an order (atomic decrement + audit movement). Throws if short. */
+async function commit(productId: string, quantity: number, performedBy: string): Promise<void> {
+  const updated = await inventoryRepository.decrementIfAvailable(productId, quantity);
+  if (updated === null) {
+    throw new BadRequestError('Insufficient stock for one or more items');
+  }
+  const status = deriveStatus(updated.availableQuantity, updated.lowStockThreshold);
+  if (status !== updated.status) {
+    await inventoryRepository.updateById(String(updated._id), { $set: { status } });
+  }
+  await inventoryMovementRepository.create({
+    productId,
+    type: 'order',
+    quantity: -quantity,
+    reason: 'Order placed',
+    performedBy,
+  });
+}
+
+/** Return stock (cancel/rollback) + audit movement. No-op if there is no row. */
+async function restock(
+  productId: string,
+  quantity: number,
+  performedBy: string,
+  reason = 'Order cancelled',
+): Promise<void> {
+  const updated = await inventoryRepository.incrementStock(productId, quantity);
+  if (updated === null) return;
+  const status = deriveStatus(updated.availableQuantity, updated.lowStockThreshold);
+  if (status !== updated.status) {
+    await inventoryRepository.updateById(String(updated._id), { $set: { status } });
+  }
+  await inventoryMovementRepository.create({
+    productId,
+    type: 'manual_adjustment',
+    quantity,
+    reason,
+    performedBy,
+  });
+}
+
 /** Map of productId → inStock (status !== out_of_stock) for a set of products. */
 async function getInStockMap(productIds: string[]): Promise<Map<string, boolean>> {
   const map = new Map<string, boolean>();
@@ -185,6 +226,8 @@ async function getInStockMap(productIds: string[]): Promise<Map<string, boolean>
 export const inventoryService = {
   createForProduct,
   adjust,
+  commit,
+  restock,
   listAdmin,
   history,
   getInStockMap,

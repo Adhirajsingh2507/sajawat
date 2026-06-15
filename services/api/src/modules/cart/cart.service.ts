@@ -132,6 +132,14 @@ async function removeCoupon(userId: string): Promise<PublicCart> {
   return buildPublicCart(cart);
 }
 
+/** Empty the cart (after a successful order). */
+async function clear(userId: string): Promise<void> {
+  const cart = await cartRepository.getOrCreate(userId);
+  cart.items = [];
+  cart.couponCode = null;
+  await cart.save();
+}
+
 export const cartService = {
   getCart,
   addItem,
@@ -139,4 +147,5 @@ export const cartService = {
   removeItem,
   applyCoupon,
   removeCoupon,
+  clear,
 };

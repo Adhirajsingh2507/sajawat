@@ -35,3 +35,51 @@ export interface PublicCart {
 export interface PublicWishlist {
   items: PublicProduct[];
 }
+
+export type OrderStatus =
+  | 'created'
+  | 'processing'
+  | 'packed'
+  | 'shipped'
+  | 'delivered'
+  | 'cancelled'
+  | 'refunded';
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
+export type PaymentMethod = 'cod' | 'online';
+
+export interface OrderAddress {
+  fullName: string;
+  phone: string;
+  line1: string;
+  line2?: string | undefined;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
+export interface PublicOrderItem {
+  productId: string;
+  name: string;
+  unitPrice: number;
+  quantity: number;
+  lineTotal: number;
+}
+
+export interface PublicOrder {
+  id: string;
+  orderNumber: string;
+  status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  paymentMethod: PaymentMethod;
+  items: PublicOrderItem[];
+  address: OrderAddress;
+  subtotal: number;
+  discount: number;
+  shipping: number;
+  tax: number;
+  total: number;
+  appliedPromotion: AppliedDiscount | null;
+  notes?: string | undefined;
+  createdAt?: Date | undefined;
+}
