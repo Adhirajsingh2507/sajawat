@@ -1,6 +1,7 @@
 /**
  * Product repository (Milestone 1.3b).
  */
+import mongoose from 'mongoose';
 import type { HydratedDocument } from 'mongoose';
 import { BaseRepository } from '../../db/base-repository.js';
 import type { ReadOptions } from '../../db/base-repository.js';
@@ -23,6 +24,11 @@ export class ProductRepository extends BaseRepository<IProduct> {
 
   existsBySku(sku: string): Promise<boolean> {
     return this.exists({ sku }, { includeDeleted: true });
+  }
+
+  /** Active products by id (trusted $in; for cart/wishlist hydration). */
+  findActiveByIds(ids: string[]): Promise<HydratedDocument<IProduct>[]> {
+    return this.find({ _id: mongoose.trusted({ $in: ids }), status: 'active' });
   }
 }
 

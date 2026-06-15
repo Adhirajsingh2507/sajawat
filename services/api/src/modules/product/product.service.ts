@@ -283,6 +283,18 @@ async function listAdmin(query: ProductListQuery): Promise<Paginated<AdminProduc
   };
 }
 
+/** Active products by id, mapped to PublicProduct (preserves input order). */
+async function getPublicProductsByIds(ids: string[]): Promise<PublicProduct[]> {
+  if (ids.length === 0) return [];
+  const docs = await productRepository.findActiveByIds(ids);
+  const inStock = await inventoryService.getInStockMap(docs.map((d) => String(d._id)));
+  const byId = new Map(docs.map((d) => [String(d._id), d]));
+  return ids
+    .map((id) => byId.get(id))
+    .filter((d): d is ProductDoc => d !== undefined)
+    .map((d) => toPublicProduct(d, inStock.get(String(d._id)) ?? false));
+}
+
 async function getByIdAdmin(id: string): Promise<AdminProduct> {
   const doc = await productRepository.findById(id);
   if (doc === null) {
@@ -305,6 +317,7 @@ export const productService = {
   bestSellers,
   newArrivals,
   getBySlugPublic,
+  getPublicProductsByIds,
   create,
   update,
   listAdmin,
