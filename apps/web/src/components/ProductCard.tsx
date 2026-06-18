@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Badge } from '@sajawat/ui';
 import type { PublicProduct } from '@sajawat/types';
 import { formatPrice } from '@/lib/format';
+import { WishlistButton } from '@/features/commerce/WishlistButton';
 
 function Price({ price, salePrice }: { price: number; salePrice?: number | undefined }) {
   if (salePrice !== undefined) {
@@ -39,10 +40,13 @@ export function ProductCard({ product }: { product: PublicProduct }) {
           {product.isFeatured && <Badge tone="purple">Featured</Badge>}
         </div>
         {!product.inStock && (
-          <span className="absolute right-3 top-3 rounded-full bg-ink/70 px-2 py-1 text-xs text-white">
+          <span className="absolute bottom-3 left-3 rounded-full bg-ink/70 px-2 py-1 text-xs text-white">
             Sold out
           </span>
         )}
+        <div className="absolute right-3 top-3">
+          <WishlistButton productId={product.id} variant="icon" />
+        </div>
       </div>
       <h3 className="mt-3 text-sm font-medium text-ink group-hover:text-purple">{product.name}</h3>
       <Price price={product.price} salePrice={product.salePrice} />

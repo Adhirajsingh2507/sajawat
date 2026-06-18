@@ -7,6 +7,8 @@ import { Badge, Container } from '@sajawat/ui';
 import { useAsync } from '@/lib/use-async';
 import { getProductBySlug } from '@/services/catalog';
 import { formatPrice } from '@/lib/format';
+import { AddToCart } from '@/features/commerce/AddToCart';
+import { WishlistButton } from '@/features/commerce/WishlistButton';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -99,8 +101,11 @@ export default function ProductDetailPage() {
               {product.description}
             </p>
           )}
+          <AddToCart productId={product.id} inStock={product.inStock} />
+          <div className="mt-3">
+            <WishlistButton productId={product.id} />
+          </div>
           <p className="mt-8 text-xs text-ink-faint">SKU: {product.sku}</p>
-          {/* Add to cart / wishlist arrive with the cart milestone (1.5). */}
         </div>
       </div>
     </Container>

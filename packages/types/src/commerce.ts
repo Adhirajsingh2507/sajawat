@@ -66,6 +66,17 @@ export interface PublicOrderItem {
   lineTotal: number;
 }
 
+export interface CheckoutRequest {
+  address: OrderAddress;
+  notes?: string | undefined;
+}
+
+export interface VerifyPaymentRequest {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  signature: string;
+}
+
 export interface RazorpayCheckout {
   provider: 'razorpay';
   orderId: string;

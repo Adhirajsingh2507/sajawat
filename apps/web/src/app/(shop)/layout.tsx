@@ -9,6 +9,7 @@ import type { ReactNode } from 'react';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/auth-context';
+import { CommerceProvider } from '@/features/commerce/commerce-context';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 
@@ -31,10 +32,10 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <>
+    <CommerceProvider>
       <Header />
       <main className="flex-1">{children}</main>
       <Footer />
-    </>
+    </CommerceProvider>
   );
 }
