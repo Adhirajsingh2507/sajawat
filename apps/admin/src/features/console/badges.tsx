@@ -59,3 +59,9 @@ export function InventoryStatusBadge({ status }: { status: InventoryStatus }) {
 export function ProductStatusBadge({ status }: { status: ProductStatus }) {
   return <Pill tone={PRODUCT_TONE[status]} label={titleCase(status)} />;
 }
+
+/** Active/inactive pill shared by categories, collections, and promotions. */
+export function ActiveBadge({ status }: { status: 'active' | 'inactive' }) {
+  const tone = status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-ink-soft';
+  return <Pill tone={tone} label={titleCase(status)} />;
+}

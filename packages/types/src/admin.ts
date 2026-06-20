@@ -61,3 +61,55 @@ export interface AdminInventoryMovement {
 
 /** The adjustment types an admin may apply (the `order` type is system-only). */
 export type AdminMovementType = Exclude<MovementType, 'order'>;
+
+/* ------------------------------ Catalog (1.7b) ----------------------------- */
+
+export type CategoryStatus = 'active' | 'inactive';
+export type CollectionStatus = 'active' | 'inactive';
+
+export interface AdminCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | undefined;
+  image?: string | undefined;
+  status: CategoryStatus;
+  sortOrder: number;
+  createdAt?: Date | undefined;
+  updatedAt?: Date | undefined;
+}
+
+export interface AdminCollection {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | undefined;
+  bannerImage?: string | undefined;
+  status: CollectionStatus;
+  createdAt?: Date | undefined;
+  updatedAt?: Date | undefined;
+}
+
+/* ---------------------------- Promotions (1.7b) ---------------------------- */
+
+export type PromotionTrigger = 'automatic' | 'coupon';
+export type RewardType = 'percentage' | 'fixed';
+export type PromotionStatus = 'active' | 'inactive';
+
+export interface AdminPromotion {
+  id: string;
+  name: string;
+  trigger: PromotionTrigger;
+  code?: string | undefined;
+  rewardType: RewardType;
+  value: number;
+  minCartValue: number;
+  maxDiscount?: number | null | undefined;
+  startDate?: Date | null | undefined;
+  endDate?: Date | null | undefined;
+  usageLimit?: number | null | undefined;
+  perCustomerLimit?: number | null | undefined;
+  status: PromotionStatus;
+  createdAt?: Date | undefined;
+  updatedAt?: Date | undefined;
+}

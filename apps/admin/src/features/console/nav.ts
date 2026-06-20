@@ -3,7 +3,7 @@
  * required to see it; the sidebar filters against the signed-in role using the
  * shared RBAC catalog. `permission: null` = visible to any staff member.
  *
- * Only routes that exist are listed. 1.7b appends Catalog + Promotions.
+ * Only routes that exist are listed.
  */
 import { PERMISSIONS } from '@sajawat/shared';
 import type { Permission } from '@sajawat/shared';
@@ -20,4 +20,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/orders', label: 'Orders', permission: PERMISSIONS.ORDER_READ },
   { href: '/products', label: 'Products', permission: PERMISSIONS.PRODUCT_READ },
   { href: '/inventory', label: 'Inventory', permission: PERMISSIONS.INVENTORY_READ },
+  { href: '/categories', label: 'Categories', permission: PERMISSIONS.CATEGORY_WRITE },
+  { href: '/collections', label: 'Collections', permission: PERMISSIONS.COLLECTION_WRITE },
+  { href: '/promotions', label: 'Promotions', permission: PERMISSIONS.COUPON_WRITE },
 ];
