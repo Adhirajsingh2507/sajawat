@@ -100,6 +100,14 @@ const EnvSchema = z.object({
   RAZORPAY_KEY_ID: z.string().min(1).optional(),
   RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().min(1).optional(),
+
+  // ---- WhatsApp (Meta Cloud API — Milestone 1.8) ---- [secret]
+  // OPTIONAL. When PHONE_NUMBER_ID/ACCESS_TOKEN are absent, B2B lead alerts are
+  // logged and skipped (the lead is still persisted). The recipient admin number
+  // lives in business settings, not here. ACCESS_TOKEN comes from Secret Manager.
+  WHATSAPP_PHONE_NUMBER_ID: z.string().min(1).optional(),
+  WHATSAPP_ACCESS_TOKEN: z.string().min(1).optional(),
+  WHATSAPP_API_VERSION: z.string().min(1).default('v21.0'),
 });
 
 const EnvSchemaChecked = EnvSchema.superRefine((value, ctx) => {

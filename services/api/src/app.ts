@@ -31,6 +31,8 @@ import { cartRouter } from './modules/cart/cart.routes.js';
 import { wishlistRouter } from './modules/wishlist/wishlist.routes.js';
 import { checkoutRouter, orderAdminRouter, ordersRouter } from './modules/order/order.routes.js';
 import { webhookRouter } from './modules/payment/payment.routes.js';
+import { enquiryRouter, crmAdminRouter } from './modules/crm/crm.routes.js';
+import { settingsAdminRouter } from './modules/settings/settings.routes.js';
 import { notFoundHandler } from './middleware/not-found.js';
 import { errorHandler } from './middleware/error-handler.js';
 
@@ -81,6 +83,7 @@ export function createApp(): Application {
   app.use('/api/v1/wishlist', wishlistRouter);
   app.use('/api/v1/checkout', checkoutRouter);
   app.use('/api/v1/orders', ordersRouter);
+  app.use('/api/v1/enquiries', enquiryRouter);
   app.use('/api/v1/webhooks', webhookRouter);
   app.use('/api/v1/admin/categories', categoryAdminRouter);
   app.use('/api/v1/admin/collections', collectionAdminRouter);
@@ -88,6 +91,8 @@ export function createApp(): Application {
   app.use('/api/v1/admin/inventory', inventoryAdminRouter);
   app.use('/api/v1/admin/promotions', promotionAdminRouter);
   app.use('/api/v1/admin/orders', orderAdminRouter);
+  app.use('/api/v1/admin/crm', crmAdminRouter);
+  app.use('/api/v1/admin/settings', settingsAdminRouter);
 
   // Fall-through 404, then the single global error handler.
   app.use(notFoundHandler);

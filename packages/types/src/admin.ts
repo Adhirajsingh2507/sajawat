@@ -113,3 +113,14 @@ export interface AdminPromotion {
   createdAt?: Date | undefined;
   updatedAt?: Date | undefined;
 }
+
+/* ----------------------------- Settings (1.8) ------------------------------ */
+
+/** Business settings singleton. `adminWhatsappNumber` is the lead-alert target. */
+export interface AdminSettings {
+  businessName?: string | undefined;
+  supportEmail?: string | undefined;
+  /** E.164 number that receives instant WhatsApp lead alerts; null = unset. */
+  adminWhatsappNumber?: string | null | undefined;
+  updatedAt?: Date | undefined;
+}
