@@ -4,7 +4,15 @@
  */
 import { z } from 'zod';
 
-const LEAD_STAGES = ['new', 'contacted', 'follow_up', 'negotiation', 'won', 'lost'] as const;
+const LEAD_STAGES = [
+  'new',
+  'contacted',
+  'follow_up',
+  'quotation_sent',
+  'negotiation',
+  'won',
+  'lost',
+] as const;
 
 export const enquirySchema = z.object({
   body: z.object({

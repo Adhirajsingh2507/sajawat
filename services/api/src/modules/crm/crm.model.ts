@@ -9,7 +9,15 @@ import type { ICrmLead, ILeadNote } from './crm.types.js';
 
 const { Schema } = mongoose;
 
-const LEAD_STAGES = ['new', 'contacted', 'follow_up', 'negotiation', 'won', 'lost'] as const;
+const LEAD_STAGES = [
+  'new',
+  'contacted',
+  'follow_up',
+  'quotation_sent',
+  'negotiation',
+  'won',
+  'lost',
+] as const;
 
 const noteSchema = new Schema<ILeadNote>(
   {

@@ -4,7 +4,14 @@
  * the admin CRM board. This is NOT a quotation/checkout flow.
  */
 
-export type LeadStage = 'new' | 'contacted' | 'follow_up' | 'negotiation' | 'won' | 'lost';
+export type LeadStage =
+  | 'new'
+  | 'contacted'
+  | 'follow_up'
+  | 'quotation_sent'
+  | 'negotiation'
+  | 'won'
+  | 'lost';
 
 /** The wholesale enquiry payload submitted from the storefront. */
 export interface EnquiryRequest {
