@@ -23,4 +23,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/categories', label: 'Categories', permission: PERMISSIONS.CATEGORY_WRITE },
   { href: '/collections', label: 'Collections', permission: PERMISSIONS.COLLECTION_WRITE },
   { href: '/promotions', label: 'Promotions', permission: PERMISSIONS.COUPON_WRITE },
+  { href: '/crm', label: 'CRM leads', permission: PERMISSIONS.CRM_READ },
+  { href: '/settings', label: 'Settings', permission: PERMISSIONS.SETTINGS_MANAGE },
 ];

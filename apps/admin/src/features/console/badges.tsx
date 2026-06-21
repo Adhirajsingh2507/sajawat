@@ -2,7 +2,13 @@
  * Status pills (Milestone 1.7) — consistent tones for order/payment/inventory/
  * product statuses across the console.
  */
-import type { InventoryStatus, OrderStatus, PaymentStatus, ProductStatus } from '@sajawat/types';
+import type {
+  InventoryStatus,
+  LeadStage,
+  OrderStatus,
+  PaymentStatus,
+  ProductStatus,
+} from '@sajawat/types';
 import { titleCase } from '@/lib/format';
 
 function Pill({ tone, label }: { tone: string; label: string }) {
@@ -64,4 +70,26 @@ export function ProductStatusBadge({ status }: { status: ProductStatus }) {
 export function ActiveBadge({ status }: { status: 'active' | 'inactive' }) {
   const tone = status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-ink-soft';
   return <Pill tone={tone} label={titleCase(status)} />;
+}
+
+const STAGE_TONE: Record<LeadStage, string> = {
+  new: 'bg-blue-50 text-blue-700',
+  contacted: 'bg-indigo-50 text-indigo-700',
+  follow_up: 'bg-amber-50 text-amber-700',
+  negotiation: 'bg-purple/10 text-purple',
+  won: 'bg-green-50 text-green-700',
+  lost: 'bg-red-50 text-red-600',
+};
+
+const STAGE_LABEL: Record<LeadStage, string> = {
+  new: 'New',
+  contacted: 'Contacted',
+  follow_up: 'Follow-up',
+  negotiation: 'Negotiation',
+  won: 'Won',
+  lost: 'Lost',
+};
+
+export function LeadStageBadge({ stage }: { stage: LeadStage }) {
+  return <Pill tone={STAGE_TONE[stage]} label={STAGE_LABEL[stage]} />;
 }

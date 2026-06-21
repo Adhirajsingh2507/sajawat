@@ -39,6 +39,9 @@ export function Header() {
           <Link href="/products" className="hover:text-purple">
             Shop all
           </Link>
+          <Link href="/wholesale" className="hover:text-purple">
+            Wholesale
+          </Link>
         </nav>
         <div className="ml-auto flex items-center gap-3 sm:gap-4">
           <form onSubmit={onSearch} className="hidden sm:block">
