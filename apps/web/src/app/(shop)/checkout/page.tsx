@@ -256,10 +256,15 @@ function Field({
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   required?: boolean;
 }) {
+  // Associate the label with the input (accessibility + testability).
+  const id = `chk-${label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')}`;
   return (
     <div>
-      <Label>{label}</Label>
-      <Input value={value} onChange={onChange} required={required} className="mt-1.5" />
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} value={value} onChange={onChange} required={required} className="mt-1.5" />
     </div>
   );
 }

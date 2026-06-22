@@ -16,6 +16,7 @@
     "test": "turbo run test",
     "test:coverage": "turbo run test -- --coverage",
     "test:e2e": "playwright test",
+    "test:e2e:full": "E2E_FULL_STACK=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test customer-journey",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "prepare": "husky"
