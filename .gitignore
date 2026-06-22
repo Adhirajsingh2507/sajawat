@@ -40,3 +40,6 @@ Thumbs.db
 
 # Misc
 *.tsbuildinfo
+
+# Lighthouse CI local reports (1.10b.1)
+tests/performance/lighthouse/.lhci/

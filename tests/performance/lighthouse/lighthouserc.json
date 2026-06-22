@@ -1,0 +1,25 @@
+{
+  "//": "Lighthouse CI budgets (Milestone 1.10b.1). The storefront is login-gated (D17), so without an auth script Lighthouse can only profile the PUBLIC entry pages. Authenticated PDP/checkout profiling needs a Puppeteer login script (tracked follow-up); their server timings are covered by the k6 API load tests. Override URLs for staging with: lhci autorun --collect.url=https://staging.example/login",
+  "ci": {
+    "collect": {
+      "url": ["http://localhost:3000/login", "http://localhost:3000/register"],
+      "numberOfRuns": 3,
+      "settings": { "preset": "desktop" }
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["warn", { "minScore": 0.85 }],
+        "categories:accessibility": ["warn", { "minScore": 0.9 }],
+        "first-contentful-paint": ["warn", { "maxNumericValue": 2000 }],
+        "largest-contentful-paint": ["error", { "maxNumericValue": 2500 }],
+        "interactive": ["warn", { "maxNumericValue": 3000 }],
+        "total-blocking-time": ["warn", { "maxNumericValue": 300 }],
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1 }]
+      }
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": "./tests/performance/lighthouse/.lhci"
+    }
+  }
+}
