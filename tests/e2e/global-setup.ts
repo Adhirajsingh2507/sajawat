@@ -32,6 +32,16 @@ function csrfFrom(cookies: string[]): string {
   return '';
 }
 
+/**
+ * Fail the seed loudly at the API seam — a silent seed failure otherwise
+ * surfaces as a cryptic "element not visible" deep inside a journey test.
+ */
+async function assertOk(res: Response, what: string): Promise<Response> {
+  if (res.ok) return res;
+  const body = await res.text().catch(() => '');
+  throw new Error(`E2E seed: ${what} failed (${String(res.status)}). ${body}`.trim());
+}
+
 export default async function globalSetup(_config: FullConfig): Promise<void> {
   // Only seed in full-stack mode. The default (web-only) smoke run and CI leave
   // E2E_FULL_STACK unset, so this is a no-op there.
@@ -72,31 +82,42 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
       body: JSON.stringify({ name: 'E2E Collection', slug: 'e2e-collection', status: 'active' }),
     });
     if (catRes.ok) {
+      // Fresh create.
       categoryId = ((await catRes.json()) as Envelope<{ id: string }>).data.id;
     } else {
+      // A prior run already created it (duplicate slug) — reuse any category.
       const cats = (await (await fetch(`${API}/admin/categories?limit=100`, { headers })).json())
         .data as { items: { id: string }[] };
       categoryId = cats.items[0]?.id;
     }
-    await fetch(`${API}/admin/products`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        name: SEED_PRODUCT_NAME,
-        slug: SEED_PRODUCT_SLUG,
-        sku: `E2E-${String(Date.now())}`,
-        price: 1499,
-        categoryId,
-        status: 'active',
-        quantity: 500,
+    if (categoryId === undefined) {
+      throw new Error('E2E seed: no category available to attach the seed product to.');
+    }
+    await assertOk(
+      await fetch(`${API}/admin/products`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          name: SEED_PRODUCT_NAME,
+          slug: SEED_PRODUCT_SLUG,
+          sku: `E2E-${String(Date.now())}`,
+          price: 1499,
+          categoryId,
+          status: 'active',
+          quantity: 500,
+        }),
       }),
-    });
+      'product create',
+    );
   } else {
     // Top the existing seed product back up so repeated runs stay in stock.
-    await fetch(`${API}/admin/inventory/${existing.id}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify({ type: 'stock_added', quantity: 100, reason: 'e2e top-up' }),
-    });
+    await assertOk(
+      await fetch(`${API}/admin/inventory/${existing.id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ type: 'stock_added', quantity: 100, reason: 'e2e top-up' }),
+      }),
+      'inventory top-up',
+    );
   }
 }
