@@ -4,8 +4,8 @@
 > the latest completed milestone. The aspirational/target specs remain in
 > `sajawat-system-architecture.md`; this file is the ground truth of what exists.
 
-- **As of:** Phase 1 in progress through **Milestone 1.8b**; `origin/develop` = `2726057` (1.8b + docs sync).
-- **Latest completed milestones:** **1.4c** storefront shopping UI, **1.7a/b** admin operations console, **1.8a/b** B2B enquiry + CRM + notifications. Both revenue funnels (B2C retail, B2B enquiry→CRM) are functional end-to-end. **143 API tests** + web/admin component tests green.
+- **As of:** Phase 1 in progress through **Milestone 1.10a**; `origin/develop` = `ff14bf5` (1.10a).
+- **Latest completed milestones:** **1.4c** storefront shopping UI, **1.7a/b** admin operations console, **1.8a/b** B2B enquiry + CRM + notifications, **1.9a** per-app nonce-based **CSP** (web+admin, closes D12), **1.9b** CI dependency + secret scanning, **1.10a** live-stack **business-journey E2E** (B2C COD + B2B enquiry). Both revenue funnels (B2C retail, B2B enquiry→CRM) are functional end-to-end. **143 API tests** + web/admin component tests + **3 full-stack E2E journeys** (gated on `E2E_FULL_STACK=1`) green.
 - **Phase-0 foundation** (0.1–0.10a) remains the infrastructure baseline (§§1–14). **Automated CD (Cloud Run, 0.10b) is authored but unactivated (D16)**; staging auto-deploys on `develop` via WIF, production pipeline is unrun. A **manual** Cloud Run staging deploy is live (§15).
 - **Note:** `main` HEAD `bbf068d` is a **post-0.10a administrative commit** (only `.claude/settings.local.json`; no app code), **kept in history (no rewrite)**. The §§1–18 foundation reflects the `ece7971` tree; §§19–20 record the Phase-1 domains built on `develop`.
 
@@ -42,7 +42,7 @@
 | CSRF | Bearer API CSRF-immune; **double-submit guard** for cookie endpoints | Resolves D11 | ✅ Implemented (0.7) |
 | Containers | **Multi-stage `node:22-bookworm-slim`**, non-root, `turbo prune` + `pnpm deploy` / Next `standalone` | Slim, hardened, Cloud-Run-ready images | ✅ Implemented (0.8) |
 | Local orchestration | **`docker-compose.yml`** (api+web+admin+`mongo:7`) — dev only | Integrated local runs + local MongoDB | ✅ Implemented (0.8) |
-| Testing | **Vitest** (unit+integration) + **Supertest** on `createApp()` + **mongodb-memory-server** + **Playwright** (chromium smoke) | Fast, hermetic, ESM-native; tests run against source | ✅ Implemented (0.9) |
+| Testing | **Vitest** (unit+integration) + **Supertest** on `createApp()` + **mongodb-memory-server** + **Playwright** (chromium smoke + **1.10a live-stack business journeys**, gated on `E2E_FULL_STACK=1`) | Fast, hermetic, ESM-native; tests run against source | ✅ Implemented (0.9; journeys 1.10a) |
 | CI | **GitHub Actions** (`.github/workflows/ci.yml`): Corepack pnpm, **Node 22 pinned + guarded**, frozen install, Turbo-driven `lint/typecheck/build/test(+coverage)`, chromium e2e smoke, Docker build validation; pnpm/Turbo/mongod/Playwright caching; coverage artifacts | One CI provider; reproducible; matches Docker provisioning (AD-39…AD-46) | ✅ Implemented (0.10a) |
 | CD | **Cloud Run + Artifact Registry + WIF + Secret Manager** (staging tag-auto / prod tag-gated) | Keyless OIDC, runtime secret injection, digest promotion, revision rollback (AD-47…AD-57) | 🚧 **Fully authored; activation pending (0.10b / D16 implementation-complete).** 0.10b.1 provisioning scripts (§16), 0.10b.2 `deploy-staging.yml` (§17), 0.10b.3 `deploy-production.yml` (§18) all authored + statically validated; **not yet run against GCP** and no deploy has succeeded. A **manual** staging deploy is live (§15). |
 | CD env isolation | **Separate `staging` + `production` GCP projects** | IAM/secret/billing blast-radius isolation (AD-47) | 🚧 Scripted (0.10b.1) |
@@ -156,9 +156,10 @@ counted. **Response envelopes:** success `{ success:true, data, meta }`; error
 `{ success:false, error:{ code, message, details? }, meta }`.
 
 **Security posture (0.4.1):** helmet secure headers, env-driven CORS allow-list
-with credentials, per-IP global rate limiting. **Still deferred:** CSP (belongs
-to the Next.js apps), CSRF protection, and auth/OTP-specific strict limiters
-(0.7) — see open-debt.
+with credentials, per-IP global rate limiting. At the time, deferred: CSP
+(belongs to the Next.js apps — **shipped in 1.9a**, §20.4), CSRF protection
+(**done in 0.7**, double-submit), and auth/OTP-specific strict limiters (0.7) —
+see open-debt.
 
 **Dev/runtime:** `dev` = `tsx watch --env-file-if-exists=.env.development`;
 `start` = `node --env-file-if-exists=.env dist/index.js`; `build` = `tsc`.
@@ -639,11 +640,11 @@ Public DTOs live in **`@sajawat/types`** (type-only); runtime mappers stay in th
 
 **Built since (see §20):** 1.4c storefront shopping UI, 1.7a/b admin console, 1.8a/b B2B + CRM + notifications.
 
-**Still deferred (tracked):** frontend CSP (**D12-web/admin**, → 1.9), audit-log + account-lockout, reviews/blog/CMS/analytics/email-SMS notifications/2FA/OTP-login (Phase 2+ or future milestones), GCS media upload (1.3-media), web deploy automation, production CD drill (**D16**), live Razorpay (**D18**) + WhatsApp (**D19**) drills.
+**Still deferred (tracked):** audit-log + account-lockout, reviews/blog/CMS/analytics/email-SMS notifications/2FA/OTP-login (Phase 2+ or future milestones), GCS media upload (1.3-media), web deploy automation, production CD drill (**D16**), live Razorpay (**D18**) + WhatsApp (**D19**) drills, and remaining 1.10 launch readiness (perf/load, observability/alerting, backups). **Closed since:** frontend CSP D12-web/admin (1.9a, §20.4).
 
 ---
 
-## 20. Phase 1 — Storefront, Admin Console & B2B (1.4c, 1.7, 1.8)
+## 20. Phase 1 — Storefront, Admin Console, B2B, CSP & E2E (1.4c, 1.7, 1.8, 1.9, 1.10a)
 
 The frontends that turn the 1.1–1.6 backend into shippable funnels, plus the B2B
 backend. All UI follows the **service-layer rule** (components never call
@@ -663,7 +664,7 @@ system. Apps replace the Next starter (closes **D4**).
 - **1.7a:** Orders (list with status/paymentStatus filters; detail with PATCH status + PATCH payment, surfacing API guard errors), Products (CRUD; **image-URL inputs** since GCS upload is deferred), Inventory (adjust + movement history), Dashboard (permission-scoped count cards).
 - **1.7b:** Categories, Collections, Promotions/coupons (list + inline create/edit panel + delete).
 - DTOs added to `@sajawat/types`: `AdminProduct`, `AdminInventory`, `AdminInventoryMovement`, `AdminCategory`, `AdminCollection`, `AdminPromotion`. **No DB/API changes** — pure UI over existing `/admin/*` endpoints. (Minor accepted duplication: a couple of these structurally mirror the API module's internal admin types.)
-- CSP is **D12-admin** (pending → 1.9).
+- CSP shipped in **1.9a** (per-app nonce, §20.4) — **D12-admin closed**.
 
 ### 20.3 B2B enquiry + CRM + notifications — 1.8a/b (commits `4abc328`, `ead87a7`)
 - **Settings module** (`modules/settings`): singleton document (`key:'global'`, upserted on first read), `GET/PATCH /admin/settings` (`SETTINGS_MANAGE`, super-admin only) holding `adminWhatsappNumber` + business name/support email.
@@ -671,3 +672,13 @@ system. Apps replace the Next starter (closes **D4**).
 - **CRM module** (`modules/crm`): `CrmLead` (embedded staff notes, `assignedTo`/`submittedBy`, soft-delete). **Gated, rate-limited `POST /enquiries`** (auth-required per D17) → persist + fire the WhatsApp alert. Admin `GET/PATCH /admin/crm/leads` (`CRM_READ`/`CRM_WRITE`; PATCH does stage / assignment / append-note). DTOs (`AdminLead`, `EnquiryRequest`, `EnquiryAck`, `LeadNote`, `LeadStage`) in `@sajawat/types`.
 - **Frontend (1.8b):** gated `/wholesale` enquiry form (`apps/web`); admin **CRM pipeline board** (kanban grouped by stage) + lead detail (stage/assign/notes) + **Settings** page.
 - **AD-1.8A — CRM stage set reconciled to the spec's 7 stages.** Implemented stages: `new → contacted → follow_up → quotation_sent → negotiation → won/lost`, matching the PRD / database-design / admin-spec / crm-spec pipeline (`quotation_sent` added post-1.8b across the API model + validation, the shared `LeadStage` type, and the admin board/labels/badge; no data migration — existing leads keep their stage). **Still deferred (broader CRM, future milestone):** a separate `crm_activities`/timeline collection, follow-ups + reminders, full quotation management (quote numbers/PDFs), B2C contact-form leads, customer timeline, dashboard widgets, and reports. 1.8 ships the minimal lead + notes + stage + assignment model; "Quotation Sent" is a pipeline stage only (no quote object behind it yet).
+
+### 20.4 Frontend CSP + security hardening — 1.9a/b (commits `acfa416`, `bb0aa87`)
+- **1.9a — strict nonce-based CSP (web + admin).** Each app's `proxy.ts` (Next middleware) generates a per-request nonce and injects a strict `Content-Security-Policy` plus the standard security headers; the root layouts are per-request (async) and thread the nonce onto inline scripts. Closes **D12-web** and **D12-admin** — no `unsafe-inline` for scripts. Files: `apps/web/src/proxy.ts` + `apps/web/src/app/layout.tsx`, `apps/admin/src/proxy.ts` + `apps/admin/src/app/layout.tsx`.
+- **1.9b — supply-chain scanning + dependency remediation.** `ci.yml` gains dependency + secret scanning; `package.json`/lockfile remediated to clear flagged advisories; open-debt updated. No app-code or schema changes.
+
+### 20.5 Launch-readiness E2E — 1.10a (commits `82cf8b5`, `ff14bf5`)
+- **Live-stack business journeys** (`tests/e2e/customer-journey.spec.ts`): three serial tests on one authenticated page tell one story — **register → browse → add to cart → COD checkout → order confirmed → B2B wholesale enquiry** — driving the real web + API + Mongo stack. Replaces the 0.9 web-only smoke scaffold for the revenue paths (smoke stays for CI).
+- **Gating:** the whole group `test.skip`s unless `E2E_FULL_STACK=1`; run via `pnpm test:e2e:full` (sets the flag + `PLAYWRIGHT_BASE_URL`). CI keeps the web-only `smoke.spec.ts` (no Mongo/API needed). Verified green end-to-end against a local stack.
+- **Deterministic seed** (`tests/e2e/global-setup.ts`): idempotent admin-API seed of an in-stock product (create-or-top-up), no-op unless the flag is set, **fail-fast** on any seed write so failures surface at the API seam, not deep in a test. Requires a seeded super-admin.
+- **Defects fixed by the journey:** API CORS `allowedHeaders` now includes `x-csrf-token` (`CSRF_HEADER_NAME`) — returning users attach the double-submit token on every authenticated request, and omitting it failed the cross-origin preflight (`services/api/src/middleware/security.ts`); checkout `Field` now emits `htmlFor`/`id` pairs (a11y + `getByLabel`).
