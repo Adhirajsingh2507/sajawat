@@ -27,7 +27,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   await headers();
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable} h-full`}>
-      <body className="flex min-h-full flex-col bg-mist text-ink">
+      {/* suppressHydrationWarning: browser extensions (e.g. Grammarly) inject
+          data-gr-* attributes onto <body> before React hydrates, producing a
+          false-positive mismatch. This scopes suppression to <body>'s own
+          attributes only — it does NOT silence mismatches in the child tree. */}
+      <body className="flex min-h-full flex-col bg-mist text-ink" suppressHydrationWarning>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
