@@ -17,6 +17,7 @@
 import express from 'express';
 import type { Application } from 'express';
 import cookieParser from 'cookie-parser';
+import { trustProxy } from './config/env.js';
 import { requestLogger } from './middleware/request-logger.js';
 import { securityHeaders, corsMiddleware } from './middleware/security.js';
 import { globalRateLimiter } from './middleware/rate-limit.js';
@@ -41,7 +42,10 @@ export function createApp(): Application {
 
   // Hardening / platform.
   app.disable('x-powered-by');
-  app.set('trust proxy', true);
+  // Pinned hop count, NOT a blanket `true` — see env.ts `trustProxy` (D20).
+  // Trusting the whole XFF chain is spoofable and lets clients evade the per-IP
+  // rate limiters. Tune via the TRUST_PROXY env var per environment.
+  app.set('trust proxy', trustProxy);
 
   // Observability — first, so even rejected/limited requests are traced.
   app.use(requestLogger);

@@ -45,6 +45,15 @@ const EnvSchema = z.object({
     .default(15 * 60 * 1000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
 
+  // Express `trust proxy` setting (D20). Controls how X-Forwarded-For is
+  // interpreted when deriving req.ip — which keys the rate limiters. RAW string
+  // here; parsed + defaulted per-environment into the `trustProxy` export below.
+  //   "false"          → ignore XFF (req.ip = socket; correct with no proxy)
+  //   "<N>" (integer)  → trust exactly N proxy hops nearest the app (preferred)
+  //   "true"           → trust the WHOLE XFF chain (spoofable — avoid; D20)
+  //   preset/CIDR str  → passed through to Express (e.g. "loopback", CIDR list)
+  TRUST_PROXY: z.string().min(1).optional(),
+
   // ---- Database (MongoDB Atlas) ----
   // Required. Credentials live in the URI; never logged (see db/connection.ts).
   MONGODB_URI: z
@@ -173,3 +182,34 @@ if (env.NODE_ENV === 'production') {
 export const isProduction = env.NODE_ENV === 'production';
 export const isDevelopment = env.NODE_ENV === 'development';
 export const isTest = env.NODE_ENV === 'test';
+
+/**
+ * Resolve the Express `trust proxy` setting (D20). Trusting the *entire* XFF
+ * chain (`true`, the old hardcoded value) lets a client spoof an XFF entry to
+ * forge req.ip and land in a fresh per-IP rate-limit bucket, evading the
+ * limiters. We pin to a hop count instead. The correct count depends on the live
+ * topology: Cloud Run alone is 1 hop; a *proxied* Cloudflare in front adds a
+ * 2nd. Set TRUST_PROXY explicitly per environment once the chain is confirmed in
+ * staging; the defaults below are safe starting points.
+ */
+export function resolveTrustProxy(
+  raw: string | undefined,
+  nodeEnv: Env['NODE_ENV'],
+): boolean | number | string {
+  if (raw === undefined) {
+    // No proxy locally → ignore XFF (req.ip = real socket). Deployed behind
+    // Cloud Run → trust a single hop; bump to 2 via TRUST_PROXY once a proxied
+    // Cloudflare is confirmed in the live chain.
+    return nodeEnv === 'development' || nodeEnv === 'test' ? false : 1;
+  }
+  const value = raw.trim();
+  if (value.toLowerCase() === 'false') return false;
+  if (value.toLowerCase() === 'true') return true;
+  if (/^\d+$/.test(value)) return Number(value);
+  return value; // Express preset ("loopback"/"uniquelocal") or CIDR allow-list.
+}
+
+export const trustProxy: boolean | number | string = resolveTrustProxy(
+  env.TRUST_PROXY,
+  env.NODE_ENV,
+);
