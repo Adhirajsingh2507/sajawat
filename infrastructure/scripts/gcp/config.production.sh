@@ -36,4 +36,13 @@ API_RUNTIME_SA="sajawat-api-run"
 WEB_RUNTIME_SA="sajawat-web-run"
 ADMIN_RUNTIME_SA="sajawat-admin-run"
 
-SECRETS=("MONGODB_URI" "JWT_ACCESS_SECRET" "JWT_REFRESH_SECRET")
+# JWT_ISSUER / JWT_AUDIENCE and RAZORPAY_KEY_ID / WHATSAPP_PHONE_NUMBER_ID are
+# NOT secret — they ship as plain Cloud Run env vars. Only true secrets here.
+SECRETS=(
+  "MONGODB_URI"
+  "JWT_ACCESS_SECRET"
+  "JWT_REFRESH_SECRET"
+  "RAZORPAY_KEY_SECRET"     # D18 — online payments (absent => checkout 501)
+  "RAZORPAY_WEBHOOK_SECRET" # D18 — webhook HMAC verification
+  "WHATSAPP_ACCESS_TOKEN"   # D19 — B2B lead alerts (absent => skip-and-log)
+)
