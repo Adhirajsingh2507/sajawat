@@ -276,7 +276,9 @@
       "Bash(SEED_ADMIN_EMAIL=admin@sajawat.test SEED_ADMIN_PASSWORD=AdminPass1234 pnpm --filter @sajawat/api exec tsx src/scripts/seed-admin.ts)",
       "Bash(SEED_ADMIN_EMAIL=admin@sajawat.test SEED_ADMIN_PASSWORD=AdminPass1234 npx tsx --env-file=.env.development src/scripts/seed-admin.ts)",
       "Bash(curl -s \"http://localhost:4000/api/v1/products?limit=50\")",
-      "Bash(curl -s \"http://localhost:4000/api/v1/categories\")"
+      "Bash(curl -s \"http://localhost:4000/api/v1/categories\")",
+      "Bash(git remote *)",
+      "Bash(git credential *)"
     ]
   }
 }
