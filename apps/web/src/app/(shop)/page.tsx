@@ -10,6 +10,7 @@ import { ProductGrid, ProductGridSkeleton } from '@/components/ProductGrid';
 import { ProductCarousel } from '@/components/ProductCarousel';
 import { HeroCarousel } from '@/components/HeroCarousel';
 import { Testimonials } from '@/components/Testimonials';
+import { Lookbook } from '@/components/Lookbook';
 
 /**
  * Home — an editorial luxury landing page (image hero → trust → shop-by-category
@@ -125,6 +126,8 @@ export default function HomePage() {
 
       <Testimonials />
 
+      <Lookbook />
+
       <WholesaleBand />
     </>
   );
@@ -132,21 +135,45 @@ export default function HomePage() {
 
 /* -------------------------------- Trust bar ------------------------------- */
 
-const TRUST: { title: string; sub: string }[] = [
-  { title: 'Handcrafted finish', sub: 'Detailed by artisans' },
-  { title: 'Free shipping', sub: 'On orders over ₹1,499' },
-  { title: 'Easy 7-day returns', sub: 'Shop with confidence' },
-  { title: 'Secure checkout', sub: 'Razorpay protected' },
+const TRUST: { title: string; sub: string; icon: 'craft' | 'ship' | 'return' | 'secure' }[] = [
+  { title: 'Handcrafted finish', sub: 'Detailed by artisans', icon: 'craft' },
+  { title: 'Free shipping', sub: 'On orders over ₹1,499', icon: 'ship' },
+  { title: 'Easy 7-day returns', sub: 'Shop with confidence', icon: 'return' },
+  { title: 'Secure checkout', sub: 'Razorpay protected', icon: 'secure' },
 ];
+
+const TRUST_PATHS: Record<'craft' | 'ship' | 'return' | 'secure', string> = {
+  craft: 'M12 3l1.9 4.6L18.5 9l-3.7 3.1L15.9 17 12 14.4 8.1 17l1.1-4.9L5.5 9l4.6-1.4L12 3z',
+  ship: 'M3 7h11v8H3zM14 10h4l3 3v2h-7zM7 19a2 2 0 100-4 2 2 0 000 4zm11 0a2 2 0 100-4 2 2 0 000 4z',
+  return: 'M3 12a9 9 0 109-9 9 9 0 00-7 3.3M3 3v4h4',
+  secure: 'M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z',
+};
 
 function TrustBar() {
   return (
     <div className="border-y border-line bg-gold-soft/40">
-      <Container className="grid grid-cols-2 gap-x-6 gap-y-5 py-6 sm:grid-cols-4">
+      <Container className="grid grid-cols-2 gap-x-6 gap-y-6 py-7 sm:grid-cols-4">
         {TRUST.map((t) => (
-          <div key={t.title} className="text-center sm:text-left">
-            <p className="text-sm font-semibold text-ink">{t.title}</p>
-            <p className="mt-0.5 text-xs text-ink-soft">{t.sub}</p>
+          <div key={t.title} className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-gold-dark ring-1 ring-gold/30">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d={TRUST_PATHS[t.icon]} />
+              </svg>
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-ink">{t.title}</p>
+              <p className="mt-0.5 text-xs text-ink-soft">{t.sub}</p>
+            </div>
           </div>
         ))}
       </Container>

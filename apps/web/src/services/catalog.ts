@@ -3,7 +3,13 @@
  * UI never calls `apiFetch` directly (coding-standards: service layer).
  */
 import { apiFetch } from '@/lib/api';
-import type { Paginated, PublicCategory, PublicCollection, PublicProduct } from '@sajawat/types';
+import type {
+  Paginated,
+  PublicCategory,
+  PublicCollection,
+  PublicOffer,
+  PublicProduct,
+} from '@sajawat/types';
 
 type QueryValue = string | number | boolean | undefined;
 
@@ -51,6 +57,10 @@ export function getCategoryBySlug(slug: string): Promise<PublicCategory> {
 
 export function getCollections(): Promise<Paginated<PublicCollection>> {
   return apiFetch<Paginated<PublicCollection>>('/collections?limit=100');
+}
+
+export function getOffers(): Promise<{ items: PublicOffer[] }> {
+  return apiFetch<{ items: PublicOffer[] }>('/offers');
 }
 
 export function getCollectionBySlug(slug: string): Promise<PublicCollection> {

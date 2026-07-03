@@ -12,6 +12,7 @@ import { AddToCart } from '@/features/commerce/AddToCart';
 import { WishlistButton } from '@/features/commerce/WishlistButton';
 import { ProductCarousel } from '@/components/ProductCarousel';
 import { ZoomImage } from '@/components/ZoomImage';
+import { ProductOffers } from '@/components/ProductOffers';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -19,6 +20,7 @@ export default function ProductDetailPage() {
   const { data: product, loading, error } = useAsync(() => getProductBySlug(slug), [slug]);
   const { data: pool } = useAsync(() => getProducts({ limit: 24 }), []);
   const [active, setActive] = useState(0);
+  const [videoActive, setVideoActive] = useState(false);
 
   if (product === null) {
     return (
@@ -59,27 +61,64 @@ export default function ProductDetailPage() {
         <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
           {/* Gallery */}
           <div className="flex flex-col-reverse gap-3 sm:flex-row">
-            {product.images.length > 1 && (
+            {(product.images.length > 1 || product.video !== undefined) && (
               <div className="flex gap-3 sm:flex-col">
                 {product.images.map((img, i) => (
                   <button
                     key={i}
                     type="button"
                     aria-label={`View image ${String(i + 1)}`}
-                    aria-pressed={i === active}
+                    aria-pressed={!videoActive && i === active}
                     onClick={() => {
+                      setVideoActive(false);
                       setActive(i);
                     }}
                     className={`relative h-16 w-16 overflow-hidden rounded-lg border transition-colors sm:h-20 sm:w-20 ${
-                      i === active ? 'border-purple' : 'border-line hover:border-ink-faint'
+                      !videoActive && i === active
+                        ? 'border-purple'
+                        : 'border-line hover:border-ink-faint'
                     }`}
                   >
                     <Image src={img.url} alt="" fill sizes="80px" className="object-cover" />
                   </button>
                 ))}
+                {product.video !== undefined && (
+                  <button
+                    type="button"
+                    aria-label="Play product video"
+                    aria-pressed={videoActive}
+                    onClick={() => {
+                      setVideoActive(true);
+                    }}
+                    className={`relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg border bg-ink/90 transition-colors sm:h-20 sm:w-20 ${
+                      videoActive ? 'border-purple' : 'border-line hover:border-ink-faint'
+                    }`}
+                  >
+                    {product.images[0] !== undefined && (
+                      <Image
+                        src={product.images[0].url}
+                        alt=""
+                        fill
+                        sizes="80px"
+                        className="object-cover opacity-50"
+                      />
+                    )}
+                    <PlayIcon />
+                  </button>
+                )}
               </div>
             )}
-            {main !== undefined ? (
+            {videoActive && product.video !== undefined ? (
+              <video
+                controls
+                autoPlay
+                playsInline
+                poster={product.images[0]?.url}
+                className="aspect-square flex-1 rounded-2xl border border-line bg-ink object-cover"
+              >
+                <source src={product.video.url} />
+              </video>
+            ) : main !== undefined ? (
               <ZoomImage
                 src={main.url}
                 alt={main.alt ?? product.name}
@@ -151,6 +190,8 @@ export default function ProductDetailPage() {
               <WishlistButton productId={product.id} />
             </div>
 
+            <ProductOffers price={product.salePrice ?? product.price} />
+
             {/* Trust row */}
             <ul className="mt-8 grid grid-cols-1 gap-3 border-t border-line pt-6 text-sm text-ink-soft sm:grid-cols-3">
               <TrustItem label="Free shipping" sub="Over ₹1,499" />
@@ -184,6 +225,21 @@ export default function ProductDetailPage() {
         </section>
       )}
     </>
+  );
+}
+
+function PlayIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className="relative text-white"
+      aria-hidden="true"
+    >
+      <path d="M8 5v14l11-7z" />
+    </svg>
   );
 }
 
