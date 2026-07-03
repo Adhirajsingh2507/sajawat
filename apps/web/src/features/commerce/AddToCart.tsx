@@ -6,22 +6,19 @@
  * we just surface a confirmation with a link to checkout.
  */
 import { useState } from 'react';
-import Link from 'next/link';
 import { Button } from '@sajawat/ui';
 import { commerceErrorMessage, useCart } from '@/features/commerce/commerce-context';
 
 export function AddToCart({ productId, inStock }: { productId: string; inStock: boolean }) {
-  const { addItem, mutating } = useCart();
+  const { addItem, mutating, openCart } = useCart();
   const [qty, setQty] = useState(1);
-  const [added, setAdded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function onAdd() {
     setError(null);
-    setAdded(false);
     void addItem(productId, qty)
       .then(() => {
-        setAdded(true);
+        openCart();
       })
       .catch((err: unknown) => {
         setError(commerceErrorMessage(err));
@@ -70,14 +67,6 @@ export function AddToCart({ productId, inStock }: { productId: string; inStock: 
           {mutating ? 'Adding…' : 'Add to cart'}
         </Button>
       </div>
-      {added && (
-        <p className="mt-3 text-sm text-green-700">
-          Added to cart.{' '}
-          <Link href="/cart" className="font-medium text-purple hover:underline">
-            View cart →
-          </Link>
-        </p>
-      )}
       {error !== null && <p className="mt-3 text-sm text-red-600">{error}</p>}
     </div>
   );

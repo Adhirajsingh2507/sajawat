@@ -10,8 +10,12 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/auth-context';
 import { CommerceProvider } from '@/features/commerce/commerce-context';
+import { QuickViewProvider } from '@/features/quickview/quickview-context';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { AnnouncementBar } from '@/components/AnnouncementBar';
+import { CartDrawer } from '@/features/commerce/CartDrawer';
+import { QuickViewModal } from '@/features/quickview/QuickViewModal';
 
 export default function ShopLayout({ children }: { children: ReactNode }) {
   const { status } = useAuth();
@@ -33,9 +37,14 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
 
   return (
     <CommerceProvider>
-      <Header />
-      <main className="flex-1">{children}</main>
-      <Footer />
+      <QuickViewProvider>
+        <AnnouncementBar />
+        <Header />
+        <main className="flex-1">{children}</main>
+        <Footer />
+        <CartDrawer />
+        <QuickViewModal />
+      </QuickViewProvider>
     </CommerceProvider>
   );
 }
