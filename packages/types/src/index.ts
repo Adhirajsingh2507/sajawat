@@ -1,5 +1,8 @@
 /**
  * @sajawat/types — shared TypeScript types across web, admin, and api.
- * Domain types (User, Product, Order, ApiResponse, etc.) are added per feature phase.
+ * Type-only package (no runtime emit). Domain DTOs are added per feature phase.
  */
-export {};
+export * from './catalog.js';
+export * from './commerce.js';
+export * from './admin.js';
+export * from './crm.js';

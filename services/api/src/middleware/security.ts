@@ -15,6 +15,7 @@ import helmet from 'helmet';
 import type { CorsOptions } from 'cors';
 import type { RequestHandler } from 'express';
 import { env } from '../config/env.js';
+import { CSRF_HEADER_NAME } from './csrf.js';
 
 export const securityHeaders: RequestHandler = helmet({
   contentSecurityPolicy: false,
@@ -33,7 +34,11 @@ const corsOptions: CorsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id'],
+  // x-csrf-token is REQUIRED: the browser clients attach it (double-submit CSRF)
+  // on every request once the csrf cookie exists, so omitting it makes the CORS
+  // preflight reject all cross-origin calls (breaks silent-refresh + data fetches
+  // for returning users). Caught by the 1.10a browser E2E.
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', CSRF_HEADER_NAME],
   exposedHeaders: ['x-request-id'],
   maxAge: 600,
 };

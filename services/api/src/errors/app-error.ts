@@ -19,6 +19,7 @@ export type ErrorCode =
   | 'UNSUPPORTED_MEDIA_TYPE'
   | 'TOO_MANY_REQUESTS'
   | 'INTERNAL_SERVER_ERROR'
+  | 'NOT_IMPLEMENTED'
   | 'SERVICE_UNAVAILABLE';
 
 /** Map a 4xx HTTP status to its stable error code (best-fit, defaults to BAD_REQUEST). */
@@ -122,6 +123,14 @@ export class InternalServerError extends AppError {
   constructor(message = 'Internal server error') {
     // Non-operational: represents an unexpected failure.
     super(500, 'INTERNAL_SERVER_ERROR', message, undefined, false);
+  }
+}
+
+export class NotImplementedError extends AppError {
+  constructor(message = 'Not implemented') {
+    // Operational: an intentional "feature not configured/available" response
+    // (e.g. Google sign-in with no GOOGLE_CLIENT_ID), not a bug — safe to surface.
+    super(501, 'NOT_IMPLEMENTED', message);
   }
 }
 

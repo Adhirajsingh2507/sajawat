@@ -9,8 +9,10 @@
  * Exceeded limits are funneled through the standard error envelope as
  * 429 TOO_MANY_REQUESTS via the global error handler.
  *
- * Note: accurate client IPs require `trust proxy` (set in app.ts) behind
- * Cloud Run / a proxy.
+ * Note: accurate client IPs require `trust proxy` (set in app.ts from the
+ * env-driven `trustProxy`, pinned to a hop count — D20) behind Cloud Run / a
+ * proxy. A blanket `true` would let clients spoof X-Forwarded-For to forge
+ * req.ip and evade these per-IP limits.
  */
 import { rateLimit } from 'express-rate-limit';
 import type { Options, RateLimitRequestHandler } from 'express-rate-limit';

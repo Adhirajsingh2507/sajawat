@@ -103,6 +103,11 @@ jobs:
           JWT_AUDIENCE: ${{ vars.APP_JWT_AUDIENCE }}
           CORS_ORIGINS: ${{ vars.APP_CORS_ORIGINS }}
           API_BASE_URL: ${{ vars.APP_API_BASE_URL }}
+          # Optional, non-secret ids (D18/D19). Empty string when the Environment
+          # variable is unset — the deploy then omits them and the app stays in its
+          # dormant default (online checkout 501 / WhatsApp skip-and-log).
+          RAZORPAY_KEY_ID: ${{ vars.APP_RAZORPAY_KEY_ID }}
+          WHATSAPP_PHONE_NUMBER_ID: ${{ vars.APP_WHATSAPP_PHONE_NUMBER_ID }}
         run: |
           set -euo pipefail
 
@@ -131,6 +136,27 @@ jobs:
             echo "Service $SERVICE does not exist → first deploy. Creating from $IMAGE (serves immediately)…"
           fi
 
+          # Build the secret/env bindings. Base set is always present; the optional
+          # D18/D19 bindings are added only when usable, so a no-keys deploy stays
+          # green and the app keeps its dormant default. A secret is bound only if
+          # it has an ENABLED version (an empty container would make :latest
+          # unresolvable and fail the deploy); a non-secret id is added only if its
+          # Environment variable is set. RAZORPAY_KEY_ID / WHATSAPP_PHONE_NUMBER_ID
+          # are always plain env vars (never secret-typed), so no AD-52 type flip.
+          SECRET_FLAGS="MONGODB_URI=MONGODB_URI:latest,JWT_ACCESS_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest"
+          ENV_FLAGS="NODE_ENV=staging,JWT_ISSUER=${JWT_ISSUER},JWT_AUDIENCE=${JWT_AUDIENCE},CORS_ORIGINS=${CORS_ORIGINS},API_BASE_URL=${API_BASE_URL}"
+          for s in RAZORPAY_KEY_SECRET RAZORPAY_WEBHOOK_SECRET WHATSAPP_ACCESS_TOKEN; do
+            if gcloud secrets versions list "$s" --project="$PROJECT" \
+                 --filter='state=ENABLED' --format='value(name)' 2>/dev/null | grep -q .; then
+              SECRET_FLAGS="${SECRET_FLAGS},${s}=${s}:latest"
+              echo "  + optional secret bound: $s"
+            else
+              echo "  - optional secret skipped (no enabled version): $s"
+            fi
+          done
+          if [ -n "${RAZORPAY_KEY_ID:-}" ]; then ENV_FLAGS="${ENV_FLAGS},RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}"; fi
+          if [ -n "${WHATSAPP_PHONE_NUMBER_ID:-}" ]; then ENV_FLAGS="${ENV_FLAGS},WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID}"; fi
+
           gcloud run deploy "$SERVICE" \
             --image="$IMAGE" \
             --region="$REGION" --project="$PROJECT" \
@@ -138,8 +164,8 @@ jobs:
             "${CANDIDATE_FLAGS[@]}" \
             --allow-unauthenticated \
             --min-instances=0 \
-            --set-secrets="MONGODB_URI=MONGODB_URI:latest,JWT_ACCESS_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest" \
-            --set-env-vars="NODE_ENV=staging,JWT_ISSUER=${JWT_ISSUER},JWT_AUDIENCE=${JWT_AUDIENCE},CORS_ORIGINS=${CORS_ORIGINS},API_BASE_URL=${API_BASE_URL}"
+            --set-secrets="$SECRET_FLAGS" \
+            --set-env-vars="$ENV_FLAGS"
 
           BASE_URL="$(gcloud run services describe "$SERVICE" \
             --region="$REGION" --project="$PROJECT" --format='value(status.url)')"

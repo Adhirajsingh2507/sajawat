@@ -26,6 +26,8 @@ declare global {
     interface Request {
       validatedData?: ValidatedData;
       user?: AuthUser;
+      /** Raw request body buffer (captured for webhook signature verification). */
+      rawBody?: Buffer;
     }
   }
 }

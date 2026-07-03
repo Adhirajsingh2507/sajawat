@@ -15,6 +15,12 @@ process.env.JWT_AUDIENCE ??= 'sajawat-clients-test';
 // tests spin up mongodb-memory-server and drive mongoose directly.
 process.env.MONGODB_URI ??= 'mongodb://127.0.0.1:27017/sajawat_test';
 process.env.CORS_ORIGINS ??= 'http://localhost:3000,http://localhost:3001';
+// Functional auth tests exercise many requests against the shared (very strict)
+// auth limiter; raise it so they don't flake. The limiter itself is verified
+// independently in test/integration/csrf-ratelimit.test.ts with its own limit.
+process.env.AUTH_RATE_LIMIT_MAX ??= '1000';
+// GOOGLE_CLIENT_ID is intentionally left UNSET by default so the 501
+// "not configured" path is exercised; the google-enabled tests mock env.
 
 // Pin the mongodb-memory-server binary to a build that runs everywhere
 // (the default 8.x ubuntu2404 build SIGSEGVs on some hosts). Overridable in CI.

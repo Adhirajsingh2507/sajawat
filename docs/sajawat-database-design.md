@@ -104,9 +104,14 @@ isEmailVerified
 
 isPhoneVerified
 
+customerType        ('b2c' | 'b2b' — B2B is a customer segment, NEVER a seller)
+
 status
 
-roleId
+role               (enum string per the code-canonical RBAC catalog in
+                    @sajawat/shared — AD-20. Supersedes the original `roleId`
+                    ref; a `roles` collection is deferred until an admin UI
+                    manages custom roles. Defaults to 'customer'.)
 
 address
 
@@ -141,17 +146,26 @@ address at purchase time.
 
 Indexes:
 
-email
+email (unique, lowercased)
 
-phone
+phone (sparse unique)
 
-roleId
+role
+
+customerType
 
 ---
 
-# ROLES
+# ROLES (DEFERRED — RBAC is code-canonical)
 
-Purpose:
+Status:
+
+Not implemented as a collection. Per AD-20, roles + the role→permission
+matrix live in code (`@sajawat/shared`), the user stores a `role` enum,
+and the access token carries the role only. A `roles` collection is
+introduced only if/when an admin UI needs to manage custom roles.
+
+Purpose (if later introduced):
 
 RBAC
 
@@ -627,39 +641,59 @@ updatedAt
 
 ---
 
-# COUPONS
+# PROMOTIONS (supersedes the original code-only "coupons")
 
 Purpose:
 
-Discount management.
+Admin-configurable discount engine for Model A (B2C retail). Supports BOTH
+automatic cart-value rules (no code, applied when conditions match) and
+coupon codes — the admin chooses which to run. Replaces the original
+code-only `coupons` design, which could not express automatic
+spend-threshold discounts.
 
 Fields:
 
 _id
 
-code
+name                 (admin label)
 
-type
+trigger              ('automatic' | 'coupon')
 
-value
+code                 (required when trigger='coupon'; null for automatic)
 
-minimumCartValue
+rewardType           ('percentage' | 'fixed')
 
-maximumDiscount
+value                (percent or fixed amount)
+
+minimumCartValue     (condition: subtotal threshold; the "cart over X" rule)
+
+maximumDiscount      (cap for percentage rewards)
 
 startDate
 
 endDate
 
-usageLimit
+usageLimit           (global)
 
-status
+perCustomerLimit
+
+status               ('active' | 'inactive')
 
 createdAt
 
+updatedAt
+
+Integrity:
+
+The applicable discount is ALWAYS recomputed server-side at cart/checkout
+against the live cart subtotal and active promotions. Client-supplied
+discounts/totals are never trusted.
+
 Indexes:
 
-code
+code (sparse unique — only coupon-trigger promotions)
+
+trigger
 
 status
 

@@ -1,14 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { Button } from '@sajawat/ui';
 
-// RTL + jsdom + jest-dom harness smoke (real components arrive with Phase 1 UI).
-function Heading(): React.JSX.Element {
-  return <h1>Sajawat</h1>;
-}
-
-describe('RTL/jsdom harness', () => {
-  it('renders a component into the DOM', () => {
-    render(<Heading />);
-    expect(screen.getByRole('heading', { name: 'Sajawat' })).toBeInTheDocument();
+describe('@sajawat/ui Button', () => {
+  it('renders an accessible button with its label', () => {
+    render(<Button>Shop now</Button>);
+    expect(screen.getByRole('button', { name: 'Shop now' })).toBeInTheDocument();
   });
 });

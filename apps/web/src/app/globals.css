@@ -1,26 +1,39 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Scan the shared UI package source so its Tailwind classes are generated. */
+@source '../../../../packages/ui/src';
+
+/* ============================================================
+   SAJAWAT brand tokens (Milestone 1.4a)
+   Royal Purple + Luxury Gold over warm neutrals. Serif display
+   (Playfair) + modern sans body (Inter). Large whitespace,
+   subtle borders, minimal shadows — a luxury showroom feel.
+   ============================================================ */
+@theme {
+  --color-purple: #4b206b;
+  --color-purple-dark: #371650;
+  --color-gold: #c9a227;
+  --color-gold-dark: #9a7b1a;
+  --color-gold-soft: #f6efd8;
+
+  --color-ink: #1a1614;
+  --color-ink-soft: #4a443f;
+  --color-ink-faint: #9b938b;
+
+  --color-line: #e9e3d9;
+  --color-mist: #f5f1ea;
+  --color-cream: #fbfaf6;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-playfair), ui-serif, Georgia, serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background-color: var(--color-cream);
+  color: var(--color-ink);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }

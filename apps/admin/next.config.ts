@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
   // longer runs ESLint during builds, so no eslint config is needed here.
   transpilePackages: ['@sajawat/ui'],
 
+  // Product media are URL references (GCS upload lands in 1.3-media). Allow https
+  // remotes broadly for now; TIGHTEN to the GCS bucket host once media exists.
+  images: {
+    remotePatterns: [{ protocol: 'https', hostname: '**' }],
+  },
+
   // Self-contained server output for Docker (0.8, AD-24). Trace from the
   // monorepo root so workspace deps land in `.next/standalone`.
   output: 'standalone',

@@ -35,4 +35,14 @@ ADMIN_RUNTIME_SA="sajawat-admin-run" # Cloud Run runtime SA for admin (no secret
 
 # Secret Manager secret containers to create (VALUES added out-of-band).
 # JWT_ISSUER / JWT_AUDIENCE are NOT here — they are plain Cloud Run env vars.
-SECRETS=("MONGODB_URI" "JWT_ACCESS_SECRET" "JWT_REFRESH_SECRET")
+# RAZORPAY_KEY_ID / WHATSAPP_PHONE_NUMBER_ID are NOT here either — they are not
+# secret (key id is embedded in the frontend; phone-number-id is a public id) and
+# ship as plain env vars (see deploy workflows). Only true secrets live here.
+SECRETS=(
+  "MONGODB_URI"
+  "JWT_ACCESS_SECRET"
+  "JWT_REFRESH_SECRET"
+  "RAZORPAY_KEY_SECRET"     # D18 — online payments (absent => checkout 501)
+  "RAZORPAY_WEBHOOK_SECRET" # D18 — webhook HMAC verification
+  "WHATSAPP_ACCESS_TOKEN"   # D19 — B2B lead alerts (absent => skip-and-log)
+)
