@@ -8,6 +8,8 @@
     "dev": "tsx watch --env-file-if-exists=.env.development --env-file-if-exists=.env src/index.ts",
     "start": "node --env-file-if-exists=.env.production --env-file-if-exists=.env dist/index.js",
     "build": "tsc -p tsconfig.build.json",
+    "seed:admin": "tsx --env-file-if-exists=.env.development --env-file-if-exists=.env src/scripts/seed-admin.ts",
+    "seed:demo": "tsx --env-file-if-exists=.env.development --env-file-if-exists=.env src/scripts/seed-demo.ts",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
