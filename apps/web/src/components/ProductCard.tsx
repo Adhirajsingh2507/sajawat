@@ -4,6 +4,7 @@ import { Badge } from '@sajawat/ui';
 import type { PublicProduct } from '@sajawat/types';
 import { formatPrice } from '@/lib/format';
 import { WishlistButton } from '@/features/commerce/WishlistButton';
+import { QuickViewButton } from '@/features/quickview/QuickViewButton';
 
 function Price({ price, salePrice }: { price: number; salePrice?: number | undefined }) {
   if (salePrice !== undefined) {
@@ -47,6 +48,7 @@ export function ProductCard({ product }: { product: PublicProduct }) {
         <div className="absolute right-3 top-3">
           <WishlistButton productId={product.id} variant="icon" />
         </div>
+        {product.inStock && <QuickViewButton product={product} />}
       </div>
       <h3 className="mt-3 text-sm font-medium text-ink group-hover:text-purple">{product.name}</h3>
       <Price price={product.price} salePrice={product.salePrice} />

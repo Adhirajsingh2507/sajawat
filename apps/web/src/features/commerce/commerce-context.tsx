@@ -26,6 +26,10 @@ interface CartContextValue {
   removeCoupon: () => Promise<void>;
   /** Replace cart state directly (e.g. emptied after a successful checkout). */
   setCart: (cart: PublicCart) => void;
+  /** Slide-in cart drawer visibility (UI-only). */
+  isCartOpen: boolean;
+  openCart: () => void;
+  closeCart: () => void;
 }
 
 interface WishlistContextValue {
@@ -48,6 +52,7 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
   const [cart, setCartState] = useState<PublicCart | null>(null);
   const [cartLoading, setCartLoading] = useState(true);
   const [cartMutating, setCartMutating] = useState(false);
+  const [isCartOpen, setCartOpen] = useState(false);
 
   const [wishlist, setWishlistState] = useState<PublicWishlist | null>(null);
   const [wishLoading, setWishLoading] = useState(true);
@@ -124,6 +129,12 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
   const setCart = useCallback((next: PublicCart) => {
     setCartState(next);
   }, []);
+  const openCart = useCallback(() => {
+    setCartOpen(true);
+  }, []);
+  const closeCart = useCallback(() => {
+    setCartOpen(false);
+  }, []);
 
   const cartValue = useMemo<CartContextValue>(
     () => ({
@@ -137,6 +148,9 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       applyCoupon,
       removeCoupon,
       setCart,
+      isCartOpen,
+      openCart,
+      closeCart,
     }),
     [
       cart,
@@ -148,6 +162,9 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       applyCoupon,
       removeCoupon,
       setCart,
+      isCartOpen,
+      openCart,
+      closeCart,
     ],
   );
 

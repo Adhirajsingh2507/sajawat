@@ -7,6 +7,8 @@ import type { PublicCategory, PublicCollection } from '@sajawat/types';
 import { useAsync } from '@/lib/use-async';
 import { getCategories, getCollections, getProducts } from '@/services/catalog';
 import { ProductGrid, ProductGridSkeleton } from '@/components/ProductGrid';
+import { ProductCarousel } from '@/components/ProductCarousel';
+import { HeroCarousel } from '@/components/HeroCarousel';
 
 /**
  * Home — an editorial luxury landing page (image hero → trust → shop-by-category
@@ -21,13 +23,14 @@ export default function HomePage() {
     [],
   );
   const { data: bestSellers, loading: bestLoading } = useAsync(
-    () => getProducts({ bestSeller: true, limit: 4 }),
+    () => getProducts({ bestSeller: true, limit: 8 }),
     [],
   );
+  const { data: newArrivals } = useAsync(() => getProducts({ sort: '-createdAt', limit: 8 }), []);
 
   return (
     <>
-      <Hero />
+      <HeroCarousel />
 
       <TrustBar />
 
@@ -94,64 +97,33 @@ export default function HomePage() {
             {bestLoading && bestSellers === null ? (
               <ProductGridSkeleton count={4} />
             ) : (
-              <ProductGrid products={bestSellers?.items ?? []} />
+              <ProductCarousel products={bestSellers?.items ?? []} />
             )}
           </div>
         </Container>
       </Section>
 
+      {/* New arrivals */}
+      {(newArrivals?.items.length ?? 0) > 0 && (
+        <Section>
+          <Container>
+            <SectionHeader
+              eyebrow="Just in"
+              title="New arrivals"
+              href="/products"
+              linkLabel="Shop all"
+            />
+            <div className="mt-8">
+              <ProductCarousel products={newArrivals?.items ?? []} />
+            </div>
+          </Container>
+        </Section>
+      )}
+
       <StorySection />
 
       <WholesaleBand />
     </>
-  );
-}
-
-/* ---------------------------------- Hero ---------------------------------- */
-
-function Hero() {
-  return (
-    <section className="relative isolate overflow-hidden bg-purple">
-      <Image
-        src="/demo/hero/hero-bridal.jpg"
-        alt=""
-        fill
-        priority
-        sizes="100vw"
-        className="object-cover object-center opacity-60"
-      />
-      {/* Legibility scrim: darker at the bottom where the copy sits. */}
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-gradient-to-t from-purple-dark via-purple-dark/60 to-purple/30"
-      />
-      <Container className="relative flex min-h-[78vh] flex-col justify-end pb-16 pt-28 sm:min-h-[80vh] sm:pb-20">
-        <div className="max-w-2xl">
-          <Eyebrow className="text-gold">The Sajawat Collection</Eyebrow>
-          <Heading level={1} className="text-white">
-            Jewellery made for every celebration
-          </Heading>
-          <p className="mt-5 max-w-xl text-lg text-white/85">
-            Necklaces, earrings, and bridal sets crafted to feel precious — without the
-            precious-metal price.
-          </p>
-          <div className="mt-9 flex flex-wrap gap-3">
-            <Link
-              href="/products"
-              className="inline-flex h-12 items-center justify-center rounded-full bg-gold px-8 text-sm font-medium text-ink transition-colors hover:bg-gold-dark"
-            >
-              Shop the collection
-            </Link>
-            <Link
-              href="#categories"
-              className="inline-flex h-12 items-center justify-center rounded-full border border-white/70 px-8 text-sm font-medium text-white transition-colors hover:bg-white hover:text-purple"
-            >
-              Shop by category
-            </Link>
-          </div>
-        </div>
-      </Container>
-    </section>
   );
 }
 

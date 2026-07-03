@@ -5,14 +5,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/auth-context';
 import { useCart, useWishlist } from '@/features/commerce/commerce-context';
+import { SearchBox } from '@/components/SearchBox';
 
 /** Sticky storefront header — brand, shop nav, search, wishlist, cart, account, mobile menu. */
 export function Header() {
   const { user, logout } = useAuth();
-  const { itemCount } = useCart();
+  const { itemCount, openCart } = useCart();
   const { count: wishCount } = useWishlist();
   const router = useRouter();
-  const [q, setQ] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
 
   function onLogout() {
@@ -20,15 +20,6 @@ export function Header() {
       await logout();
       router.replace('/login');
     })();
-  }
-
-  function onSearch(e: React.FormEvent) {
-    e.preventDefault();
-    const term = q.trim();
-    if (term.length > 0) {
-      setMenuOpen(false);
-      router.push(`/search?q=${encodeURIComponent(term)}`);
-    }
   }
 
   return (
@@ -64,17 +55,7 @@ export function Header() {
           </Link>
         </nav>
         <div className="ml-auto flex items-center gap-3 sm:gap-4">
-          <form onSubmit={onSearch} className="hidden sm:block">
-            <input
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
-              }}
-              placeholder="Search jewellery…"
-              aria-label="Search"
-              className="h-9 w-44 rounded-full border border-line bg-white px-4 text-sm text-ink placeholder:text-ink-faint focus:border-purple focus:outline-none lg:w-56"
-            />
-          </form>
+          <SearchBox className="hidden w-44 sm:block lg:w-56" />
 
           <Link
             href="/wishlist"
@@ -85,14 +66,15 @@ export function Header() {
             {wishCount > 0 && <CountBadge value={wishCount} />}
           </Link>
 
-          <Link
-            href="/cart"
+          <button
+            type="button"
+            onClick={openCart}
             aria-label={`Cart${itemCount > 0 ? ` (${String(itemCount)} items)` : ''}`}
             className="relative text-ink-soft transition-colors hover:text-purple"
           >
             <BagIcon />
             {itemCount > 0 && <CountBadge value={itemCount} />}
-          </Link>
+          </button>
 
           <Link
             href="/account"
@@ -115,17 +97,12 @@ export function Header() {
       {menuOpen && (
         <div className="border-t border-line bg-cream sm:hidden">
           <div className="mx-auto max-w-7xl px-5 py-4">
-            <form onSubmit={onSearch} className="mb-4">
-              <input
-                value={q}
-                onChange={(e) => {
-                  setQ(e.target.value);
-                }}
-                placeholder="Search jewellery…"
-                aria-label="Search"
-                className="h-10 w-full rounded-full border border-line bg-white px-4 text-sm text-ink placeholder:text-ink-faint focus:border-purple focus:outline-none"
-              />
-            </form>
+            <SearchBox
+              className="mb-4"
+              onNavigate={() => {
+                setMenuOpen(false);
+              }}
+            />
             <nav className="flex flex-col text-sm">
               <MobileLink href="/products" onNavigate={() => setMenuOpen(false)}>
                 Shop all
