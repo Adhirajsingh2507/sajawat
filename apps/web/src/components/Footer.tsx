@@ -1,40 +1,61 @@
-/** Storefront footer (trust + contact). Static for 1.4a; CMS-driven later. */
+import Link from 'next/link';
+
+/** Storefront footer (trust + navigation). Static for now; CMS-driven later. */
 export function Footer() {
   return (
     <footer className="mt-auto border-t border-line bg-white">
       <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8">
-        <div className="grid gap-8 sm:grid-cols-3">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <span className="font-serif text-lg font-semibold text-purple">Sajawat</span>
             <p className="mt-2 max-w-xs text-sm text-ink-soft">
               Premium imitation jewellery for celebrations, gifting, and everyday elegance.
             </p>
           </div>
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-ink-faint">
-              Company
-            </h2>
-            <ul className="mt-3 space-y-2 text-sm text-ink-soft">
-              <li>About</li>
-              <li>Contact</li>
-              <li>Wholesale enquiries</li>
-            </ul>
-          </div>
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-ink-faint">
-              Connect
-            </h2>
-            <ul className="mt-3 space-y-2 text-sm text-ink-soft">
-              <li>Instagram</li>
-              <li>Facebook</li>
-              <li>WhatsApp</li>
-            </ul>
-          </div>
+
+          <FooterColumn title="Shop">
+            <FooterLink href="/products">Shop all</FooterLink>
+            <FooterLink href="/products">Best sellers</FooterLink>
+            <FooterLink href="/categories/bridal-sets">Bridal sets</FooterLink>
+            <FooterLink href="/wholesale">Wholesale enquiries</FooterLink>
+          </FooterColumn>
+
+          <FooterColumn title="Account">
+            <FooterLink href="/account">My account</FooterLink>
+            <FooterLink href="/account/orders">My orders</FooterLink>
+            <FooterLink href="/wishlist">Wishlist</FooterLink>
+            <FooterLink href="/cart">Cart</FooterLink>
+          </FooterColumn>
+
+          <FooterColumn title="Connect">
+            <li className="text-ink-soft">Instagram</li>
+            <li className="text-ink-soft">Facebook</li>
+            <li className="text-ink-soft">WhatsApp</li>
+          </FooterColumn>
         </div>
         <p className="mt-10 text-xs text-ink-faint">
           © {new Date().getFullYear()} Sajawat Jewellery. All rights reserved.
         </p>
       </div>
     </footer>
+  );
+}
+
+function FooterColumn({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h2 className="text-xs font-semibold uppercase tracking-widest text-ink-faint">{title}</h2>
+      <ul className="mt-3 space-y-2 text-sm text-ink-soft">{children}</ul>
+    </div>
+  );
+}
+
+function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <li>
+      <Link href={href} className="transition-colors hover:text-purple">
+        {children}
+      </Link>
+    </li>
   );
 }
