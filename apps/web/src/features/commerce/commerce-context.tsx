@@ -41,6 +41,10 @@ interface WishlistContextValue {
   add: (productId: string) => Promise<void>;
   remove: (productId: string) => Promise<void>;
   toggle: (productId: string) => Promise<void>;
+  /** Slide-in wishlist drawer visibility (UI-only). */
+  isWishlistOpen: boolean;
+  openWishlist: () => void;
+  closeWishlist: () => void;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -57,6 +61,7 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
   const [wishlist, setWishlistState] = useState<PublicWishlist | null>(null);
   const [wishLoading, setWishLoading] = useState(true);
   const [wishMutating, setWishMutating] = useState(false);
+  const [isWishlistOpen, setWishlistOpen] = useState(false);
 
   // Bootstrap (and tear down) commerce state alongside the auth session. State is
   // set only after awaited network calls; the sign-out teardown is a legitimate
@@ -196,6 +201,12 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
         : runWish(() => commerce.addWishlistItem(productId)),
     [runWish, wishIds],
   );
+  const openWishlist = useCallback(() => {
+    setWishlistOpen(true);
+  }, []);
+  const closeWishlist = useCallback(() => {
+    setWishlistOpen(false);
+  }, []);
 
   const wishlistValue = useMemo<WishlistContextValue>(
     () => ({
@@ -207,8 +218,22 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       add,
       remove,
       toggle,
+      isWishlistOpen,
+      openWishlist,
+      closeWishlist,
     }),
-    [wishlist, wishLoading, wishMutating, has, add, remove, toggle],
+    [
+      wishlist,
+      wishLoading,
+      wishMutating,
+      has,
+      add,
+      remove,
+      toggle,
+      isWishlistOpen,
+      openWishlist,
+      closeWishlist,
+    ],
   );
 
   return (
