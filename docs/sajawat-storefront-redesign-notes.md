@@ -36,7 +36,7 @@ version of each — do not copy the reference's specific markup/styles/assets.
 - [ ] **"Shop by price / occasion"** entry points (Under ₹999, Bridal, Gifting).
 - [x] **New arrivals** carousel + **Best sellers** carousel — `components/ProductCarousel.tsx`.
 - [ ] **Featured collection banner(s)** — large lifestyle image + CTA.
-- [ ] **Testimonials / reviews** strip.
+- [x] **Testimonials / reviews** strip — `components/Testimonials.tsx` (static demo).
 - [ ] **Instagram / lookbook** gallery grid.
 - [x] **USP / trust row** (have text version; make it icon-based next).
 - [ ] Richer **footer**: newsletter signup, policy links, contact, social.
@@ -47,7 +47,8 @@ version of each — do not copy the reference's specific markup/styles/assets.
 - [ ] **Quick-view** modal + hover second-image swap on cards.
 
 ### Product detail (PDP)
-- [ ] Larger gallery w/ zoom-on-hover / lightbox.
+- [x] Gallery zoom-on-hover — `components/ZoomImage.tsx` (magnifies toward cursor;
+      reduced-motion safe). Lightbox still optional/later.
 - [ ] **Delivery/returns accordion**, **offers** box, share buttons.
 - [x] **Related / "You may also like"** carousel (same-category).
 - [ ] Quantity + sticky mobile add-to-cart bar.
@@ -55,11 +56,12 @@ version of each — do not copy the reference's specific markup/styles/assets.
 ### Global / interaction
 - [x] **Slide-in cart drawer** — `features/commerce/CartDrawer.tsx` (opens on
       add-to-cart + header bag; `isCartOpen/openCart/closeCart` on CartContext).
-- [ ] **Mega-menu** category dropdown on desktop header.
+- [x] **Mega-menu** category dropdown on desktop header — `components/MegaMenu.tsx`.
 - [x] Search with **suggestions/typeahead** — `components/SearchBox.tsx`.
 - [x] **Quick-view** modal — `features/quickview/*` (also listed under PLP).
 - [~] Subtle motion polish — `fade-in` util added; more on scroll/hover next.
-- [ ] Wishlist drawer.
+- [x] Wishlist drawer — `features/commerce/WishlistDrawer.tsx` (mirrors CartDrawer;
+      header heart opens it; "Move to bag" hands off to the cart drawer).
 
 ## Uncommitted work in tree (bank before token reset)
 

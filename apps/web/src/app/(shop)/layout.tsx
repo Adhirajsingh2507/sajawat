@@ -15,6 +15,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { AnnouncementBar } from '@/components/AnnouncementBar';
 import { CartDrawer } from '@/features/commerce/CartDrawer';
+import { WishlistDrawer } from '@/features/commerce/WishlistDrawer';
 import { QuickViewModal } from '@/features/quickview/QuickViewModal';
 
 export default function ShopLayout({ children }: { children: ReactNode }) {
@@ -43,6 +44,7 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
         <main className="flex-1">{children}</main>
         <Footer />
         <CartDrawer />
+        <WishlistDrawer />
         <QuickViewModal />
       </QuickViewProvider>
     </CommerceProvider>

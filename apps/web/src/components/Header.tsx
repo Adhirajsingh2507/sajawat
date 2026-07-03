@@ -6,12 +6,13 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/auth-context';
 import { useCart, useWishlist } from '@/features/commerce/commerce-context';
 import { SearchBox } from '@/components/SearchBox';
+import { MegaMenu } from '@/components/MegaMenu';
 
 /** Sticky storefront header — brand, shop nav, search, wishlist, cart, account, mobile menu. */
 export function Header() {
   const { user, logout } = useAuth();
   const { itemCount, openCart } = useCart();
-  const { count: wishCount } = useWishlist();
+  const { count: wishCount, openWishlist } = useWishlist();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -47,9 +48,7 @@ export function Header() {
           Sajawat
         </Link>
         <nav className="hidden items-center gap-5 text-sm text-ink-soft sm:flex">
-          <Link href="/products" className="hover:text-purple">
-            Shop all
-          </Link>
+          <MegaMenu />
           <Link href="/wholesale" className="hover:text-purple">
             Wholesale
           </Link>
@@ -57,14 +56,15 @@ export function Header() {
         <div className="ml-auto flex items-center gap-3 sm:gap-4">
           <SearchBox className="hidden w-44 sm:block lg:w-56" />
 
-          <Link
-            href="/wishlist"
+          <button
+            type="button"
+            onClick={openWishlist}
             aria-label={`Wishlist${wishCount > 0 ? ` (${String(wishCount)} items)` : ''}`}
             className="relative text-ink-soft transition-colors hover:text-purple"
           >
             <HeartIcon />
             {wishCount > 0 && <CountBadge value={wishCount} />}
-          </Link>
+          </button>
 
           <button
             type="button"

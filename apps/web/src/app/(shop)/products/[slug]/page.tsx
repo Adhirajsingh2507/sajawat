@@ -11,6 +11,7 @@ import { formatPrice } from '@/lib/format';
 import { AddToCart } from '@/features/commerce/AddToCart';
 import { WishlistButton } from '@/features/commerce/WishlistButton';
 import { ProductCarousel } from '@/components/ProductCarousel';
+import { ZoomImage } from '@/components/ZoomImage';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -78,27 +79,25 @@ export default function ProductDetailPage() {
                 ))}
               </div>
             )}
-            <div className="relative aspect-square flex-1 overflow-hidden rounded-2xl border border-line bg-mist">
-              {main !== undefined ? (
-                <Image
-                  src={main.url}
-                  alt={main.alt ?? product.name}
-                  fill
-                  sizes="(min-width: 1024px) 50vw, 100vw"
-                  className="object-cover"
-                  priority
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center font-serif text-6xl text-ink-faint">
-                  {product.name.charAt(0)}
-                </div>
-              )}
-              {discount > 0 && (
-                <span className="absolute left-4 top-4 rounded-full bg-purple px-3 py-1 text-xs font-semibold text-white">
-                  {discount}% off
-                </span>
-              )}
-            </div>
+            {main !== undefined ? (
+              <ZoomImage
+                src={main.url}
+                alt={main.alt ?? product.name}
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                priority
+                className="aspect-square flex-1 rounded-2xl border border-line bg-mist"
+              >
+                {discount > 0 && (
+                  <span className="absolute left-4 top-4 z-10 rounded-full bg-purple px-3 py-1 text-xs font-semibold text-white">
+                    {discount}% off
+                  </span>
+                )}
+              </ZoomImage>
+            ) : (
+              <div className="relative flex aspect-square flex-1 items-center justify-center overflow-hidden rounded-2xl border border-line bg-mist font-serif text-6xl text-ink-faint">
+                {product.name.charAt(0)}
+              </div>
+            )}
           </div>
 
           {/* Buy box — sticky on desktop */}

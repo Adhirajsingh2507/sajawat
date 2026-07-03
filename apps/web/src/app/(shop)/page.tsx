@@ -9,6 +9,7 @@ import { getCategories, getCollections, getProducts } from '@/services/catalog';
 import { ProductGrid, ProductGridSkeleton } from '@/components/ProductGrid';
 import { ProductCarousel } from '@/components/ProductCarousel';
 import { HeroCarousel } from '@/components/HeroCarousel';
+import { Testimonials } from '@/components/Testimonials';
 
 /**
  * Home — an editorial luxury landing page (image hero → trust → shop-by-category
@@ -121,6 +122,8 @@ export default function HomePage() {
       )}
 
       <StorySection />
+
+      <Testimonials />
 
       <WholesaleBand />
     </>
