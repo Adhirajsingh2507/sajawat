@@ -36,6 +36,7 @@ export function ProductForm({
   const [name, setName] = useState(initial?.name ?? '');
   const [slug, setSlug] = useState(initial?.slug ?? '');
   const [sku, setSku] = useState(initial?.sku ?? '');
+  const [barcode, setBarcode] = useState(initial?.barcode ?? '');
   const [price, setPrice] = useState(initial?.price !== undefined ? String(initial.price) : '');
   const [salePrice, setSalePrice] = useState(
     initial?.salePrice !== undefined ? String(initial.salePrice) : '',
@@ -72,6 +73,7 @@ export function ProductForm({
       isBestSeller,
       images: cleanImages,
     };
+    if (barcode.trim().length > 0) payload.barcode = barcode.trim();
     if (slug.trim().length > 0) payload.slug = slug.trim();
     if (salePrice.trim().length > 0) payload.salePrice = Number(salePrice);
     if (shortDescription.trim().length > 0) payload.shortDescription = shortDescription.trim();
@@ -118,6 +120,17 @@ export function ProductForm({
               setSku(e.target.value);
             }}
             required
+          />
+        </div>
+        <div>
+          <Label htmlFor="barcode">Barcode (optional)</Label>
+          <Input
+            id="barcode"
+            value={barcode}
+            onChange={(e) => {
+              setBarcode(e.target.value);
+            }}
+            placeholder="Scan or type the product barcode"
           />
         </div>
         <div>

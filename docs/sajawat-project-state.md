@@ -502,3 +502,20 @@ cart/order/promotion logic, or the login gate.
   `sajawat-storefront-redesign-notes.md`.
 - **Note:** the shared `Container` (packages/ui) width cap change also widened the
   `apps/admin` content area (harmless).
+
+## Update — Barcode & scan-to-receive stock (2026-07-05)
+
+Owner-requested inventory feature (develop). No new inventory schema.
+
+- **DB/API:** `products.barcode?` (unique sparse; admin-only, not on
+  `PublicProduct`); admin create/update accept `barcode` (409 on clash);
+  `GET /api/v1/admin/products/barcode/:code` resolves a scan to a product.
+- **Admin:** Barcode field on the product form; new **`/inventory/scan`**
+  ("Receive stock", `INVENTORY_WRITE`) — scan barcodes → running per-product
+  count (re-scan increments) → **Submit** applies `stock_added` inventory
+  movements → live on the storefront. See `sajawat-admin-specification.md` +
+  `sajawat-current-architecture.md` §22.
+- **Demo:** `seed-demo.ts` assigns deterministic `8901…` demo barcodes
+  (DEMO-ONLY — swap for the client's printed codes).
+- **Verified:** barcode lookup + `stock_added` intake (stock 45→55) via direct
+  service exercise; admin UI typecheck+lint clean.

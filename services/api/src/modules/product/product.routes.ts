@@ -12,6 +12,7 @@ import { PERMISSIONS } from '@sajawat/shared';
 import { validate } from '../../middleware/validate.js';
 import { requireAuth, requirePermission } from '../../middleware/auth.js';
 import {
+  barcodeParamSchema,
   createProductSchema,
   idParamSchema,
   productListQuerySchema,
@@ -21,6 +22,7 @@ import {
 } from './product.validation.js';
 import {
   adminCreate,
+  adminGetByBarcode,
   adminGetById,
   adminList,
   adminRemove,
@@ -54,6 +56,13 @@ productAdminRouter.post(
   requirePermission(PERMISSIONS.PRODUCT_WRITE),
   validate(createProductSchema),
   adminCreate,
+);
+// Static before /:id (routing rule): scan lookup by physical barcode.
+productAdminRouter.get(
+  '/barcode/:code',
+  requirePermission(PERMISSIONS.PRODUCT_READ),
+  validate(barcodeParamSchema),
+  adminGetByBarcode,
 );
 productAdminRouter.get(
   '/:id',

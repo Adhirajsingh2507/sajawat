@@ -53,6 +53,11 @@ export const adminGetById: RequestHandler = asyncHandler(async (req, res) => {
   sendSuccess(res, await productService.getByIdAdmin(id));
 });
 
+export const adminGetByBarcode: RequestHandler = asyncHandler(async (req, res) => {
+  const { code } = req.validatedData?.params as { code: string };
+  sendSuccess(res, await productService.getByBarcodeAdmin(code));
+});
+
 export const adminCreate: RequestHandler = asyncHandler(async (req, res) => {
   const performedBy = req.user?.id;
   if (performedBy === undefined) {

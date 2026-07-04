@@ -497,11 +497,14 @@ async function upsertProducts(
   categoryIds: Map<string, string>,
   collectionIds: Map<string, string>,
 ): Promise<void> {
-  for (const p of PRODUCTS) {
+  for (const [index, p] of PRODUCTS.entries()) {
     const categoryId = categoryIds.get(p.category);
     if (categoryId === undefined) {
       throw new Error(`seed-demo: unknown category "${p.category}" for product ${p.slug}`);
     }
+    // Deterministic demo barcode (13-digit EAN-like). DEMO-ONLY — replace with the
+    // client's real printed barcodes.
+    const barcode = `8901${String(index + 1).padStart(9, '0')}`;
     const collections = p.collections.map((slug) => {
       const id = collectionIds.get(slug);
       if (id === undefined) {
@@ -516,6 +519,7 @@ async function upsertProducts(
         $set: {
           name: p.name,
           sku: p.sku,
+          barcode,
           shortDescription: p.shortDescription,
           description: p.description,
           price: p.price,

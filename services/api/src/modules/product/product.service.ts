@@ -68,6 +68,7 @@ function toAdminProduct(doc: ProductDoc): AdminProduct {
     shortDescription: doc.shortDescription,
     description: doc.description,
     sku: doc.sku,
+    barcode: doc.barcode,
     price: doc.price,
     salePrice: doc.salePrice,
     categoryId: String(doc.categoryId),
@@ -198,6 +199,9 @@ async function create(input: CreateProductBody, performedBy: string): Promise<Ad
   if (await productRepository.existsBySku(input.sku)) {
     throw new ConflictError('SKU already in use');
   }
+  if (input.barcode !== undefined && (await productRepository.existsByBarcode(input.barcode))) {
+    throw new ConflictError('Barcode already in use');
+  }
 
   const doc = await productRepository.create({
     name: input.name,
@@ -205,6 +209,7 @@ async function create(input: CreateProductBody, performedBy: string): Promise<Ad
     shortDescription: input.shortDescription,
     description: input.description,
     sku: input.sku,
+    barcode: input.barcode,
     price: input.price,
     salePrice: input.salePrice,
     categoryId: input.categoryId,
@@ -243,8 +248,15 @@ async function update(id: string, input: UpdateProductBody): Promise<AdminProduc
     throw new BadRequestError('salePrice must be less than price');
   }
 
+  if (input.barcode !== undefined && input.barcode !== existing.barcode) {
+    if (await productRepository.existsByBarcode(input.barcode)) {
+      throw new ConflictError('Barcode already in use');
+    }
+  }
+
   const patch: Partial<IProduct> = {};
   if (input.name !== undefined) patch.name = input.name;
+  if (input.barcode !== undefined) patch.barcode = input.barcode;
   if (input.shortDescription !== undefined) patch.shortDescription = input.shortDescription;
   if (input.description !== undefined) patch.description = input.description;
   if (input.price !== undefined) patch.price = input.price;
@@ -320,6 +332,14 @@ async function getByIdAdmin(id: string): Promise<AdminProduct> {
   return toAdminProduct(doc);
 }
 
+async function getByBarcodeAdmin(barcode: string): Promise<AdminProduct> {
+  const doc = await productRepository.findByBarcode(barcode);
+  if (doc === null) {
+    throw new NotFoundError('No product found for this barcode');
+  }
+  return toAdminProduct(doc);
+}
+
 async function remove(id: string): Promise<void> {
   const deleted = await productRepository.softDeleteById(id);
   if (deleted === null) {
@@ -339,5 +359,6 @@ export const productService = {
   update,
   listAdmin,
   getByIdAdmin,
+  getByBarcodeAdmin,
   remove,
 };
