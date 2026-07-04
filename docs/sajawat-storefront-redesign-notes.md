@@ -35,7 +35,8 @@ version of each — do not copy the reference's specific markup/styles/assets.
 - [x] **Category tiles** row (image tiles). Optional: rounded "circle" variant later.
 - [ ] **"Shop by price / occasion"** entry points (Under ₹999, Bridal, Gifting).
 - [x] **New arrivals** carousel + **Best sellers** carousel — `components/ProductCarousel.tsx`.
-- [ ] **Featured collection banner(s)** — large lifestyle image + CTA.
+- [x] **Featured collection banner** — `components/FeaturedBanner.tsx` (full-bleed
+      image + CTA into The Bridal Edit; static target, CMS-driven later).
 - [x] **Testimonials / reviews** strip — `components/Testimonials.tsx` (static demo).
 - [x] **Instagram / lookbook** gallery grid — `components/Lookbook.tsx`.
 - [x] **USP / trust row** — now icon-based (homepage TrustBar).

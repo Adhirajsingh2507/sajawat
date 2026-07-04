@@ -11,6 +11,7 @@ import { ProductCarousel } from '@/components/ProductCarousel';
 import { HeroCarousel } from '@/components/HeroCarousel';
 import { Testimonials } from '@/components/Testimonials';
 import { Lookbook } from '@/components/Lookbook';
+import { FeaturedBanner } from '@/components/FeaturedBanner';
 
 /**
  * Home — an editorial luxury landing page (image hero → trust → shop-by-category
@@ -85,6 +86,8 @@ export default function HomePage() {
           </Container>
         </Section>
       )}
+
+      <FeaturedBanner />
 
       {/* Best sellers */}
       <Section className="bg-white">
