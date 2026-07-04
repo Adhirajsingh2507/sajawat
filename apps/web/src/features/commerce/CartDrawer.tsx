@@ -5,10 +5,10 @@
  * the header bag. Server-authoritative like the cart page: quantity/remove
  * round-trip to the API; totals come from the returned DTO.
  */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useCart } from '@/features/commerce/commerce-context';
+import { commerceErrorMessage, useCart } from '@/features/commerce/commerce-context';
 import { formatPrice } from '@/lib/format';
 
 export function CartDrawer() {
@@ -150,6 +150,7 @@ export function CartDrawer() {
             </ul>
 
             <footer className="border-t border-line px-5 py-4">
+              <CartCoupon />
               {cart !== null && cart.discount > 0 && (
                 <div className="mb-1 flex justify-between text-sm text-purple">
                   <span>Discount</span>
@@ -182,6 +183,69 @@ export function CartDrawer() {
         )}
       </aside>
     </>
+  );
+}
+
+/** Compact coupon apply/remove for the drawer footer. */
+function CartCoupon() {
+  const { cart, mutating, applyCoupon, removeCoupon } = useCart();
+  const [code, setCode] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  if (cart === null) return null;
+
+  const applied = cart.appliedPromotion;
+
+  function onApply(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = code.trim();
+    if (trimmed.length === 0) return;
+    setError(null);
+    void applyCoupon(trimmed)
+      .then(() => {
+        setCode('');
+      })
+      .catch((err: unknown) => {
+        setError(commerceErrorMessage(err));
+      });
+  }
+
+  return (
+    <div className="mb-3 border-b border-line pb-3">
+      {applied !== null && applied.code !== undefined ? (
+        <div className="flex items-center justify-between rounded-lg bg-purple/5 px-3 py-2 text-sm">
+          <span className="text-purple">{applied.code} applied</span>
+          <button
+            type="button"
+            onClick={() => void removeCoupon()}
+            disabled={mutating}
+            className="text-xs text-ink-soft hover:text-red-600 disabled:opacity-40"
+          >
+            Remove
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={onApply} className="flex gap-2">
+          <input
+            value={code}
+            onChange={(e) => {
+              setCode(e.target.value);
+            }}
+            placeholder="Coupon code"
+            aria-label="Coupon code"
+            className="h-9 min-w-0 flex-1 rounded-full border border-line bg-white px-4 text-sm focus:border-purple focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={mutating}
+            className="h-9 shrink-0 rounded-full border border-purple px-4 text-sm font-medium text-purple hover:bg-purple hover:text-white disabled:opacity-40"
+          >
+            Apply
+          </button>
+        </form>
+      )}
+      {error !== null && <p className="mt-2 text-xs text-red-600">{error}</p>}
+    </div>
   );
 }
 

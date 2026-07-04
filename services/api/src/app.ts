@@ -27,7 +27,7 @@ import { categoryRouter, categoryAdminRouter } from './modules/category/category
 import { collectionRouter, collectionAdminRouter } from './modules/collection/collection.routes.js';
 import { productRouter, productAdminRouter } from './modules/product/product.routes.js';
 import { inventoryAdminRouter } from './modules/inventory/inventory.routes.js';
-import { promotionAdminRouter } from './modules/promotion/promotion.routes.js';
+import { promotionRouter, promotionAdminRouter } from './modules/promotion/promotion.routes.js';
 import { cartRouter } from './modules/cart/cart.routes.js';
 import { wishlistRouter } from './modules/wishlist/wishlist.routes.js';
 import { checkoutRouter, orderAdminRouter, ordersRouter } from './modules/order/order.routes.js';
@@ -83,6 +83,7 @@ export function createApp(): Application {
   app.use('/api/v1/categories', categoryRouter);
   app.use('/api/v1/collections', collectionRouter);
   app.use('/api/v1/products', productRouter);
+  app.use('/api/v1/offers', promotionRouter);
   app.use('/api/v1/cart', cartRouter);
   app.use('/api/v1/wishlist', wishlistRouter);
   app.use('/api/v1/checkout', checkoutRouter);

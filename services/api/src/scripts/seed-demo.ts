@@ -22,6 +22,7 @@ import { Category } from '../modules/category/category.model.js';
 import { Collection } from '../modules/collection/collection.model.js';
 import { Product } from '../modules/product/product.model.js';
 import { Inventory } from '../modules/inventory/inventory.model.js';
+import { Promotion } from '../modules/promotion/promotion.model.js';
 import { User } from '../modules/user/user.model.js';
 
 const DEMO_EMAIL = process.env.SEED_DEMO_EMAIL?.trim() ?? 'demo@sajawat.example';
@@ -557,6 +558,68 @@ async function upsertProducts(
   }
 }
 
+interface PromotionSeed {
+  name: string;
+  trigger: 'automatic' | 'coupon';
+  code?: string;
+  rewardType: 'percentage' | 'fixed';
+  value: number;
+  minCartValue: number;
+  maxDiscount?: number;
+}
+
+const PROMOTIONS: PromotionSeed[] = [
+  {
+    name: '10% off orders over ₹2,999',
+    trigger: 'automatic',
+    rewardType: 'percentage',
+    value: 10,
+    minCartValue: 2999,
+    maxDiscount: 1500,
+  },
+  {
+    name: 'Festive offer — 15% off with code',
+    trigger: 'coupon',
+    code: 'FESTIVE15',
+    rewardType: 'percentage',
+    value: 15,
+    minCartValue: 1999,
+    maxDiscount: 2000,
+  },
+  {
+    name: '₹300 off your first order',
+    trigger: 'coupon',
+    code: 'WELCOME300',
+    rewardType: 'fixed',
+    value: 300,
+    minCartValue: 1499,
+  },
+];
+
+async function upsertPromotions(): Promise<void> {
+  for (const promo of PROMOTIONS) {
+    // Key coupons by code; key the automatic promo by name (no code).
+    const key = promo.code !== undefined ? { code: promo.code } : { name: promo.name };
+    await Promotion.findOneAndUpdate(
+      key,
+      {
+        $set: {
+          name: promo.name,
+          trigger: promo.trigger,
+          code: promo.code,
+          rewardType: promo.rewardType,
+          value: promo.value,
+          minCartValue: promo.minCartValue,
+          maxDiscount: promo.maxDiscount ?? null,
+          status: 'active',
+          deletedAt: null,
+        },
+      },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+    );
+  }
+}
+
 async function upsertDemoCustomer(): Promise<void> {
   const existing = await User.findOne({ email: DEMO_EMAIL.toLowerCase() });
   if (existing !== null) {
@@ -583,12 +646,14 @@ async function seedDemo(): Promise<void> {
     const categoryIds = await upsertCategories();
     const collectionIds = await upsertCollections();
     await upsertProducts(categoryIds, collectionIds);
+    await upsertPromotions();
     await upsertDemoCustomer();
     logger.info(
       {
         categories: CATEGORIES.length,
         collections: COLLECTIONS.length,
         products: PRODUCTS.length,
+        promotions: PROMOTIONS.length,
         demoLogin: { email: DEMO_EMAIL, password: DEMO_PASSWORD },
       },
       'seed-demo: complete',

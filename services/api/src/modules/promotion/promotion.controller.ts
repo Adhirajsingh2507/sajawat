@@ -11,6 +11,11 @@ import type {
   UpdatePromotionBody,
 } from './promotion.validation.js';
 
+/** Public: active, advertisable offers for the storefront. */
+export const publicOffers: RequestHandler = asyncHandler(async (_req, res) => {
+  sendSuccess(res, { items: await promotionService.listActivePublic() });
+});
+
 export const adminList: RequestHandler = asyncHandler(async (req, res) => {
   const query = (req.validatedData?.query ?? {}) as PromotionListQuery;
   sendSuccess(res, await promotionService.listAdmin(query));

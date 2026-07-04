@@ -1,9 +1,23 @@
 import Link from 'next/link';
+import { NewsletterForm } from '@/components/NewsletterForm';
 
-/** Storefront footer (trust + navigation). Static for now; CMS-driven later. */
+/** Storefront footer (newsletter + navigation). Static for now; CMS-driven later. */
 export function Footer() {
   return (
     <footer className="mt-auto border-t border-line bg-white">
+      {/* Newsletter band */}
+      <div className="border-b border-line bg-mist">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-10 sm:px-8 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="font-serif text-xl font-semibold text-ink">Join the Sajawat list</h2>
+            <p className="mt-1 text-sm text-ink-soft">
+              First access to new arrivals, festive offers, and styling tips.
+            </p>
+          </div>
+          <NewsletterForm />
+        </div>
+      </div>
+
       <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>

@@ -37,9 +37,10 @@ version of each — do not copy the reference's specific markup/styles/assets.
 - [x] **New arrivals** carousel + **Best sellers** carousel — `components/ProductCarousel.tsx`.
 - [ ] **Featured collection banner(s)** — large lifestyle image + CTA.
 - [x] **Testimonials / reviews** strip — `components/Testimonials.tsx` (static demo).
-- [ ] **Instagram / lookbook** gallery grid.
-- [x] **USP / trust row** (have text version; make it icon-based next).
-- [ ] Richer **footer**: newsletter signup, policy links, contact, social.
+- [x] **Instagram / lookbook** gallery grid — `components/Lookbook.tsx`.
+- [x] **USP / trust row** — now icon-based (homepage TrustBar).
+- [x] Richer **footer**: newsletter signup — `components/NewsletterForm.tsx`
+      (presentational; wire to a subscribe endpoint later).
 
 ### Product listing (PLP)
 - [ ] **Sidebar / drawer filters** (category, price range, in-stock, best-seller).
@@ -62,6 +63,23 @@ version of each — do not copy the reference's specific markup/styles/assets.
 - [~] Subtle motion polish — `fade-in` util added; more on scroll/hover next.
 - [x] Wishlist drawer — `features/commerce/WishlistDrawer.tsx` (mirrors CartDrawer;
       header heart opens it; "Move to bag" hands off to the cart drawer).
+
+## Client correction requests (2026-07-04) — pending a screenshot/spec file
+
+The client will provide a file with screenshots + how the site should look. Align
+the below against it. Keep original design (no 1:1 clone of the reference).
+
+- [x] **Coupon apply inside the cart drawer** — `CartDrawer` → `CartCoupon`.
+- [x] **Per-SKU deals on the PDP** — DONE. Added public offers read:
+      `GET /api/v1/offers` (promotion.service `listActivePublic` + `promotionRouter`),
+      `PublicOffer` type, web `getOffers()`, and `components/ProductOffers.tsx`
+      ("Available offers" box). Seeded 3 demo promos (auto 10%, FESTIVE15, WELCOME300).
+- [x] **Enlarge product imagery** — re-fetched demo images at 1600px (heroes 2400px)
+      for crisper sources. NOTE: exact display sizing still to match client
+      screenshots (may bump card/PDP render sizes further once received).
+- [x] **Video on SKUs** — PDP gallery video slot DONE (`video` thumb with play badge
+      + inline `<video>` player; `PublicProduct.video` already exposed). Verified via
+      temp URL. STILL NEEDS: real jewellery video assets, then seed `video.url`.
 
 ## Uncommitted work in tree (bank before token reset)
 
