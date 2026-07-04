@@ -65,9 +65,9 @@ export default function HomePage() {
           />
           <div className="mt-8">
             {featuredLoading && featured === null ? (
-              <ProductGridSkeleton count={4} />
+              <ProductGridSkeleton count={4} columns={4} />
             ) : (
-              <ProductGrid products={featured?.items ?? []} />
+              <ProductGrid products={featured?.items ?? []} columns={4} />
             )}
           </div>
         </Container>

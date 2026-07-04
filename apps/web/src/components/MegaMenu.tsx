@@ -66,7 +66,7 @@ export function MegaMenu() {
         }`}
       >
         <div className="border-t border-line bg-cream shadow-lg">
-          <div className="mx-auto grid max-w-7xl gap-8 px-8 py-8 lg:grid-cols-[2fr_1fr]">
+          <div className="mx-auto grid max-w-[1600px] gap-8 px-8 py-8 lg:grid-cols-[2fr_1fr]">
             {/* Categories */}
             <div>
               <div className="mb-4 flex items-center justify-between">

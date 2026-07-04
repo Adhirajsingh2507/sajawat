@@ -26,7 +26,7 @@ export function AnnouncementBar() {
 
   return (
     <div className="bg-purple-dark text-white">
-      <div className="mx-auto flex h-9 max-w-7xl items-center justify-center px-5 text-center">
+      <div className="mx-auto flex h-9 max-w-[1600px] items-center justify-center px-5 text-center">
         <p key={i} className="animate-fade-in text-xs tracking-wide text-white/90">
           {MESSAGES[i]}
         </p>

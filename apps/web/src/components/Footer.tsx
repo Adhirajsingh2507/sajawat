@@ -7,7 +7,7 @@ export function Footer() {
     <footer className="mt-auto border-t border-line bg-white">
       {/* Newsletter band */}
       <div className="border-b border-line bg-mist">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-10 sm:px-8 md:flex-row md:items-center md:justify-between">
+        <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-5 py-10 sm:px-8 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="font-serif text-xl font-semibold text-ink">Join the Sajawat list</h2>
             <p className="mt-1 text-sm text-ink-soft">
@@ -18,7 +18,7 @@ export function Footer() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8">
+      <div className="mx-auto max-w-[1600px] px-5 py-12 sm:px-8">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <span className="font-serif text-lg font-semibold text-purple">Sajawat</span>
