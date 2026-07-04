@@ -123,6 +123,23 @@ async function listPublic(query: ProductListQuery): Promise<Paginated<PublicProd
   }
   if (query.featured !== undefined) filter.isFeatured = query.featured;
   if (query.bestSeller !== undefined) filter.isBestSeller = query.bestSeller;
+
+  // Price range on the base list price. Operators are developer-constructed →
+  // trusted so the global sanitizeFilter (AD-9) does not neutralize them.
+  if (query.minPrice !== undefined || query.maxPrice !== undefined) {
+    const range: Record<string, number> = {};
+    if (query.minPrice !== undefined) range.$gte = query.minPrice;
+    if (query.maxPrice !== undefined) range.$lte = query.maxPrice;
+    filter.price = mongoose.trusted(range);
+  }
+
+  // In-stock filter: restrict to purchasable products (inventory join).
+  if (query.inStock === true) {
+    const inStockIds = await inventoryService.getInStockProductIds();
+    if (inStockIds.length === 0) return emptyPage(query);
+    filter._id = mongoose.trusted({ $in: inStockIds });
+  }
+
   return paginatePublic(filter, query);
 }
 

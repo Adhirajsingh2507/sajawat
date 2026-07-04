@@ -262,8 +262,15 @@ async function getInStockMap(productIds: string[]): Promise<Map<string, boolean>
   return map;
 }
 
+/** Product IDs that are currently purchasable (for the storefront in-stock filter). */
+async function getInStockProductIds(): Promise<string[]> {
+  const rows = await inventoryRepository.findInStock();
+  return rows.map((row) => String(row.productId));
+}
+
 export const inventoryService = {
   createForProduct,
+  getInStockProductIds,
   adjust,
   commit,
   restock,

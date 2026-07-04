@@ -24,6 +24,11 @@ export class InventoryRepository extends BaseRepository<IInventory> {
     return this.find({ productId: mongoose.trusted({ $in: productIds }) });
   }
 
+  /** Inventory rows that are purchasable (status !== out_of_stock). */
+  findInStock(): Promise<HydratedDocument<IInventory>[]> {
+    return this.find({ status: mongoose.trusted({ $ne: 'out_of_stock' }) });
+  }
+
   /**
    * Atomically decrement stock IFF enough is available (no-oversell guard).
    * Returns the updated doc, or null when insufficient stock / no row.

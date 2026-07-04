@@ -30,6 +30,9 @@ export interface ProductQuery {
   collection?: string;
   featured?: boolean;
   bestSeller?: boolean;
+  minPrice?: number | undefined;
+  maxPrice?: number | undefined;
+  inStock?: boolean | undefined;
 }
 
 export function getProducts(query: ProductQuery = {}): Promise<Paginated<PublicProduct>> {
