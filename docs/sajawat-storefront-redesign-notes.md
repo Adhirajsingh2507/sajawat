@@ -77,9 +77,9 @@ the below against it. Keep original design (no 1:1 clone of the reference).
       `GET /api/v1/offers` (promotion.service `listActivePublic` + `promotionRouter`),
       `PublicOffer` type, web `getOffers()`, and `components/ProductOffers.tsx`
       ("Available offers" box). Seeded 3 demo promos (auto 10%, FESTIVE15, WELCOME300).
-- [x] **Enlarge product imagery** — re-fetched demo images at 1600px (heroes 2400px)
-      for crisper sources. NOTE: exact display sizing still to match client
-      screenshots (may bump card/PDP render sizes further once received).
+- [x] **Enlarge product imagery** — re-fetched demo images at 1600px (heroes 2400px);
+      hero carousel taller (~92vh); product grid 4→3 cols (bigger cards); carousel
+      items wider (~3/row). Fine-tune exact sizing to client screenshots if needed.
 - [x] **Video on SKUs** — PDP gallery video slot DONE (`video` thumb with play badge
       + inline `<video>` player; `PublicProduct.video` already exposed). Verified via
       temp URL. STILL NEEDS: real jewellery video assets, then seed `video.url`.
