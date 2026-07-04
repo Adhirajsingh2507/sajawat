@@ -730,3 +730,27 @@ on each merge.
 Real product videos (feature built, unseeded) and exact sizing/deal-copy to match
 the client's screenshot spec. Working backlog:
 `sajawat-storefront-redesign-notes.md`.
+
+---
+
+## 22. Barcode & scan-to-receive stock (2026-07-05)
+
+Owner-requested inventory feature. **No new inventory schema; one new field + one
+read endpoint + one admin page.** Backend verified via direct service exercise
+(barcode lookup → `stock_added` adjust, stock 45→55); admin UI typecheck+lint
+clean, mirrors the existing `AdjustForm` path.
+
+- **DB:** `products.barcode?` (≤64) + `{ barcode: 1 }` **unique sparse** index.
+  Distinct from `sku`; admin-only (on `AdminProduct`, not `PublicProduct`).
+- **API:** admin create/update accept `barcode` (unique, 409 on clash);
+  `GET /api/v1/admin/products/barcode/:code` (`product:read`, static-before-`:id`)
+  resolves a scan to a product. Intake reuses `POST /admin/inventory/:productId`
+  (`stock_added`).
+- **Repository/service:** `productRepository.findByBarcode`/`existsByBarcode`;
+  `productService.getByBarcodeAdmin`.
+- **Admin:** Barcode field on `ProductForm`; new **`/inventory/scan`** ("Receive
+  stock", `INVENTORY_WRITE`) — scan → running per-product count (re-scan
+  increments) → submit applies `stock_added` movements → live on storefront.
+  Nav item added.
+- **Demo:** `seed-demo.ts` assigns deterministic 13-digit demo barcodes
+  (`8901…`) — DEMO-ONLY; replace with the client's printed codes.

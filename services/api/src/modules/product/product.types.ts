@@ -14,6 +14,7 @@ export interface IProduct {
   shortDescription?: string | undefined;
   description?: string | undefined;
   sku: string;
+  barcode?: string | undefined;
   price: number;
   salePrice?: number | undefined;
   categoryId: Types.ObjectId | string;
@@ -37,6 +38,7 @@ export interface AdminProduct {
   shortDescription?: string | undefined;
   description?: string | undefined;
   sku: string;
+  barcode?: string | undefined;
   price: number;
   salePrice?: number | undefined;
   categoryId: string;

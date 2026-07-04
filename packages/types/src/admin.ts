@@ -15,6 +15,8 @@ export interface AdminProduct {
   shortDescription?: string | undefined;
   description?: string | undefined;
   sku: string;
+  /** Physical scannable code (EAN/UPC/Code-128); distinct from `sku`. Optional, unique if set. */
+  barcode?: string | undefined;
   price: number;
   salePrice?: number | undefined;
   categoryId: string;

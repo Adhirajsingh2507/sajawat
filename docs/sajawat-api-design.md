@@ -697,3 +697,24 @@ New optional query params (validated in `product.validation.ts`, applied in
 
 Existing params unchanged: `page, limit, sort, category, collection, featured,
 bestSeller`.
+
+---
+
+# ADDENDUM — Product barcode (2026-07-05)
+
+## Barcode on products (admin)
+- Admin create/update product accepts optional **`barcode`** (string, ≤64);
+  unique if set (409 `Barcode already in use` on clash). Returned on
+  `AdminProduct`; **not** on `PublicProduct` (admin-only).
+
+## Barcode lookup (admin scan)
+`GET /api/v1/admin/products/barcode/:code`
+
+- **Purpose:** resolve a scanned physical barcode to its product for the
+  "Receive stock by scan" flow.
+- **Auth/RBAC:** staff session + `product:read`. Registered **before** `/:id`
+  (static-first routing rule).
+- **Output:** `AdminProduct`; `404` if no product carries that barcode.
+- **Stock intake** reuses the existing `POST /api/v1/admin/inventory/:productId`
+  (`type:'stock_added'`) per scanned product on submit — no new inventory
+  endpoint.

@@ -20,6 +20,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/orders', label: 'Orders', permission: PERMISSIONS.ORDER_READ },
   { href: '/products', label: 'Products', permission: PERMISSIONS.PRODUCT_READ },
   { href: '/inventory', label: 'Inventory', permission: PERMISSIONS.INVENTORY_READ },
+  { href: '/inventory/scan', label: 'Receive stock', permission: PERMISSIONS.INVENTORY_WRITE },
   { href: '/categories', label: 'Categories', permission: PERMISSIONS.CATEGORY_WRITE },
   { href: '/collections', label: 'Collections', permission: PERMISSIONS.COLLECTION_WRITE },
   { href: '/promotions', label: 'Promotions', permission: PERMISSIONS.COUPON_WRITE },

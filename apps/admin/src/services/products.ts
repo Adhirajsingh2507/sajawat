@@ -17,6 +17,7 @@ export interface ProductListQuery {
 export interface ProductWriteInput {
   name: string;
   sku: string;
+  barcode?: string;
   price: number;
   categoryId: string;
   slug?: string;
@@ -47,6 +48,11 @@ export function listProducts(query: ProductListQuery = {}): Promise<Paginated<Ad
 
 export function getProduct(id: string): Promise<AdminProduct> {
   return apiFetch<AdminProduct>(`/admin/products/${encodeURIComponent(id)}`);
+}
+
+/** Look up a product by its physical scannable barcode (admin scan flows). */
+export function getProductByBarcode(code: string): Promise<AdminProduct> {
+  return apiFetch<AdminProduct>(`/admin/products/barcode/${encodeURIComponent(code)}`);
 }
 
 export function createProduct(input: ProductWriteInput): Promise<AdminProduct> {
