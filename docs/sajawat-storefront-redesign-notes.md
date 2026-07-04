@@ -44,8 +44,10 @@ version of each — do not copy the reference's specific markup/styles/assets.
       (presentational; wire to a subscribe endpoint later).
 
 ### Product listing (PLP)
-- [ ] **Sidebar / drawer filters** (category, price range, in-stock, best-seller).
-- [ ] Sort dropdown (have basic), **grid density toggle**, result count.
+- [x] **Price range + in-stock filters** — chip filter bar in `ProductListing`.
+      Backend: `minPrice`/`maxPrice`/`inStock` on the products query
+      (product.validation + product.service; inventory `getInStockProductIds`).
+- [ ] Optional: category/best-seller facets, **grid density toggle**.
 - [ ] **Quick-view** modal + hover second-image swap on cards.
 
 ### Product detail (PDP)

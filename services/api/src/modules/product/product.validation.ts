@@ -83,6 +83,9 @@ export const productListQuerySchema = z.object({
     collection: z.string().min(1).optional(),
     featured: queryBool.optional(),
     bestSeller: queryBool.optional(),
+    minPrice: z.coerce.number().nonnegative().optional(),
+    maxPrice: z.coerce.number().nonnegative().optional(),
+    inStock: queryBool.optional(),
   }),
 });
 
