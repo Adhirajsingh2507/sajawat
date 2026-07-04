@@ -474,3 +474,31 @@ production pipeline is authored but unrun — needs operator prereqs + a v* tag)
 Mongoose 9 is the
 approved baseline.
 ```
+
+---
+
+## Update — Storefront experience redesign (2026-07-04)
+
+Client-showcase redesign of `apps/web`, merged to `develop` in PRs **#3–#10**
+(all CI Quality-gate + E2E-smoke green; only the repo-wide Dependency-Review
+"Security scan" stays red — needs GitHub Advanced Security enabled, unrelated).
+Presentation + **one** read-only API addition; **no** changes to domain models,
+cart/order/promotion logic, or the login gate.
+
+- **New public API:** `GET /api/v1/offers` (advertisable store-wide promotions);
+  `GET /api/v1/products` gains `minPrice`/`maxPrice`/`inStock` filters. See
+  `sajawat-api-design.md` addendum.
+- **Storefront:** hero carousel, announcement bar, mega-menu, typeahead search,
+  cart + wishlist drawers, quick-view, product carousels, PDP hover-zoom + video
+  slot + "Available offers" box, testimonials, lookbook, newsletter, featured
+  banner, PLP price/in-stock filters; site width 1280→1600px. Full component list
+  in `sajawat-current-architecture.md` §21 and `sajawat-ui-ux-specification.md`
+  addendum.
+- **Demo data:** `seed-demo.ts` (`pnpm --filter @sajawat/api seed:demo`) — 5
+  categories, 3 collections, 24 products + inventory, 3 promotions, demo customer
+  `demo@sajawat.example`. `apps/web/public/demo` imagery is DEMO-ONLY.
+- **Pending client assets:** real product videos (feature built, unseeded) +
+  exact sizing/deal-copy from the client's screenshot spec. Backlog:
+  `sajawat-storefront-redesign-notes.md`.
+- **Note:** the shared `Container` (packages/ui) width cap change also widened the
+  `apps/admin` content area (harmless).

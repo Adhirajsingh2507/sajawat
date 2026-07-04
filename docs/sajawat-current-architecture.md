@@ -682,3 +682,51 @@ system. Apps replace the Next starter (closes **D4**).
 - **Gating:** the whole group `test.skip`s unless `E2E_FULL_STACK=1`; run via `pnpm test:e2e:full` (sets the flag + `PLAYWRIGHT_BASE_URL`). CI keeps the web-only `smoke.spec.ts` (no Mongo/API needed). Verified green end-to-end against a local stack.
 - **Deterministic seed** (`tests/e2e/global-setup.ts`): idempotent admin-API seed of an in-stock product (create-or-top-up), no-op unless the flag is set, **fail-fast** on any seed write so failures surface at the API seam, not deep in a test. Requires a seeded super-admin.
 - **Defects fixed by the journey:** API CORS `allowedHeaders` now includes `x-csrf-token` (`CSRF_HEADER_NAME`) — returning users attach the double-submit token on every authenticated request, and omitting it failed the cross-origin preflight (`services/api/src/middleware/security.ts`); checkout `Field` now emits `htmlFor`/`id` pairs (a11y + `getByLabel`).
+
+---
+
+## 21. Storefront experience layer (2026-07-04, develop PRs #3–#10)
+
+Client-showcase redesign of `apps/web`. **Presentation + one read-only API
+addition**; no changes to domain models, cart/order/promotion business logic, or
+the login gate. Original components in the premium-jewellery genre (reference =
+structure/philosophy only). Verified per-PR via Playwright login-as-demo
+screenshots; `turbo typecheck` + lint green; CI Quality-gate + E2E-smoke green
+on each merge.
+
+### 21.1 Backend (only change)
+- **Public offers read** — `GET /api/v1/offers` (`promotionRouter` +
+  `publicOffers` controller + `promotionService.listActivePublic` +
+  `promotionRepository.findActive`). New `PublicOffer` type in `@sajawat/types`
+  (usage limits never exposed). Promotions remain store-wide (cart-value gated);
+  the PDP lists offers a SKU qualifies for.
+- **Product list filters** — `minPrice`/`maxPrice` (base list price, trusted
+  range) and `inStock` (inventory join via `inventoryService.getInStockProductIds`
+  + `inventoryRepository.findInStock`) added to `product.validation` +
+  `product.service.listPublic`. `PublicProduct.video` (already in the DTO) is now
+  rendered on the PDP.
+
+### 21.2 Storefront components (`apps/web/src`)
+- Homepage sections: `HeroCarousel`, `AnnouncementBar`, `Testimonials`,
+  `Lookbook`, `FeaturedBanner`, icon trust row; `ProductCarousel` (best-sellers,
+  new-arrivals, PDP related).
+- Commerce overlays: `CartDrawer` (+ `CartCoupon`), `WishlistDrawer` — drawer
+  state added to `CartContext`/`WishlistContext` (`open/close` + `isOpen`).
+- Discovery: `MegaMenu` (desktop), `SearchBox` (typeahead), PLP filter bar in
+  `ProductListing`, `features/quickview/*` (context + modal + card button).
+- PDP: `ZoomImage` (hover-zoom), gallery video slot, `ProductOffers`.
+- `NewsletterForm` (footer). Motion: `fade-in` util (reduced-motion safe).
+- Layout: shared `Container` cap 1280px → **1600px** (centered); `ProductGrid`
+  `columns` prop (3 default, 4 for Featured). NB: `Container` is shared with
+  `apps/admin`, so the admin content area widened too.
+
+### 21.3 Demo data (showcase)
+- `services/api/src/scripts/seed-demo.ts` (`pnpm --filter @sajawat/api seed:demo`)
+  — idempotent: 5 categories, 3 collections, 24 active products + inventory, 3
+  demo promotions, and a demo B2C customer (`demo@sajawat.example`). Imagery under
+  `apps/web/public/demo` is **DEMO-ONLY** (swap for real photography + videos).
+
+### 21.4 Pending client assets
+Real product videos (feature built, unseeded) and exact sizing/deal-copy to match
+the client's screenshot spec. Working backlog:
+`sajawat-storefront-redesign-notes.md`.

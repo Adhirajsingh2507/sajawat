@@ -615,3 +615,46 @@ Every page should answer:
 3. What should I do next?
 
 If the answer is unclear, redesign the page.
+
+---
+
+# ADDENDUM — Storefront experience (2026-07-04, `apps/web`)
+
+Client-showcase redesign (develop, PRs #3–#10). Original, brand-native components
+in the premium-jewellery genre — matching the reference's structure/philosophy,
+not its literal design. All live on the existing public catalog + cart/wishlist
+APIs. Site width capped at 1600px, still centered.
+
+## Homepage flow (top → bottom)
+Announcement bar (rotating) → **auto-advancing hero carousel** (dots + prev/next,
+pause on hover) → **icon trust row** → **shop-by-category** (5 image tiles,
+full-width) → **featured** grid (4 cards, full-width) → collections strip →
+**featured-collection banner** (image + CTA) → **best-sellers carousel** →
+**new-arrivals carousel** → craftsmanship story → **testimonials** → **lookbook /
+social grid** → wholesale CTA band → **newsletter** signup → footer.
+
+## Global interactions
+- **Mega-menu:** desktop "Shop" dropdown — category tiles + collections column.
+- **Typeahead search:** debounced product suggestions (header + mobile menu).
+- **Cart drawer:** slide-in on add-to-cart and the header bag; coupon apply/remove.
+- **Wishlist drawer:** slide-in from the header heart; "Move to bag" hands off to
+  the cart drawer.
+- **Quick view:** modal from any product card; closes when the cart drawer opens.
+- **Mobile menu:** hamburger nav with search + account links.
+- Motion: `fade-in` utility with a `prefers-reduced-motion` guard; tasteful only.
+
+## PLP (product listing)
+Price-range chip filters + "In stock only" toggle + sort + empty state; grid is
+3-up (larger cards). Filters flow through a shared fetcher (all-products,
+category, collection).
+
+## PDP (product detail)
+Thumbnail rail incl. an optional **video slot** (play badge → inline `<video>`);
+**hover-to-zoom** main image; sticky buy box; **"Available offers"** box
+(auto-applied promo + coupon codes per `GET /offers`); trust row; details; **"You
+may also like"** same-category carousel.
+
+## Still pending client assets
+Real product **videos** (feature built; needs clips to seed) and any exact
+sizing/copy tweaks from the client's screenshot spec. See
+`sajawat-storefront-redesign-notes.md` for the working backlog.
