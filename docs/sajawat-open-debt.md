@@ -10,6 +10,10 @@
 
 | ID | Severity | Description | Planned Resolution | Milestone |
 |----|----------|-------------|--------------------|-----------|
+| D-SF1 | Low | **Storefront SKU videos** — PDP gallery video slot is built and verified (`PublicProduct.video`), but no real jewellery videos exist; `apps/web/public/demo` uses DEMO-ONLY stock imagery and no video is seeded. | Client to provide product photography + videos; then seed `video.url` and swap demo images. | Storefront redesign (2026-07) |
+| D-SF2 | Low | **PDP offer price basis** — PLP `minPrice`/`maxPrice` and offer display use the **base list price**, not the discounted `salePrice` (deliberate, predictable). | Revisit if the client wants filtering/deals on effective (sale) price. | Storefront redesign (2026-07) |
+| D-SF3 | Low | **Shared `Container` width** raised 1280→1600px widened `apps/admin` too (uses the same `@sajawat/ui` primitive). | Harmless (more space); scope to `apps/web` only if admin should stay narrow. | Storefront redesign (2026-07) |
+| D-CI1 | Low | **CI "Security scan" red on every PR** — `dependency-review-action` needs Dependency Graph + GitHub Advanced Security, not enabled on this private repo; unrelated to any diff. | Enable GHAS, or make the dependency-review step non-blocking on private repos. | Ops |
 | D3 | Low | Local pnpm installed via npm user-prefix, not Corepack (Corepack's shim is broken on Node 25). Local provisioning diverges from the documented Corepack-on-Node-22 path. **0.8/0.10a: the Docker build and CI both use the documented Corepack-on-Node-22 path (validated).** | Documented; CI/Docker use Corepack on Node 22. No code change needed. | — (doc-only) |
 | ~~D4~~ | Low | ~~Next.js starter boilerplate present in both apps.~~ **RESOLVED** — `apps/web` starter replaced across 1.4a/1.4b/1.4c (storefront), `apps/admin` starter replaced across 1.7a/1.7b (operations console). Both apps ship real product UI. | Done. | 1.4 / 1.7 |
 | D5 | Low | `.prettierignore` excludes **all** `**/*.md` (protects hand-formatted specs but means Markdown is never format-enforced). | Optionally narrow to `docs/` + root specs so other Markdown stays formatted. | optional |

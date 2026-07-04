@@ -661,3 +661,39 @@ Before adding any endpoint:
 5. Performance Review
 
 Only then implement.
+
+---
+
+# ADDENDUM — Storefront experience layer (2026-07-04)
+
+Public, read-only additions made during the client-showcase storefront redesign
+(develop, PRs #3–#10). No auth; consumed by `apps/web`.
+
+## Public offers
+
+`GET /api/v1/offers`
+
+- **Purpose:** advertisable, store-wide promotions for the PDP "Available offers"
+  box. Promotions are **not per-product** — they apply to any SKU gated by
+  `minCartValue` — so the storefront lists the active offers a product qualifies
+  for.
+- **Auth:** none.
+- **Output:** `{ "data": { "items": PublicOffer[] } }`, where `PublicOffer` =
+  `{ id, name, trigger: 'automatic'|'coupon', code?, rewardType: 'percentage'|'fixed', value, minCartValue, maxDiscount?, endDate? }`.
+- **Security:** usage limits (`usageLimit`, `perCustomerLimit`) and internal
+  fields are **never** exposed. Only `status:'active'` promotions within their
+  date window are returned (`promotionService.listActivePublic`).
+
+## Product listing filters (extends `GET /api/v1/products`)
+
+New optional query params (validated in `product.validation.ts`, applied in
+`product.service.listPublic`):
+
+- `minPrice` / `maxPrice` — numeric range on the **base list price** (`price`);
+  operators marked `mongoose.trusted` per AD-9. Not the discounted `salePrice`
+  (deliberate, predictable behaviour).
+- `inStock=true` — restricts to purchasable products via an inventory join
+  (`inventoryService.getInStockProductIds` → `_id $in`).
+
+Existing params unchanged: `page, limit, sort, category, collection, featured,
+bestSeller`.
