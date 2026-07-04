@@ -106,7 +106,7 @@ export function HeroCarousel() {
       ))}
 
       {/* Copy for the active slide */}
-      <Container className="relative flex min-h-[78vh] flex-col justify-end pb-20 pt-28 sm:min-h-[80vh]">
+      <Container className="relative flex min-h-[86vh] flex-col justify-end pb-20 pt-28 sm:min-h-[92vh]">
         <div key={index} className="animate-fade-in max-w-2xl">
           <Eyebrow className="text-gold">{active.eyebrow}</Eyebrow>
           <Heading level={1} className="text-white">
