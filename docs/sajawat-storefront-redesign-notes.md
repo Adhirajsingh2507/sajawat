@@ -108,6 +108,8 @@ Next: commit on `feat/storefront-genre-redesign` → PR to develop.
 - `gh` installed at `~/.local/bin`, authenticated as `Adhirajsingh2507`.
 - Dev stack run: `docker start sajawat-mongo`; API `pnpm --filter @sajawat/api dev`;
   web `pnpm --filter @sajawat/web dev`; seed `pnpm --filter @sajawat/api seed:demo`.
-- CI "Security scan" fails repo-wide (Dependency Review needs GitHub Advanced
-  Security enabled) — unrelated to our diffs; fix separately.
+- CI "Security scan" was red repo-wide (Dependency Review needs GitHub Advanced
+  Security) — **RESOLVED 2026-07-05 (PR #13)**: the dependency-review step is now
+  non-blocking (`continue-on-error`), so CI is green; enable GHAS to restore full
+  dependency-review reporting.
 - Real product photography still needed to replace `/demo` stock before go-live.

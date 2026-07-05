@@ -480,8 +480,10 @@ approved baseline.
 ## Update — Storefront experience redesign (2026-07-04)
 
 Client-showcase redesign of `apps/web`, merged to `develop` in PRs **#3–#10**
-(all CI Quality-gate + E2E-smoke green; only the repo-wide Dependency-Review
-"Security scan" stays red — needs GitHub Advanced Security enabled, unrelated).
+(all CI Quality-gate + E2E-smoke green; the repo-wide Dependency-Review
+"Security scan" was red at the time — needs GitHub Advanced Security — but was
+later made non-blocking in **PR #13** (2026-07-05, D-CI1), so CI is now fully
+green on PRs).
 Presentation + **one** read-only API addition; **no** changes to domain models,
 cart/order/promotion logic, or the login gate.
 
@@ -517,5 +519,8 @@ Owner-requested inventory feature (develop). No new inventory schema.
   `sajawat-current-architecture.md` §22.
 - **Demo:** `seed-demo.ts` assigns deterministic `8901…` demo barcodes
   (DEMO-ONLY — swap for the client's printed codes).
-- **Verified:** barcode lookup + `stock_added` intake (stock 45→55) via direct
-  service exercise; admin UI typecheck+lint clean.
+- **Verified:** barcode lookup + `stock_added` intake exercised via the live admin
+  HTTP API (scan → 404 on unknown code → `stock_added` movement → storefront
+  stock updated); **regression tests** added to `product.service.test.ts` (lookup,
+  404, duplicate-barcode 409, update-clash 409, sparse-unique) — **PR #14**; admin
+  UI typecheck+lint clean.
