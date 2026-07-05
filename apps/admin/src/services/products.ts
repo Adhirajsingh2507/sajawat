@@ -26,6 +26,7 @@ export interface ProductWriteInput {
   salePrice?: number;
   collectionIds?: string[];
   images?: ProductImage[];
+  video?: { url: string };
   status?: ProductStatus;
   isFeatured?: boolean;
   isBestSeller?: boolean;
