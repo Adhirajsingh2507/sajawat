@@ -92,7 +92,7 @@ logcount_policy() {
   "conditions": [{
     "displayName": "${label}",
     "conditionThreshold": {
-      "filter": "metric.type=\"logging.googleapis.com/user/${metric}\" AND resource.type=\"cloud_run_revision\"",
+      "filter": "metric.type=\"logging.googleapis.com/user/${metric}\"",
       "aggregations": [{
         "alignmentPeriod": "${period}",
         "perSeriesAligner": "ALIGN_DELTA",
