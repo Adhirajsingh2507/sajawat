@@ -736,9 +736,11 @@ the client's screenshot spec. Working backlog:
 ## 22. Barcode & scan-to-receive stock (2026-07-05)
 
 Owner-requested inventory feature. **No new inventory schema; one new field + one
-read endpoint + one admin page.** Backend verified via direct service exercise
-(barcode lookup → `stock_added` adjust, stock 45→55); admin UI typecheck+lint
-clean, mirrors the existing `AdjustForm` path.
+read endpoint + one admin page.** Backend verified via the live admin HTTP API
+(scan lookup → 404 on unknown code → `stock_added` adjust → storefront stock
+updated) and covered by **regression tests** in `product.service.test.ts` (lookup,
+404, duplicate-barcode 409, update-clash 409, sparse-unique — PR #14); admin UI
+typecheck+lint clean, mirrors the existing `AdjustForm` path.
 
 - **DB:** `products.barcode?` (≤64) + `{ barcode: 1 }` **unique sparse** index.
   Distinct from `sku`; admin-only (on `AdminProduct`, not `PublicProduct`).
