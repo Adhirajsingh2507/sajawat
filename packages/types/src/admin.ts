@@ -8,6 +8,19 @@ import type { ProductImage, ProductSeo, ProductVideo } from './catalog.js';
 
 export type ProductStatus = 'draft' | 'active' | 'archived';
 
+/** Media kind an admin upload resolves to (Milestone 1.3-media). */
+export type MediaKind = 'image' | 'video';
+
+/** Result of `POST /admin/media` — a durable public URL for the stored object. */
+export interface MediaUploadResult {
+  url: string;
+  kind: MediaKind;
+  contentType: string;
+  bytes: number;
+  width?: number | undefined;
+  height?: number | undefined;
+}
+
 export interface AdminProduct {
   id: string;
   name: string;

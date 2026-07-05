@@ -34,6 +34,7 @@ import { checkoutRouter, orderAdminRouter, ordersRouter } from './modules/order/
 import { webhookRouter } from './modules/payment/payment.routes.js';
 import { enquiryRouter, crmAdminRouter } from './modules/crm/crm.routes.js';
 import { settingsAdminRouter } from './modules/settings/settings.routes.js';
+import { mediaAdminRouter } from './modules/media/media.routes.js';
 import { notFoundHandler } from './middleware/not-found.js';
 import { errorHandler } from './middleware/error-handler.js';
 
@@ -94,6 +95,7 @@ export function createApp(): Application {
   app.use('/api/v1/admin/collections', collectionAdminRouter);
   app.use('/api/v1/admin/products', productAdminRouter);
   app.use('/api/v1/admin/inventory', inventoryAdminRouter);
+  app.use('/api/v1/admin/media', mediaAdminRouter);
   app.use('/api/v1/admin/promotions', promotionAdminRouter);
   app.use('/api/v1/admin/orders', orderAdminRouter);
   app.use('/api/v1/admin/crm', crmAdminRouter);

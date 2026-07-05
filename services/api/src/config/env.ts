@@ -117,6 +117,16 @@ const EnvSchema = z.object({
   WHATSAPP_PHONE_NUMBER_ID: z.string().min(1).optional(),
   WHATSAPP_ACCESS_TOKEN: z.string().min(1).optional(),
   WHATSAPP_API_VERSION: z.string().min(1).default('v21.0'),
+
+  // ---- Google Cloud Storage media (Milestone 1.3-media) ----
+  // OPTIONAL. When GCS_BUCKET is absent, media upload endpoints return 501 and
+  // the admin keeps the manual image-URL fallback. Credentials come from
+  // Application Default Credentials (the Cloud Run runtime SA) — no key file.
+  // GCS_PROJECT_ID is only needed when ADC can't infer it (e.g. local dev).
+  // GCS_PUBLIC_HOST overrides the default public host (e.g. a CDN/custom domain).
+  GCS_BUCKET: z.string().min(1).optional(),
+  GCS_PROJECT_ID: z.string().min(1).optional(),
+  GCS_PUBLIC_HOST: z.string().url().optional(),
 });
 
 const EnvSchemaChecked = EnvSchema.superRefine((value, ctx) => {
