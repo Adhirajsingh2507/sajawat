@@ -378,7 +378,7 @@ revenue path); then content/SEO and admin; hardening last.
 | **1.2** | **Auth endpoints + session store + Google** ✅ DONE | register/login/refresh/logout/me on the 0.7 primitives; **persisted `sessions` store** with rotation + reuse-detection (revoke `family`, TTL); `csrfGuard` on cookie routes; `authRateLimiter` on credential routes; **Google sign-in (GIS ID-token flow) behind the optional `GOOGLE_CLIENT_ID` flag → 501 when unset** (mocked verifier + tests; real Client IDs at 1.4). OTP/email-verify deferred to the notification milestone. | backend, security | **D15** |
 | **1.3a** | **Catalog base (Category + Collection)** ✅ DONE | `Category`/`Collection` models+repos+services, public read (`GET /categories`, `/categories/:slug`, `/collections`, `/collections/:slug`) + admin CRUD (`/admin/...`, RBAC `CATEGORY_WRITE`/`COLLECTION_WRITE`); slug derive+uniquify util; **`@sajawat/types` populated** with `PublicCategory`/`PublicCollection`/`Paginated<T>` (type-only pkg → storefront-shareable). Static-before-param routing. **No variants** (one product = one SKU, locked); **media as URL/key references** (GCS upload deferred). | backend, database, ecommerce | — |
 | **1.3b** | **Products + Inventory + Search** ✅ DONE | `Product` (refs Category/Collections; embedded image/video/seo; text index) + `Inventory` (1:1, derived availableQuantity/status) + `InventoryMovement` (immutable signed-delta audit). Public list (filter by category/collection slug, featured/bestSeller, whitelisted sort, pagination) + `/search` (Mongo `$text`) + `/featured` `/best-sellers` `/new-arrivals` + `/:slug` (active-only); `PublicProduct.inStock` joined from inventory (batched). Admin product CRUD (PRODUCT_READ/WRITE/DELETE) + inventory adjust + `/history` (INVENTORY_READ/WRITE). Product create auto-creates inventory. **Note (AD-9):** global `sanitizeFilter` rejects developer operators — `$in`/`$text` are wrapped in `mongoose.trusted()` at the (trusted, validated) repository/service layer. Static-before-`:slug` enforced. | backend, database, ecommerce | — |
-| **1.3-media** *(deferred)* | **GCS upload pipeline** | Bucket provisioning + `@google-cloud/storage` + signed-URL/multipart upload + MIME/size validation + image optimization. Lands with the admin UI (1.7). | devops, backend, security | — |
+| **1.3-media** ✅ DONE | **GCS media upload pipeline** | API-proxied `POST /admin/media` (`product:write`): magic-byte validation → `sharp` image optimization (WebP, ≤1600px) / mp4 passthrough → public GCS bucket → durable URL. `@google-cloud/storage` + `multer` + `sharp`; config-gated (501 + admin URL fallback when `GCS_BUCKET` unset). Admin ProductForm gains image+video upload; operator bucket script `06-media-bucket.sh`. | devops, backend, security | — |
 | **1.4a** | **Storefront foundation + auth gate** ✅ DONE | Replaces Next starter (D4-web). Brand design system in **`@sajawat/ui`** (tokens: Royal Purple/Gold + neutrals, Playfair/Inter via next/font; primitives: Button/Input/Card/Badge/Container/Heading). Browser **API client** + **AuthProvider** (silent refresh-on-load). **Login + register** pages. **Fully login-gated storefront** (owner decision AD-1.4G — see debt **D17**): `(shop)` client gate redirects unauthenticated users to `/login`. App shell (Header/Footer) + branded Home. **1.2 support change:** CSRF cookie made persistent + re-issued on `/refresh-token` so returning users can silent-refresh. | frontend, ecommerce | **D4** (web) |
 | **1.4b** | **Gated catalog (web)** ✅ DONE | PLP (`/products`, `/categories/[slug]`, `/collections/[slug]`), PDP (`/products/[slug]`), `/search` — **client-side fetch behind the auth gate** via a typed catalog service + `useAsync` hook; `ProductCard`/`ProductGrid`, sort + pagination (local state), loading skeletons / empty / error states; Home wired to live categories + featured; Header search → `/search`. `next/image` with broad remote patterns (tighten with 1.3-media). **SEO dropped** (moot behind login — D17). **Note:** per-app **CSP (D12-web) shipped in 1.9a**; add-to-cart/wishlist await 1.5. | frontend, ecommerce | **D12** (web, closed 1.9a) |
 | **1.4c** | **Storefront shopping UI (web)** ✅ DONE | B2C revenue path in `apps/web` over the existing APIs. Server-authoritative `CommerceProvider` (`useCart`/`useWishlist`, no optimistic UI, no client-side totals); `commerce.ts` service layer; Header cart/wishlist badges; PDP add-to-cart + wishlist; `/cart`, `/wishlist`, `/checkout` (**COD live; Razorpay online wired-but-dormant** → graceful 501 fallback to COD), `/account` hub + `/account/orders` + order detail (cancel). Shared `CheckoutRequest`/`VerifyPaymentRequest` DTOs. `commit 3086904`. | frontend, ecommerce | — |
@@ -566,3 +566,24 @@ Completes 1.10b. Operator-run backup provisioning under `infrastructure/backups/
 **1.10b is now fully authored.** The path to `v1.0.0` is operator activation
 (D16 production CD + monitoring + backups) + a gated prod deploy, a rollback
 drill, and a restore drill.
+
+## Update — 1.3-media GCS upload pipeline (2026-07-06)
+
+Closes the long-deferred media milestone. **API-proxied** upload (per owner
+choice): `POST /api/v1/admin/media` (`product:write`, multipart) →
+**magic-byte** validation (client MIME untrusted) → images optimized with
+**sharp** (auto-orient, ≤1600px long edge, WebP, metadata stripped) / **mp4**
+validated + passed through → uploaded to a **public GCS bucket** → returns a
+durable public URL (`MediaUploadResult`).
+- **API:** `storage/gcs-provider.ts` (config-gated, ADC creds, no key file) +
+  `modules/media` (service/controller/routes; multer memory, 64 MB cap). Env
+  `GCS_BUCKET`/`GCS_PROJECT_ID`/`GCS_PUBLIC_HOST` (optional) — unset ⇒ **501**
+  and the admin keeps manual URL entry. Deps: `@google-cloud/storage`, `multer`,
+  `sharp`. 7 unit + 4 integration tests; coverage ratchet green.
+- **Admin:** ProductForm "Upload files" (images append to the gallery, an mp4
+  sets the product video) + a video field; `apiUpload()` multipart helper.
+- **Infra:** `infrastructure/scripts/gcp/06-media-bucket.sh` (public bucket,
+  `api-run` objectAdmin) — operator-run; activate by setting `GCS_BUCKET`/
+  `GCS_PROJECT_ID` on the api service.
+- **Still pending (client):** real product photography/videos to replace the
+  `/demo` stock (D-SF1) — the *pipeline* is done; the *assets* are the client's.

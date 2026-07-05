@@ -4,7 +4,7 @@
 > the latest completed milestone. The aspirational/target specs remain in
 > `sajawat-system-architecture.md`; this file is the ground truth of what exists.
 
-- **As of:** Phase 1 through **Milestone 1.10b** — launch readiness fully authored (perf/load 1.10b.1, coverage ratchet 1.10b.2, observability 1.10b.3, backups & DR 1.10b.4). Path to `v1.0.0` = operator activation + prod deploy/rollback/restore drills. See §22–24.
+- **As of:** Phase 1 through **Milestone 1.10b** — launch readiness fully authored (perf/load 1.10b.1, coverage ratchet 1.10b.2, observability 1.10b.3, backups & DR 1.10b.4) — plus the **1.3-media GCS upload pipeline** (§25). Path to `v1.0.0` = operator activation + prod deploy/rollback/restore drills. See §22–25.
 - **Latest completed milestones:** **1.4c** storefront shopping UI, **1.7a/b** admin operations console, **1.8a/b** B2B enquiry + CRM + notifications, **1.9a** per-app nonce-based **CSP** (web+admin, closes D12), **1.9b** CI dependency + secret scanning, **1.10a** live-stack **business-journey E2E** (B2C COD + B2B enquiry). Both revenue funnels (B2C retail, B2B enquiry→CRM) are functional end-to-end. **143 API tests** + web/admin component tests + **3 full-stack E2E journeys** (gated on `E2E_FULL_STACK=1`) green.
 - **Phase-0 foundation** (0.1–0.10a) remains the infrastructure baseline (§§1–14). **Automated CD (Cloud Run, 0.10b) is authored but unactivated (D16)**; staging auto-deploys on `develop` via WIF, production pipeline is unrun. A **manual** Cloud Run staging deploy is live (§15).
 - **Note:** `main` HEAD `bbf068d` is a **post-0.10a administrative commit** (only `.claude/settings.local.json`; no app code), **kept in history (no rewrite)**. The §§1–18 foundation reflects the `ece7971` tree; §§19–20 record the Phase-1 domains built on `develop`.
@@ -661,7 +661,7 @@ system. Apps replace the Next starter (closes **D4**).
 
 ### 20.2 Admin operations console — 1.7a/b (`apps/admin`, commits `05cc7db`, `296052a`)
 - **Shell + gate:** `(console)` layout, sidebar/topbar, role-aware `AuthProvider` (silent refresh), **staff-role gate** (any role except `customer`; a customer gets a 403 screen), **permission-driven nav** + a `Can`/`useCan` helper off `@sajawat/shared` (`hasPermission`). The API enforces every action; client RBAC is convenience only.
-- **1.7a:** Orders (list with status/paymentStatus filters; detail with PATCH status + PATCH payment, surfacing API guard errors), Products (CRUD; **image-URL inputs** since GCS upload is deferred), Inventory (adjust + movement history), Dashboard (permission-scoped count cards).
+- **1.7a:** Orders (list with status/paymentStatus filters; detail with PATCH status + PATCH payment, surfacing API guard errors), Products (CRUD; **media upload** shipped in 1.3-media — image/video upload with a manual URL fallback; see §25), Inventory (adjust + movement history), Dashboard (permission-scoped count cards).
 - **1.7b:** Categories, Collections, Promotions/coupons (list + inline create/edit panel + delete).
 - DTOs added to `@sajawat/types`: `AdminProduct`, `AdminInventory`, `AdminInventoryMovement`, `AdminCategory`, `AdminCollection`, `AdminPromotion`. **No DB/API changes** — pure UI over existing `/admin/*` endpoints. (Minor accepted duplication: a couple of these structurally mirror the API module's internal admin types.)
 - CSP shipped in **1.9a** (per-app nonce, §20.4) — **D12-admin closed**.
@@ -820,3 +820,41 @@ restore paths, post-restore verification, and the **required restore drill**
 **Validation:** `bash -n` + `shellcheck 0.10.0` clean; entrypoint/lifecycle/Atlas
 JSON verified well-formed. **Not run against GCP/Atlas** (operator-activated).
 **Deferred:** GCS media-bucket backup lands with 1.3-media (runbook notes how).
+
+---
+
+## 25. Media Upload Pipeline (Milestone 1.3-media)
+
+Replaces manual image-URL entry with real uploads to Google Cloud Storage. **No
+product-schema change** — media stays `ProductImage.url` / `ProductVideo.url`;
+only how the URL is produced changes. **API-proxied** transport (owner decision):
+
+`POST /api/v1/admin/media` (`product:write`, multipart, field `file`) →
+**magic-byte** sniff (client MIME is never trusted; allowed JPEG/PNG/WebP/MP4) →
+images optimized with **sharp** (auto-orient, cap the long edge at 1600px,
+re-encode to WebP, strip metadata); **mp4** validated + passed through
+untranscoded → uploaded to a **public** GCS bucket (uniform access, immutable
+`Cache-Control`) → returns `MediaUploadResult { url, kind, contentType, bytes,
+width?, height? }`.
+
+- **API:** `storage/gcs-provider.ts` — config-gated abstraction (like Razorpay/
+  WhatsApp): Application Default Credentials (the `api-run` runtime SA, **no key
+  file**), lazy client, public-URL builder. `modules/media` (service/controller/
+  routes); `multer` memory storage with a 64 MB hard ceiling (`MulterError` → 400);
+  the service enforces per-kind caps (8 MB image / 64 MB video). Env
+  `GCS_BUCKET`/`GCS_PROJECT_ID`/`GCS_PUBLIC_HOST` (optional) — **unset ⇒ 501** and
+  the admin keeps manual URL entry. Deps: `@google-cloud/storage`, `multer`,
+  `sharp`.
+- **Admin:** `lib/api.apiUpload()` (multipart FormData, no JSON content-type,
+  shares auth/CSRF), `services/media.uploadMedia()`, and a ProductForm "Upload
+  files" control (images append to the gallery; an mp4 sets the product video) +
+  a video field. Manual URL entry remains the fallback.
+- **Infra:** `infrastructure/scripts/gcp/06-media-bucket.sh` (operator-run) —
+  public bucket + `allUsers:objectViewer` (storefront reads) + `api-run`
+  `objectAdmin` (writes). No bucket CORS (browser posts to the API, not GCS).
+- **Security:** `product:write`-gated, magic-byte (not header) validation, size
+  caps at the multer + service layers, no client-controlled object paths (UUID
+  names), public **read** only (no public write). **Deferred:** server-side
+  responsive variants (a GCS-finalize worker) and real client media assets (D-SF1).
+- **Tests:** 7 unit (sniff/optimize/passthrough/caps/dormant) + 4 integration
+  (401/403/400/501) + an admin service test. Coverage ratchet green.
