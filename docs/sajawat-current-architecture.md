@@ -4,7 +4,7 @@
 > the latest completed milestone. The aspirational/target specs remain in
 > `sajawat-system-architecture.md`; this file is the ground truth of what exists.
 
-- **As of:** Phase 1 in progress through **Milestone 1.10b.3** (perf/load 1.10b.1, coverage ratchet 1.10b.2, observability 1.10b.3 all done; **1.10b.4 backups** remains). See §22–23.
+- **As of:** Phase 1 through **Milestone 1.10b** — launch readiness fully authored (perf/load 1.10b.1, coverage ratchet 1.10b.2, observability 1.10b.3, backups & DR 1.10b.4). Path to `v1.0.0` = operator activation + prod deploy/rollback/restore drills. See §22–24.
 - **Latest completed milestones:** **1.4c** storefront shopping UI, **1.7a/b** admin operations console, **1.8a/b** B2B enquiry + CRM + notifications, **1.9a** per-app nonce-based **CSP** (web+admin, closes D12), **1.9b** CI dependency + secret scanning, **1.10a** live-stack **business-journey E2E** (B2C COD + B2B enquiry). Both revenue funnels (B2C retail, B2B enquiry→CRM) are functional end-to-end. **143 API tests** + web/admin component tests + **3 full-stack E2E journeys** (gated on `E2E_FULL_STACK=1`) green.
 - **Phase-0 foundation** (0.1–0.10a) remains the infrastructure baseline (§§1–14). **Automated CD (Cloud Run, 0.10b) is authored but unactivated (D16)**; staging auto-deploys on `develop` via WIF, production pipeline is unrun. A **manual** Cloud Run staging deploy is live (§15).
 - **Note:** `main` HEAD `bbf068d` is a **post-0.10a administrative commit** (only `.claude/settings.local.json`; no app code), **kept in history (no rewrite)**. The §§1–18 foundation reflects the `ece7971` tree; §§19–20 record the Phase-1 domains built on `develop`.
@@ -791,3 +791,32 @@ Provisions per env (staging live / production placeholder until D16):
 **Validation:** `bash -n` + `shellcheck 0.10.0` clean; policy/dashboard JSON
 verified well-formed. **Not yet run against GCP** (operator-activated). Claude
 cannot authenticate to GCP, so provisioning is operator-run by design.
+
+---
+
+## 24. Backups & Disaster Recovery (Milestone 1.10b.4)
+
+Operator-run, under `infrastructure/backups/` (same idempotent-gcloud pattern as
+§16/§23). Two independent layers meeting the deployment-plan targets (DB daily /
+30-day retention, **RPO ≤ 24 h / RTO ≤ 4 h**):
+
+- **Primary — Atlas native Cloud Backup:** daily snapshots, 30-day retention,
+  continuous PITR (M10+). `04-atlas-backup-policy.sh` reads the schedule (Atlas
+  Admin API v2, digest auth, keys from env) and `--apply` sets a daily policy.
+- **Secondary — `mongodump → GCS`:** `Dockerfile` + `entrypoint.sh` build a Cloud
+  Run Job image that streams a `--archive --gzip` dump straight to a GCS object and
+  emits `backup.started/succeeded/failed` JSON log markers. `01` provisions a
+  versioned bucket with a 30-day lifecycle; `02` the Cloud Run Job + least-priv
+  runtime SA (bucket `objectAdmin` + secret `secretAccessor` on `MONGODB_URI`);
+  `03` a Cloud Scheduler daily trigger (OAuth as the backup SA, `run.invoker`).
+
+**Failure alerting** closes the loop with §23: the `backup.failed` marker drives
+the `backup_failed` log-metric + alert (filter keyed on `jsonPayload.event` alone,
+since the job logs as `cloud_run_job`). `provision-backups.sh` orchestrates 01–03;
+`verify-backups.sh` asserts the pipeline; `restore-runbook.md` documents both
+restore paths, post-restore verification, and the **required restore drill**
+(closure gate for 1.10b.4).
+
+**Validation:** `bash -n` + `shellcheck 0.10.0` clean; entrypoint/lifecycle/Atlas
+JSON verified well-formed. **Not run against GCP/Atlas** (operator-activated).
+**Deferred:** GCS media-bucket backup lands with 1.3-media (runbook notes how).
