@@ -6,6 +6,7 @@
 import type { HydratedDocument } from 'mongoose';
 import type { AdminLead, EnquiryAck, Paginated } from '@sajawat/types';
 import { NotFoundError } from '../../errors/app-error.js';
+import { EVENTS, logEvent } from '../../observability/events.js';
 import type { PaginatedResult } from '../../db/base-repository.js';
 import { notificationService } from '../../notifications/notification.service.js';
 import { crmLeadRepository } from './crm.repository.js';
@@ -57,6 +58,12 @@ async function createLead(input: EnquiryBody, submittedBy: string | null): Promi
     stage: 'new',
     submittedBy: submittedBy ?? null,
     notes: [],
+  });
+
+  logEvent(EVENTS.CRM_LEAD_CREATED, {
+    leadId: String(doc._id),
+    type: doc.type,
+    source: doc.source,
   });
 
   // Best-effort instant admin alert; failure must not affect the saved lead.
