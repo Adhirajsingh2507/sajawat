@@ -15,6 +15,7 @@ import { hashPassword, verifyPassword } from '../../auth/password.js';
 import { verifyRefreshToken } from '../../auth/jwt.js';
 import { verifyGoogleIdToken } from '../../auth/google.js';
 import { env } from '../../config/env.js';
+import { EVENTS, logEvent, logEventFailure } from '../../observability/events.js';
 import { ConflictError, NotImplementedError, UnauthorizedError } from '../../errors/app-error.js';
 import { userRepository } from '../user/user.repository.js';
 import { toPublicUser } from '../user/user.serializer.js';
@@ -47,6 +48,7 @@ async function register(input: RegisterBody, ctx: SessionContext): Promise<AuthR
     status: 'active',
   });
   const tokens = await sessionService.issue(String(user._id), user.role, ctx);
+  logEvent(EVENTS.AUTH_REGISTERED, { userId: String(user._id) });
   return { user: toPublicUser(user), tokens };
 }
 
@@ -55,16 +57,26 @@ async function login(input: LoginBody, ctx: SessionContext): Promise<AuthResult>
   // Run a hash compare only when a password account exists; the generic error
   // keeps the email-exists signal out of the response.
   if (user === null || user.passwordHash === undefined) {
+    logEventFailure(EVENTS.AUTH_LOGIN_FAILED, {
+      email: input.email,
+      reason: 'invalid_credentials',
+    });
     throw new UnauthorizedError('Invalid email or password');
   }
   if (user.status !== 'active') {
+    logEventFailure(EVENTS.AUTH_LOGIN_FAILED, { email: input.email, reason: 'inactive_account' });
     throw new UnauthorizedError('Account is not active');
   }
   const ok = await verifyPassword(user.passwordHash, input.password);
   if (!ok) {
+    logEventFailure(EVENTS.AUTH_LOGIN_FAILED, {
+      email: input.email,
+      reason: 'invalid_credentials',
+    });
     throw new UnauthorizedError('Invalid email or password');
   }
   const tokens = await sessionService.issue(String(user._id), user.role, ctx);
+  logEvent(EVENTS.AUTH_LOGIN_SUCCEEDED, { userId: String(user._id), role: user.role });
   return { user: toPublicUser(user), tokens };
 }
 
