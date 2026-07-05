@@ -168,3 +168,38 @@ describe('update + remove', () => {
     await expect(productService.getByIdAdmin(a.id)).rejects.toMatchObject({ statusCode: 404 });
   });
 });
+
+describe('barcode', () => {
+  it('getByBarcodeAdmin resolves the product for a set barcode', async () => {
+    const p = await makeProduct({ sku: 'BC-1', barcode: '8901000000001' });
+    const found = await productService.getByBarcodeAdmin('8901000000001');
+    expect(found.id).toBe(p.id);
+    expect(found.barcode).toBe('8901000000001');
+  });
+
+  it('getByBarcodeAdmin 404s for an unknown barcode', async () => {
+    await expect(productService.getByBarcodeAdmin('0000000000000')).rejects.toMatchObject({
+      statusCode: 404,
+    });
+  });
+
+  it('rejects a duplicate barcode on create (409)', async () => {
+    await makeProduct({ sku: 'BC-2', barcode: '8901000000002' });
+    await expect(makeProduct({ sku: 'BC-3', barcode: '8901000000002' })).rejects.toMatchObject({
+      statusCode: 409,
+    });
+  });
+
+  it('rejects assigning a barcode already in use on update (409)', async () => {
+    await makeProduct({ sku: 'BC-4', barcode: '8901000000004' });
+    const b = await makeProduct({ sku: 'BC-5' });
+    await expect(productService.update(b.id, { barcode: '8901000000004' })).rejects.toMatchObject({
+      statusCode: 409,
+    });
+  });
+
+  it('allows multiple products with no barcode (sparse-unique index)', async () => {
+    await makeProduct({ sku: 'BC-6' });
+    await expect(makeProduct({ sku: 'BC-7' })).resolves.toMatchObject({ sku: 'BC-7' });
+  });
+});
