@@ -58,6 +58,8 @@ ensure_metric "sajawat_${MON_ENV}_order_placed" \
   "Sajawat ${MON_ENV}: orders placed (COD + online)" \
   "${CR} AND ${SVC} AND jsonPayload.event=\"order.placed\""
 
+# The backup job runs as a Cloud Run *Job* (resource.type=cloud_run_job), not a
+# revision — so this metric keys on the event marker alone, across sources.
 ensure_metric "sajawat_${MON_ENV}_backup_failed" \
   "Sajawat ${MON_ENV}: database backup job failures (1.10b.4)" \
-  "${CR} AND jsonPayload.event=\"backup.failed\""
+  "jsonPayload.event=\"backup.failed\""
