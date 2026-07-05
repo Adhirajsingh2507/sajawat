@@ -70,8 +70,13 @@ jobs:
       - name: Dependency audit — block on high/critical in production deps
         run: pnpm audit --prod --audit-level high
 
-      - name: Dependency review (PRs only — blocks on high)
+      # Dependency review needs GitHub Advanced Security + Dependency graph,
+      # which aren't enabled on this repo (private, free plan) — the action
+      # hard-errors when unavailable. Non-blocking so it doesn't red every PR;
+      # real dependency-vuln gating is the `pnpm audit --prod` step above.
+      - name: Dependency review (PRs only — advisory, needs GHAS)
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
