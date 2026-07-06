@@ -9,6 +9,7 @@ import { getCategories, getCollections, getProducts } from '@/services/catalog';
 import { ProductGrid, ProductGridSkeleton } from '@/components/ProductGrid';
 import { ProductCarousel } from '@/components/ProductCarousel';
 import { HeroCarousel } from '@/components/HeroCarousel';
+import { Marquee } from '@/components/Marquee';
 import { Testimonials } from '@/components/Testimonials';
 import { Lookbook } from '@/components/Lookbook';
 import { FeaturedBanner } from '@/components/FeaturedBanner';
@@ -34,6 +35,14 @@ export default function HomePage() {
   return (
     <>
       <HeroCarousel />
+
+      {/* Sale marquee band (reference img 2) */}
+      <Marquee
+        items={['The Festive Edit', 'Sale is live', 'Up to 30% off', 'New arrivals']}
+        variant="light"
+        itemClassName="font-serif text-xs tracking-[0.3em]"
+        ariaLabel="Sale highlights"
+      />
 
       <TrustBar />
 
