@@ -1,10 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useReducedMotion } from '@/lib/use-reduced-motion';
 
 /**
  * Thin promo bar above the header — rotates a few short messages. Purely
- * presentational; messages are static for now (settings-driven later).
+ * presentational; messages are static for now (settings-driven later). The
+ * rotation pauses under `prefers-reduced-motion` (WCAG 2.2.2), showing the
+ * first message statically.
  */
 const MESSAGES = [
   'Free shipping on orders over ₹1,499',
@@ -14,15 +17,17 @@ const MESSAGES = [
 
 export function AnnouncementBar() {
   const [i, setI] = useState(0);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reducedMotion) return;
     const id = setInterval(() => {
       setI((v) => (v + 1) % MESSAGES.length);
     }, 4000);
     return () => {
       clearInterval(id);
     };
-  }, []);
+  }, [reducedMotion]);
 
   return (
     <div className="bg-purple-dark text-white">
