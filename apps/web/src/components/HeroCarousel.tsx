@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Container, Eyebrow, Heading } from '@sajawat/ui';
+import { useReducedMotion } from '@/lib/use-reduced-motion';
 
 interface Slide {
   image: string;
@@ -51,20 +52,23 @@ const AUTOPLAY_MS = 6000;
 export function HeroCarousel() {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const reducedMotion = useReducedMotion();
 
   const go = useCallback((next: number) => {
     setIndex((next + SLIDES.length) % SLIDES.length);
   }, []);
 
   useEffect(() => {
-    if (paused) return;
+    // Pause auto-advance on hover/focus and under prefers-reduced-motion
+    // (WCAG 2.2.2). Manual prev/next controls stay available.
+    if (paused || reducedMotion) return;
     const id = setInterval(() => {
       setIndex((v) => (v + 1) % SLIDES.length);
     }, AUTOPLAY_MS);
     return () => {
       clearInterval(id);
     };
-  }, [paused]);
+  }, [paused, reducedMotion]);
 
   const active = SLIDES[index] ?? SLIDES[0];
   if (active === undefined) return null;
@@ -78,6 +82,12 @@ export function HeroCarousel() {
         setPaused(true);
       }}
       onMouseLeave={() => {
+        setPaused(false);
+      }}
+      onFocusCapture={() => {
+        setPaused(true);
+      }}
+      onBlurCapture={() => {
         setPaused(false);
       }}
     >
