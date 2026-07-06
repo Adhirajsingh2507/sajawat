@@ -13,12 +13,19 @@ import { validate } from '../../middleware/validate.js';
 import { requireAuth, requirePermission } from '../../middleware/auth.js';
 import { createRateLimiter } from '../../middleware/rate-limit.js';
 import {
+  contactSchema,
   enquirySchema,
   idParamSchema,
   leadListQuerySchema,
   updateLeadSchema,
 } from './crm.validation.js';
-import { adminGet, adminList, adminUpdate, submitEnquiry } from './crm.controller.js';
+import {
+  adminGet,
+  adminList,
+  adminUpdate,
+  submitContact,
+  submitEnquiry,
+} from './crm.controller.js';
 
 // Tighter per-IP limit for lead submission (spam guard on top of the gate).
 const enquiryRateLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 20 });
@@ -26,6 +33,11 @@ const enquiryRateLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 20
 export const enquiryRouter: Router = express.Router();
 enquiryRouter.use(requireAuth);
 enquiryRouter.post('/', enquiryRateLimiter, validate(enquirySchema), submitEnquiry);
+
+// Storefront Contact-page message → b2c/contact lead (gated + rate-limited).
+export const contactRouter: Router = express.Router();
+contactRouter.use(requireAuth);
+contactRouter.post('/', enquiryRateLimiter, validate(contactSchema), submitContact);
 
 export const crmAdminRouter: Router = express.Router();
 crmAdminRouter.use(requireAuth);

@@ -4,7 +4,7 @@
  * quotation/checkout flow.
  */
 import type { Types } from 'mongoose';
-import type { LeadStage } from '@sajawat/types';
+import type { LeadStage, LeadType } from '@sajawat/types';
 
 export interface ILeadNote {
   body: string;
@@ -14,15 +14,16 @@ export interface ILeadNote {
 
 export interface ICrmLead {
   name: string;
-  company: string;
+  /** Optional: b2c contact messages carry no company/city. */
+  company?: string | undefined;
   phone: string;
   email: string;
-  city: string;
+  city?: string | undefined;
   gst?: string | undefined;
   quantity?: number | null;
   productInterest?: string | undefined;
   message?: string | undefined;
-  type: 'b2b';
+  type: LeadType;
   source: string;
   stage: LeadStage;
   assignedTo?: Types.ObjectId | string | null;

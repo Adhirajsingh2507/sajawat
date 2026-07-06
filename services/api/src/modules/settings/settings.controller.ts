@@ -11,6 +11,11 @@ export const getSettings: RequestHandler = asyncHandler(async (_req, res) => {
   sendSuccess(res, await settingsService.getSettings());
 });
 
+/** Public storefront read — display fields only (no auth). */
+export const getPublicSettings: RequestHandler = asyncHandler(async (_req, res) => {
+  sendSuccess(res, await settingsService.getPublicSettings());
+});
+
 export const updateSettings: RequestHandler = asyncHandler(async (req, res) => {
   const body = req.validatedData?.body as UpdateSettingsBody;
   sendSuccess(res, await settingsService.updateSettings(body));

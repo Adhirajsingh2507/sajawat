@@ -30,15 +30,15 @@ const noteSchema = new Schema<ILeadNote>(
 
 const crmLeadSchema = new Schema<ICrmLead>({
   name: { type: String, required: true, trim: true, maxlength: 120 },
-  company: { type: String, required: true, trim: true, maxlength: 200 },
+  company: { type: String, trim: true, maxlength: 200 },
   phone: { type: String, required: true, trim: true, maxlength: 20 },
   email: { type: String, required: true, trim: true, lowercase: true, maxlength: 200 },
-  city: { type: String, required: true, trim: true, maxlength: 100 },
+  city: { type: String, trim: true, maxlength: 100 },
   gst: { type: String, trim: true, uppercase: true, maxlength: 20 },
   quantity: { type: Number, default: null, min: 0 },
   productInterest: { type: String, trim: true, maxlength: 500 },
   message: { type: String, trim: true, maxlength: 2000 },
-  type: { type: String, enum: ['b2b'], default: 'b2b' },
+  type: { type: String, enum: ['b2b', 'b2c'], default: 'b2b' },
   source: { type: String, trim: true, default: 'web', maxlength: 40 },
   stage: { type: String, enum: LEAD_STAGES, default: 'new' },
   assignedTo: { type: Schema.Types.ObjectId, ref: 'User', default: null },

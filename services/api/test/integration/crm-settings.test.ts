@@ -89,6 +89,77 @@ describe('enquiry → lead', () => {
   });
 });
 
+const CONTACT = {
+  name: 'Aditi Sharma',
+  email: 'aditi@example.test',
+  phone: '9876500000',
+  message: 'Do you offer custom engraving on the Noor necklace?',
+};
+
+describe('contact → b2c lead', () => {
+  it('a gated customer can send a contact message; it persists as a b2c/contact lead', async () => {
+    const res = await request(app)
+      .post('/api/v1/contact')
+      .set('Authorization', customerAuth)
+      .send(CONTACT);
+    expect(res.status).toBe(201);
+    expect(res.body.data.stage).toBe('new');
+
+    const lead = await CrmLead.findById(res.body.data.id);
+    expect(lead?.type).toBe('b2c');
+    expect(lead?.source).toBe('contact');
+    expect(lead?.message).toBe(CONTACT.message);
+    expect(lead?.company).toBeUndefined();
+  });
+
+  it('requires authentication', async () => {
+    const res = await request(app).post('/api/v1/contact').send(CONTACT);
+    expect(res.status).toBe(401);
+  });
+
+  it('validates the body (missing message → 400)', async () => {
+    const { message, ...partial } = CONTACT;
+    void message;
+    const res = await request(app)
+      .post('/api/v1/contact')
+      .set('Authorization', customerAuth)
+      .send(partial);
+    expect(res.status).toBe(400);
+  });
+
+  it('a b2c contact lead shows in the admin CRM board', async () => {
+    await request(app).post('/api/v1/contact').set('Authorization', customerAuth).send(CONTACT);
+    const list = await request(app).get('/api/v1/admin/crm/leads').set('Authorization', adminAuth);
+    expect(list.body.data.items[0].type).toBe('b2c');
+  });
+});
+
+describe('public settings', () => {
+  it('is readable WITHOUT auth and exposes only display fields', async () => {
+    await request(app).patch('/api/v1/admin/settings').set('Authorization', superAuth).send({
+      businessName: 'Sajawat',
+      adminWhatsappNumber: '+919876543210',
+      instagramUrl: 'https://instagram.com/sajawat',
+      facebookUrl: 'https://facebook.com/sajawat',
+      youtubeUrl: 'https://youtube.com/@sajawat',
+      addressText: 'Shop 12, Jewellers Lane, Jaipur',
+      businessHours: 'Mon–Sat, 10am–8pm',
+    });
+
+    const res = await request(app).get('/api/v1/settings/public');
+    expect(res.status).toBe(200);
+    expect(res.body.data.businessName).toBe('Sajawat');
+    expect(res.body.data.whatsappNumber).toBe('+919876543210');
+    expect(res.body.data.instagramUrl).toBe('https://instagram.com/sajawat');
+    expect(res.body.data.facebookUrl).toBe('https://facebook.com/sajawat');
+    expect(res.body.data.youtubeUrl).toBe('https://youtube.com/@sajawat');
+    expect(res.body.data.addressText).toBe('Shop 12, Jewellers Lane, Jaipur');
+    expect(res.body.data.businessHours).toBe('Mon–Sat, 10am–8pm');
+    // Never leak the internal alert-target field name.
+    expect(res.body.data.adminWhatsappNumber).toBeUndefined();
+  });
+});
+
 describe('admin CRM pipeline', () => {
   it('403 for a customer (no crm:read)', async () => {
     const res = await request(app)

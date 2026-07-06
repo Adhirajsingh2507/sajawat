@@ -28,6 +28,16 @@ export const enquirySchema = z.object({
   }),
 });
 
+/** Storefront Contact-page message (persisted as a b2c / source=contact lead). */
+export const contactSchema = z.object({
+  body: z.object({
+    name: z.string().trim().min(1).max(120),
+    email: z.string().trim().email().max(200),
+    phone: z.string().trim().min(5).max(20),
+    message: z.string().trim().min(1).max(2000),
+  }),
+});
+
 export const leadListQuerySchema = z.object({
   query: z.object({
     page: z.coerce.number().int().positive().optional(),
@@ -54,5 +64,6 @@ export const updateLeadSchema = z.object({
 });
 
 export type EnquiryBody = z.infer<typeof enquirySchema>['body'];
+export type ContactBody = z.infer<typeof contactSchema>['body'];
 export type LeadListQuery = z.infer<typeof leadListQuerySchema>['query'];
 export type UpdateLeadBody = z.infer<typeof updateLeadSchema>['body'];

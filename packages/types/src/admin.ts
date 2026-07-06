@@ -137,5 +137,27 @@ export interface AdminSettings {
   supportEmail?: string | undefined;
   /** E.164 number that receives instant WhatsApp lead alerts; null = unset. */
   adminWhatsappNumber?: string | null | undefined;
+  /** Public storefront display fields (Contact page — 1.3-media era). */
+  instagramUrl?: string | undefined;
+  facebookUrl?: string | undefined;
+  youtubeUrl?: string | undefined;
+  addressText?: string | undefined;
+  businessHours?: string | undefined;
   updatedAt?: Date | undefined;
+}
+
+/**
+ * Non-secret business info exposed publicly (`GET /api/v1/settings/public`) for
+ * the storefront Contact page. Only display fields — never alert targets/secrets.
+ */
+export interface PublicSettings {
+  businessName?: string | undefined;
+  supportEmail?: string | undefined;
+  /** Public WhatsApp number for the storefront (same value as the alert number). */
+  whatsappNumber?: string | undefined;
+  instagramUrl?: string | undefined;
+  facebookUrl?: string | undefined;
+  youtubeUrl?: string | undefined;
+  addressText?: string | undefined;
+  businessHours?: string | undefined;
 }

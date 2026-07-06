@@ -29,7 +29,18 @@ export interface EnquiryRequest {
   message?: string | undefined;
 }
 
-/** Acknowledgement returned to the storefront after a successful enquiry. */
+/** Lead origin: wholesale enquiry (b2b) or a storefront contact message (b2c). */
+export type LeadType = 'b2b' | 'b2c';
+
+/** A storefront Contact-page message — persisted as a `b2c` / `source=contact` lead. */
+export interface ContactRequest {
+  name: string;
+  email: string;
+  phone: string;
+  message: string;
+}
+
+/** Acknowledgement returned to the storefront after a successful enquiry/contact. */
 export interface EnquiryAck {
   id: string;
   stage: LeadStage;
@@ -46,15 +57,16 @@ export interface LeadNote {
 export interface AdminLead {
   id: string;
   name: string;
-  company: string;
+  /** Optional: b2c contact messages carry no company/city. */
+  company?: string | undefined;
   phone: string;
   email: string;
-  city: string;
+  city?: string | undefined;
   gst?: string | undefined;
   quantity?: number | null | undefined;
   productInterest?: string | undefined;
   message?: string | undefined;
-  type: 'b2b';
+  type: LeadType;
   source: string;
   stage: LeadStage;
   assignedTo?: string | null | undefined;

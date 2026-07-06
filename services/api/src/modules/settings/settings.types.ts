@@ -8,6 +8,12 @@ export interface ISettings {
   businessName?: string | undefined;
   supportEmail?: string | undefined;
   adminWhatsappNumber?: string | null;
+  /** Public storefront display fields (Contact page). */
+  instagramUrl?: string | undefined;
+  facebookUrl?: string | undefined;
+  youtubeUrl?: string | undefined;
+  addressText?: string | undefined;
+  businessHours?: string | undefined;
   createdAt?: Date | undefined;
   updatedAt?: Date | undefined;
 }
