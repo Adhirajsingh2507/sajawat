@@ -8,7 +8,7 @@
 ## 1. Project State
 
 - **Project:** Sajawat Jewellery — luxury jewelry e-commerce (B2C + B2B leads + CRM + admin).
-- **Current status (2026-06-22):** Phase 0 **complete**; **Phase 1 in progress — both revenue funnels are functional end-to-end** (B2C storefront → cart → checkout → orders, and B2B enquiry → CRM), with a full admin operations console, **per-app CSP shipped** (D12 closed), and the **B2C/B2B business journeys covered by live-stack E2E**. Single-company two-model business (B2C retail + B2B bulk), **fully login-gated storefront** per owner decision (D17). `origin/develop` = `ff14bf5` (1.10a). **143 API tests** + web/admin component tests + **3 full-stack E2E journeys** (web+API+Mongo, gated on `E2E_FULL_STACK=1`) green; all gates green.
+- **Current status (2026-07-06):** Phase 0 **complete**; **Phase 1 effectively code-complete** — both revenue funnels functional end-to-end (B2C storefront → cart → checkout → orders, and B2B enquiry → CRM), full admin operations console, per-app CSP (D12 closed), live-stack business-journey E2E (1.10a), **launch readiness 1.10b fully authored** (perf/load, coverage ratchet, observability/alerting, backups & DR), and the **1.3-media GCS upload pipeline** + **barcode/scan-to-receive**. Single-company two-model business (B2C retail + B2B bulk), **fully login-gated storefront** (D17). `origin/develop` = `61232b2`. **178 API tests** + web/admin component tests + **3 full-stack E2E journeys** (gated on `E2E_FULL_STACK=1`) green; coverage ratchet enforced. **Remaining for `v1.0.0` = operator activation** (production CD/monitoring/backups) + prod deploy/rollback/restore drills + dormant third-party keys.
 - **Done in Phase 1 (API unless noted):** **1.1** persistence + `BaseRepository` + `User` · **1.2** auth endpoints + session store + Google (closes D15) · **1.3a/b** catalog (categories, collections, products, inventory, search) · **1.4a** storefront foundation + design system + **login gate** (web), **1.4b** gated catalog pages (web), **1.4c** storefront shopping UI (cart/wishlist/checkout/account — web) · **1.5** cart + wishlist + promotions engine · **1.6a** COD checkout + orders, **1.6b** Razorpay online (dormant until keys), **1.6c** admin order management · **1.7a/b** admin panel UI (orders/products/inventory/categories/collections/promotions — closes D4-admin) · **1.8a** B2B backend (CRM lead + settings + notification/WhatsApp abstraction, dormant until keys), **1.8b** B2B frontend (web enquiry form + admin CRM board + settings UI) · **1.9a** strict nonce-based **CSP + security headers** in `apps/web` + `apps/admin` (per-request nonce via `proxy.ts`; closes **D12-web/admin**), **1.9b** CI **dependency + secret scanning + dependency remediation** · **1.10a** customer + B2B **business-journey E2E** (live web+API+Mongo) — replaces the 0.9 smoke scaffold for the revenue paths; surfaced + fixed a CORS `x-csrf-token` preflight bug. See §9 for the full table.
 - **Remaining Phase 1:** **1.10b launch readiness is COMPLETE** — 1.10b.1 perf/load (k6+Lighthouse), 1.10b.2 coverage ratchet, 1.10b.3 observability/alerting, and 1.10b.4 backups & DR all done. The remaining step to **`v1.0.0`** is **operator activation** of the authored-but-unrun infra (D16 production CD, monitoring, backups) + a production deploy/rollback + restore drill. (1.9 hardening + 1.10a E2E journeys also done.)
 - **Infra / CD:** staging API auto-deploys on push to `develop` (verified live via the WIF deployer SA). **D16 ~75% closed** — production promotion pipeline authored but unrun (`sajawat-production` has 0 services; needs operator prereqs + a `v*` tag). GCP: separate `sajawat-staging`/`sajawat-production` projects, `asia-south1`. **Web is not auto-deployed yet** (AD-54, API-only CD). Mongoose 9 is the approved baseline.
@@ -454,25 +454,24 @@ STEP 7 — WAIT for explicit approval before implementing. Then implement,
   file changes · what was implemented · key decisions · verification results ·
   remaining technical debt. Then stop.
 
-The next work is the rest of MILESTONE 1.10 LAUNCH READINESS (1.10b+).
-Phase 1 is largely built: both revenue funnels work end-to-end (B2C storefront
-→ cart → checkout → orders, and B2B enquiry → CRM), the admin operations
-console covers orders/products/inventory/categories/collections/promotions/CRM/
-settings, per-app CSP is shipped (1.9a, closes D12), CI runs dependency + secret
-scanning (1.9b), and the revenue-path business journeys are covered by live-stack
-E2E (1.10a). `origin/develop` = `ff14bf5` (1.10a). The 1.10a journeys are gated
-on E2E_FULL_STACK=1 and run via `pnpm test:e2e:full` against a live
-web+API+Mongo stack; CI keeps the web-only smoke spec. Remaining for v1.0.0:
-performance/load tests (tests/performance/), coverage ratchet,
-observability/alerting (infrastructure/monitoring/), backups
-(infrastructure/backups/) → v1.0.0.
+Phase 1 is effectively CODE-COMPLETE. Both revenue funnels work end-to-end (B2C
+storefront → cart → checkout → orders, and B2B enquiry → CRM); the admin
+operations console covers orders/products/inventory/categories/collections/
+promotions/CRM/settings; per-app CSP (1.9a, closes D12); CI dependency + secret
+scanning (1.9b); live-stack business-journey E2E (1.10a); **launch readiness
+1.10b fully authored** — perf/load k6+Lighthouse (1.10b.1), coverage ratchet
+(1.10b.2), observability/alerting `infrastructure/monitoring/` (1.10b.3),
+backups & DR `infrastructure/backups/` (1.10b.4); plus the **1.3-media GCS upload
+pipeline** and **barcode/scan-to-receive**. `origin/develop` = `61232b2`.
+The remaining path to `v1.0.0` is NOT authoring — it is **operator activation**
+(requires GCP/Atlas creds Claude can't hold): run production CD (D16) +
+monitoring + backups provisioning, then a gated prod deploy, a rollback drill,
+and a restore drill; run the load tests against a live stack.
 External deps remain dormant-until-keys: Google OAuth (GOOGLE_CLIENT_ID),
-Razorpay (RAZORPAY_KEY_*), and WhatsApp (WHATSAPP_* + an admin number in
-/admin/settings) — COD and lead capture work without any of them. Infra
-carry-forward: D16 production CD (staging auto-deploys on develop; the
-production pipeline is authored but unrun — needs operator prereqs + a v* tag).
-Mongoose 9 is the
-approved baseline.
+Razorpay (RAZORPAY_KEY_*), WhatsApp (WHATSAPP_* + an admin number in
+/admin/settings), and GCS media uploads (GCS_BUCKET + a provisioned bucket) —
+COD, lead capture, and manual media URLs all work without any of them.
+Mongoose 9 is the approved baseline.
 ```
 
 ---

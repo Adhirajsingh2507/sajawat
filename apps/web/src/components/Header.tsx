@@ -52,6 +52,9 @@ export function Header() {
           <Link href="/wholesale" className="hover:text-purple">
             Wholesale
           </Link>
+          <Link href="/contact" className="hover:text-purple">
+            Contact
+          </Link>
         </nav>
         <div className="ml-auto flex items-center gap-3 sm:gap-4">
           <SearchBox className="hidden w-44 sm:block lg:w-56" />
@@ -109,6 +112,9 @@ export function Header() {
               </MobileLink>
               <MobileLink href="/wholesale" onNavigate={() => setMenuOpen(false)}>
                 Wholesale
+              </MobileLink>
+              <MobileLink href="/contact" onNavigate={() => setMenuOpen(false)}>
+                Contact
               </MobileLink>
               <MobileLink href="/account" onNavigate={() => setMenuOpen(false)}>
                 {user !== null ? `Hi, ${user.firstName}` : 'Account'}

@@ -9,6 +9,11 @@ export interface SettingsInput {
   businessName?: string;
   supportEmail?: string;
   adminWhatsappNumber?: string;
+  instagramUrl?: string;
+  facebookUrl?: string;
+  youtubeUrl?: string;
+  addressText?: string;
+  businessHours?: string;
 }
 
 export function getSettings(): Promise<AdminSettings> {

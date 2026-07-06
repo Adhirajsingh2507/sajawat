@@ -32,6 +32,7 @@ export function Footer() {
             <FooterLink href="/products">Best sellers</FooterLink>
             <FooterLink href="/categories/bridal-sets">Bridal sets</FooterLink>
             <FooterLink href="/wholesale">Wholesale enquiries</FooterLink>
+            <FooterLink href="/contact">Contact us</FooterLink>
           </FooterColumn>
 
           <FooterColumn title="Account">

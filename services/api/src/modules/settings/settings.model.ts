@@ -14,6 +14,11 @@ const settingsSchema = new Schema<ISettings>({
   businessName: { type: String, trim: true, maxlength: 200 },
   supportEmail: { type: String, trim: true, lowercase: true, maxlength: 200 },
   adminWhatsappNumber: { type: String, trim: true, default: null, maxlength: 20 },
+  instagramUrl: { type: String, trim: true, maxlength: 300 },
+  facebookUrl: { type: String, trim: true, maxlength: 300 },
+  youtubeUrl: { type: String, trim: true, maxlength: 300 },
+  addressText: { type: String, trim: true, maxlength: 500 },
+  businessHours: { type: String, trim: true, maxlength: 200 },
 });
 
 settingsSchema.plugin(baseSchemaPlugin);

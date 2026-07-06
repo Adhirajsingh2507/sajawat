@@ -8,7 +8,7 @@ import { sendSuccess } from '../../http/respond.js';
 import { asyncHandler } from '../../http/async-handler.js';
 import { UnauthorizedError } from '../../errors/app-error.js';
 import { crmService } from './crm.service.js';
-import type { EnquiryBody, LeadListQuery, UpdateLeadBody } from './crm.validation.js';
+import type { ContactBody, EnquiryBody, LeadListQuery, UpdateLeadBody } from './crm.validation.js';
 
 function userId(req: Request): string {
   const id = req.user?.id;
@@ -22,6 +22,11 @@ export const submitEnquiry: RequestHandler = asyncHandler(async (req, res) => {
   const body = req.validatedData?.body as EnquiryBody;
   // Gated storefront (D17): the submitter is always authenticated.
   sendSuccess(res, await crmService.createLead(body, req.user?.id ?? null), 201);
+});
+
+export const submitContact: RequestHandler = asyncHandler(async (req, res) => {
+  const body = req.validatedData?.body as ContactBody;
+  sendSuccess(res, await crmService.createContactLead(body, req.user?.id ?? null), 201);
 });
 
 export const adminList: RequestHandler = asyncHandler(async (req, res) => {
