@@ -3,6 +3,7 @@ import * as orders from './orders';
 import * as products from './products';
 import * as inventory from './inventory';
 import * as media from './media';
+import * as settings from './settings';
 
 const BASE = 'http://localhost:4000/api/v1';
 
@@ -63,6 +64,23 @@ describe('admin services', () => {
     expect(init.body).toBeInstanceOf(FormData);
     expect((init.headers as Record<string, string>)['Content-Type']).toBeUndefined();
     expect((init.headers as Record<string, string>)['x-csrf-token']).toBe('tkn');
+  });
+
+  it('updates settings including storefront contact fields', async () => {
+    const fetchMock = mockFetch({ businessName: 'Sajawat', instagramUrl: 'https://ig/x' });
+    await settings.updateSettings({
+      businessName: 'Sajawat',
+      instagramUrl: 'https://ig/x',
+      addressText: 'Jaipur',
+      businessHours: 'Mon–Sat',
+    });
+    const call = lastCall(fetchMock);
+    expect(call).toMatchObject({ url: `${BASE}/admin/settings`, method: 'PATCH' });
+    expect(call.body).toMatchObject({
+      instagramUrl: 'https://ig/x',
+      addressText: 'Jaipur',
+      businessHours: 'Mon–Sat',
+    });
   });
 
   it('patches order status', async () => {

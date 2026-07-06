@@ -49,9 +49,10 @@ export default function CrmBoardPage() {
                       href={`/crm/${lead.id}`}
                       className="block rounded-xl border border-line bg-cream p-4 transition-colors hover:border-purple"
                     >
-                      <p className="text-sm font-medium text-ink">{lead.company}</p>
+                      <p className="text-sm font-medium text-ink">{lead.company ?? lead.name}</p>
                       <p className="mt-0.5 text-xs text-ink-soft">
-                        {lead.name} · {lead.city}
+                        {lead.company !== undefined ? lead.name : 'Contact message'}
+                        {lead.city !== undefined ? ` · ${lead.city}` : ''}
                       </p>
                       {lead.quantity != null && (
                         <p className="mt-1 text-xs text-ink-faint">Qty ~ {lead.quantity}</p>
