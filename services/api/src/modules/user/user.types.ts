@@ -13,14 +13,14 @@ export type UserStatus = 'active' | 'suspended' | 'deleted';
 
 /** Single embedded address for Phase 1 (a dedicated collection may come later). */
 export interface UserAddress {
-  fullName?: string;
-  phone?: string;
-  line1?: string;
-  line2?: string;
-  city?: string;
-  state?: string;
-  postalCode?: string;
-  country?: string;
+  fullName?: string | undefined;
+  phone?: string | undefined;
+  line1?: string | undefined;
+  line2?: string | undefined;
+  city?: string | undefined;
+  state?: string | undefined;
+  postalCode?: string | undefined;
+  country?: string | undefined;
 }
 
 export interface IUser {
