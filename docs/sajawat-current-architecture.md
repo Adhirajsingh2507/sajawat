@@ -4,7 +4,7 @@
 > the latest completed milestone. The aspirational/target specs remain in
 > `sajawat-system-architecture.md`; this file is the ground truth of what exists.
 
-- **As of:** Phase 1 through **Milestone 1.10b** — launch readiness fully authored (perf/load 1.10b.1, coverage ratchet 1.10b.2, observability 1.10b.3, backups & DR 1.10b.4) — plus the **1.3-media GCS upload pipeline** (§25). Path to `v1.0.0` = operator activation + prod deploy/rollback/restore drills. See §22–25.
+- **As of (2026-07-07):** Phase 1 through **Milestone 1.10b** (launch readiness fully authored) + the **1.3-media GCS upload pipeline** (§25) + the **luxury homepage redesign v2 & Account profile** (§26). **188 API tests** + web/admin component tests + E2E journeys green. Path to `v1.0.0` = operator activation + prod deploy/rollback/restore drills + real media assets (D-SF1). See §22–26.
 - **Latest completed milestones:** **1.4c** storefront shopping UI, **1.7a/b** admin operations console, **1.8a/b** B2B enquiry + CRM + notifications, **1.9a** per-app nonce-based **CSP** (web+admin, closes D12), **1.9b** CI dependency + secret scanning, **1.10a** live-stack **business-journey E2E** (B2C COD + B2B enquiry). Both revenue funnels (B2C retail, B2B enquiry→CRM) are functional end-to-end. **143 API tests** + web/admin component tests + **3 full-stack E2E journeys** (gated on `E2E_FULL_STACK=1`) green.
 - **Phase-0 foundation** (0.1–0.10a) remains the infrastructure baseline (§§1–14). **Automated CD (Cloud Run, 0.10b) is authored but unactivated (D16)**; staging auto-deploys on `develop` via WIF, production pipeline is unrun. A **manual** Cloud Run staging deploy is live (§15).
 - **Note:** `main` HEAD `bbf068d` is a **post-0.10a administrative commit** (only `.claude/settings.local.json`; no app code), **kept in history (no rewrite)**. The §§1–18 foundation reflects the `ece7971` tree; §§19–20 record the Phase-1 domains built on `develop`.
@@ -858,3 +858,48 @@ width?, height? }`.
   responsive variants (a GCS-finalize worker) and real client media assets (D-SF1).
 - **Tests:** 7 unit (sniff/optimize/passthrough/caps/dormant) + 4 integration
   (401/403/400/501) + an admin service test. Coverage ratchet green.
+
+---
+
+## 26. Homepage Redesign v2 + Account Profile (2026-07-07)
+
+Client-requested luxury homepage redesign of `apps/web` (7-image reference set,
+original brand-native components — match the feel, not the assets) shipped as
+**six small PRs** (#22–#27), plus **Account profile/address** (#28). All
+verified per-PR with Playwright login-as-demo screenshots (desktop + mobile).
+
+**Homepage (`apps/web/src/components`)**
+- **Header** — two-tier luxury navbar: centered stacked SAJAWAT logo, right-side
+  search/account/wishlist/cart, a centered collection nav under a gold hairline;
+  mobile collapses behind a hamburger.
+- **HeroCarousel** — fullscreen (86vh) **sliding** hero (translateX track), big
+  Playfair title + gold/outline CTAs; pauses on hover/focus + reduced-motion.
+- **Marquee** (new, reusable `dark`/`light`) — seamless CSS marquee (two halves +
+  −50%, hover-pause, reduced-motion off). Drives the top **offer bar** and a
+  mid-page **"Sale is live"** band.
+- **FeaturedCollectionGrid** — tabbed (Featured / New In) large cards with
+  **hover image-swap** (2nd image, or slow zoom), overlay reveal, red **SAVE%**
+  badge (from `salePrice`).
+- **ProductShowcase** — "Jewellery that speaks for you" **bento** with slow
+  Ken-Burns-style zoom + hover lift.
+- **ShopTheLook** — "Shop the look" reel gallery: autoplays `product.video` when
+  present, else poster + play badge (**video-ready**, D-SF1).
+- **CinematicBanner** — full-width band before the footer; background `<video>`
+  when `videoSrc` is set, else poster + CSS **Ken-Burns** drift + Framer **scroll
+  parallax**.
+- **Reveal** — scroll-reveal wrapper (**Framer Motion** `whileInView`,
+  reduced-motion safe). Below-the-fold sections are code-split via `next/dynamic`.
+- **Motion:** CSS + IntersectionObserver through PR-5; **Framer Motion**
+  (`framer-motion`, new web dep) added in PR-6 for reveals + parallax. New CSS
+  keyframes: `marquee`, `ken-burns` (both reduced-motion-gated).
+
+**Account profile (`PATCH /api/v1/auth/me`)**
+- Auth-gated self-service update of **name, phone, and delivery address** (never
+  role/status/email). `address` now on `PublicUser` (serializer). Web
+  `/account/profile` form + a "Profile & address" hub tile; `auth-context` gains
+  `phone`/`address` + `updateUser()`. Tests: service + HTTP integration (188 API
+  tests, coverage ratchet green).
+
+**Still pending (not code):** real photography/video (D-SF1) — the reels +
+cinematic banner are asset-ready and light up on `product.video` / a banner
+`videoSrc`.

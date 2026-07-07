@@ -658,3 +658,21 @@ may also like"** same-category carousel.
 Real product **videos** (feature built; needs clips to seed) and any exact
 sizing/copy tweaks from the client's screenshot spec. See
 `sajawat-storefront-redesign-notes.md` for the working backlog.
+
+---
+
+# ADDENDUM — Homepage redesign v2 (2026-07-07, `apps/web`)
+
+Luxury homepage redesign to a client 7-image reference set (original brand-native
+components — match the feel, not the assets), shipped as six small PRs (#22–#27).
+Homepage flow (top → bottom): **offer marquee bar** → **two-tier luxury navbar**
+(centered stacked logo + centered collection nav) → **fullscreen sliding hero**
+(CTAs, dots/arrows) → **"Sale is live" band** → trust row → shop-by-category →
+**tabbed featured grid** (Featured / New In, hover image-swap, red SAVE% badge) →
+**"Jewellery that speaks for you" bento** (slow zoom + hover lift) → collections →
+**"Shop the look" reel gallery** (autoplays `product.video`, else poster + play
+badge) → **full-width cinematic banner** (background video / Ken-Burns + parallax)
+→ story → testimonials → lookbook → wholesale → footer. Motion: CSS +
+IntersectionObserver, then **Framer Motion** (reveals, parallax) in the polish PR;
+all reduced-motion-safe. Full component map in `sajawat-current-architecture.md`
+§26. **Video sections are asset-ready** (D-SF1) — they light up on real footage.
