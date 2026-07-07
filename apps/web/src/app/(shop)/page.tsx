@@ -12,6 +12,8 @@ import { HeroCarousel } from '@/components/HeroCarousel';
 import { Marquee } from '@/components/Marquee';
 import { FeaturedCollectionGrid } from '@/components/FeaturedCollectionGrid';
 import { ProductShowcase } from '@/components/ProductShowcase';
+import { ShopTheLook } from '@/components/ShopTheLook';
+import { CinematicBanner } from '@/components/CinematicBanner';
 import { Testimonials } from '@/components/Testimonials';
 import { Lookbook } from '@/components/Lookbook';
 import { FeaturedBanner } from '@/components/FeaturedBanner';
@@ -71,6 +73,9 @@ export default function HomePage() {
       {/* Editorial showcase — bento w/ slow zoom + hover lift (PR-4) */}
       <ProductShowcase />
 
+      {/* Shop-the-look reel gallery (PR-5, video-ready) */}
+      <ShopTheLook products={bestSellers?.items ?? newArrivals?.items ?? []} />
+
       {/* Collections */}
       {(collections?.items.length ?? 0) > 0 && (
         <Section>
@@ -128,6 +133,9 @@ export default function HomePage() {
       <Testimonials />
 
       <Lookbook />
+
+      {/* Full-width cinematic banner before the footer (PR-5) */}
+      <CinematicBanner />
 
       <WholesaleBand />
     </>
