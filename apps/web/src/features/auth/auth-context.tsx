@@ -10,12 +10,25 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react';
 import { apiFetch, setAccessToken } from '@/lib/api';
 
+export interface UserAddress {
+  fullName?: string;
+  phone?: string;
+  line1?: string;
+  line2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+}
+
 export interface PublicUser {
   id: string;
   firstName: string;
   lastName: string;
   email: string;
   role: string;
+  phone?: string;
+  address?: UserAddress;
 }
 
 export interface RegisterInput {
@@ -39,6 +52,8 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
+  /** Replace the in-memory user after a profile update. */
+  updateUser: (user: PublicUser) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -110,9 +125,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [clearSession]);
 
+  const updateUser = useCallback((next: PublicUser) => {
+    setUser(next);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, login, register, logout }),
-    [status, user, login, register, logout],
+    () => ({ status, user, login, register, logout, updateUser }),
+    [status, user, login, register, logout, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
