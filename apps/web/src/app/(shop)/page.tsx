@@ -6,10 +6,11 @@ import { Container, Eyebrow, Heading, Section } from '@sajawat/ui';
 import type { PublicCategory, PublicCollection } from '@sajawat/types';
 import { useAsync } from '@/lib/use-async';
 import { getCategories, getCollections, getProducts } from '@/services/catalog';
-import { ProductGrid, ProductGridSkeleton } from '@/components/ProductGrid';
+import { ProductGridSkeleton } from '@/components/ProductGrid';
 import { ProductCarousel } from '@/components/ProductCarousel';
 import { HeroCarousel } from '@/components/HeroCarousel';
 import { Marquee } from '@/components/Marquee';
+import { FeaturedCollectionGrid } from '@/components/FeaturedCollectionGrid';
 import { Testimonials } from '@/components/Testimonials';
 import { Lookbook } from '@/components/Lookbook';
 import { FeaturedBanner } from '@/components/FeaturedBanner';
@@ -22,10 +23,7 @@ import { FeaturedBanner } from '@/components/FeaturedBanner';
 export default function HomePage() {
   const { data: categories } = useAsync(() => getCategories(), []);
   const { data: collections } = useAsync(() => getCollections(), []);
-  const { data: featured, loading: featuredLoading } = useAsync(
-    () => getProducts({ featured: true, limit: 8 }),
-    [],
-  );
+  const { data: featured } = useAsync(() => getProducts({ featured: true, limit: 8 }), []);
   const { data: bestSellers, loading: bestLoading } = useAsync(
     () => getProducts({ bestSeller: true, limit: 8 }),
     [],
@@ -63,24 +61,11 @@ export default function HomePage() {
         </Container>
       </Section>
 
-      {/* Featured */}
-      <Section className="bg-white">
-        <Container>
-          <SectionHeader
-            eyebrow="Editor’s picks"
-            title="Featured this season"
-            href="/products"
-            linkLabel="Shop all"
-          />
-          <div className="mt-8">
-            {featuredLoading && featured === null ? (
-              <ProductGridSkeleton count={4} columns={4} />
-            ) : (
-              <ProductGrid products={featured?.items ?? []} columns={4} />
-            )}
-          </div>
-        </Container>
-      </Section>
+      {/* Featured collection grid — tabbed large cards w/ hover image-swap (PR-3) */}
+      <FeaturedCollectionGrid
+        featured={featured?.items ?? []}
+        newArrivals={newArrivals?.items ?? []}
+      />
 
       {/* Collections */}
       {(collections?.items.length ?? 0) > 0 && (
