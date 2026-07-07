@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/auth-context';
@@ -9,10 +10,10 @@ import { SearchBox } from '@/components/SearchBox';
 import { MegaMenu } from '@/components/MegaMenu';
 
 /**
- * Luxury storefront header (PR-1 homepage redesign). Two tiers: a centered
- * stacked logo with account/search/wishlist/cart to the right, and a centered
- * collection nav below (a thin gold hairline between them). Sticky + blurred.
- * Mobile collapses the nav into a slide-down panel behind the hamburger.
+ * Luxury storefront header (PR-1 homepage redesign). Two tiers: the centered
+ * Sajawat brand logo with account/search/wishlist/cart to the right, and a
+ * centered collection nav below (a thin gold hairline between them). Sticky +
+ * blurred. Mobile collapses the nav into a slide-down panel behind the hamburger.
  */
 const NAV: { href: string; label: string }[] = [
   { href: '/', label: 'Home' },
@@ -40,7 +41,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-cream/90 backdrop-blur">
       {/* Tier 1 — actions left/right, logo centered */}
-      <div className="mx-auto grid h-[68px] max-w-[1600px] grid-cols-[1fr_auto_1fr] items-center px-5 sm:px-8">
+      <div className="mx-auto grid h-[76px] max-w-[1600px] grid-cols-[1fr_auto_1fr] items-center px-5 sm:h-[88px] sm:px-8">
         {/* Left: mobile menu toggle */}
         <div className="flex items-center">
           <button
@@ -56,22 +57,24 @@ export function Header() {
           </button>
         </div>
 
-        {/* Center: stacked logo */}
+        {/* Center: brand logo */}
         <Link
           href="/"
           onClick={() => {
             setMenuOpen(false);
           }}
-          className="group flex flex-col items-center leading-none"
-          aria-label="Sajawat — home"
+          className="flex items-center justify-center transition-opacity hover:opacity-90"
+          aria-label="Sajawat Jewellery — home"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/50 font-serif text-base italic leading-none text-gold transition-colors group-hover:border-gold group-hover:bg-gold group-hover:text-white">
-            S
-          </span>
-          <span className="mt-1.5 font-serif text-lg font-semibold tracking-[0.28em] text-purple sm:text-xl">
-            SAJAWAT
-          </span>
-          <span className="mt-0.5 text-[9px] uppercase tracking-[0.42em] text-gold">Jewellery</span>
+          <Image
+            src="/brand/sajawat-logo.png"
+            alt="Sajawat Jewellery"
+            width={439}
+            height={640}
+            priority
+            sizes="(min-width: 1024px) 72px, 56px"
+            className="h-[52px] w-auto sm:h-[64px] lg:h-[72px]"
+          />
         </Link>
 
         {/* Right: search + account actions */}
