@@ -11,6 +11,7 @@ import { ProductCarousel } from '@/components/ProductCarousel';
 import { HeroCarousel } from '@/components/HeroCarousel';
 import { Marquee } from '@/components/Marquee';
 import { FeaturedCollectionGrid } from '@/components/FeaturedCollectionGrid';
+import { ProductShowcase } from '@/components/ProductShowcase';
 import { Testimonials } from '@/components/Testimonials';
 import { Lookbook } from '@/components/Lookbook';
 import { FeaturedBanner } from '@/components/FeaturedBanner';
@@ -66,6 +67,9 @@ export default function HomePage() {
         featured={featured?.items ?? []}
         newArrivals={newArrivals?.items ?? []}
       />
+
+      {/* Editorial showcase — bento w/ slow zoom + hover lift (PR-4) */}
+      <ProductShowcase />
 
       {/* Collections */}
       {(collections?.items.length ?? 0) > 0 && (
