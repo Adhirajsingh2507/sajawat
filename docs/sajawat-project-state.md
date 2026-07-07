@@ -586,3 +586,22 @@ durable public URL (`MediaUploadResult`).
   `GCS_PROJECT_ID` on the api service.
 - **Still pending (client):** real product photography/videos to replace the
   `/demo` stock (D-SF1) — the *pipeline* is done; the *assets* are the client's.
+
+## Update — Homepage redesign v2 + Account profile (2026-07-07)
+
+Client-requested **luxury homepage redesign** of `apps/web` (7-image reference
+set), shipped as **six small PRs** (#22–#27), each screenshot-verified (desktop +
+mobile), plus **Account profile/address** (#28). Details in
+`sajawat-current-architecture.md` §26 + the `sajawat-ui-ux-specification.md` addendum.
+- **Homepage:** two-tier luxury navbar + fullscreen sliding hero (#22); animated
+  offer + "Sale is live" marquees (#23); tabbed featured grid w/ hover image-swap
+  + SAVE% (#24); "Jewellery that speaks for you" bento w/ slow zoom (#25); "Shop
+  the look" reel gallery + full-width cinematic banner (#26); **Framer Motion**
+  polish — scroll reveals, parallax, `next/dynamic` lazy-load, micro-interactions
+  (#27). New web dep: `framer-motion`.
+- **Account:** `PATCH /auth/me` (name/phone/address; address on `PublicUser`) +
+  `/account/profile` form + hub tile (#28). **188 API tests**, coverage ratchet green.
+- **Video-ready:** reels + cinematic banner autoplay on `product.video` / a banner
+  `videoSrc`; graceful placeholders until real footage lands (D-SF1).
+- Contact page shipped earlier (#20). Completes the requested homepage +
+  Contact/Account scope.
