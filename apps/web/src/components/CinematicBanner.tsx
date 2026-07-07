@@ -1,11 +1,15 @@
+'use client';
+
 /**
- * Full-width cinematic banner (homepage PR-5, reference image 7 — the full-bleed
- * video before the footer). Plays a background video when `videoSrc` is provided
- * (muted, looped, autoplay); until real footage exists (D-SF1) it falls back to
- * the poster image with a slow Ken-Burns drift, so the section already reads as
- * cinematic and swapping in a video is a one-prop change.
+ * Full-width cinematic banner (reference image 7 — the full-bleed video before
+ * the footer). Plays a background video when `videoSrc` is provided; until real
+ * footage exists (D-SF1) it falls back to the poster with a slow Ken-Burns
+ * drift. PR-6 adds a subtle **scroll parallax** on the backdrop (Framer Motion),
+ * disabled under reduced-motion.
  */
+import { useRef } from 'react';
 import Link from 'next/link';
+import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 
 export function CinematicBanner({
   videoSrc,
@@ -22,9 +26,20 @@ export function CinematicBanner({
   ctaHref?: string;
   ctaLabel?: string;
 }) {
+  const ref = useRef<HTMLElement>(null);
+  const reduced = useReducedMotion();
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] });
+  const y = useTransform(scrollYProgress, [0, 1], ['-10%', '10%']);
+
   return (
-    <section className="relative isolate h-[70vh] min-h-[440px] overflow-hidden bg-purple-dark">
-      <div className="absolute inset-0">
+    <section
+      ref={ref}
+      className="relative isolate h-[70vh] min-h-[440px] overflow-hidden bg-purple-dark"
+    >
+      <motion.div
+        {...(reduced === true ? {} : { style: { y } })}
+        className="absolute inset-x-0 -inset-y-[10%]"
+      >
         {videoSrc !== undefined ? (
           <video
             src={videoSrc}
@@ -45,7 +60,7 @@ export function CinematicBanner({
           />
         )}
         <div aria-hidden className="absolute inset-0 bg-black/45" />
-      </div>
+      </motion.div>
 
       <div className="relative flex h-full flex-col items-center justify-center px-6 text-center text-white">
         <p className="text-xs uppercase tracking-[0.35em] text-gold">{eyebrow}</p>
@@ -54,7 +69,7 @@ export function CinematicBanner({
         </h2>
         <Link
           href={ctaHref}
-          className="mt-8 inline-flex h-12 items-center justify-center rounded-full bg-gold px-9 text-sm font-medium text-ink transition-colors hover:bg-gold-dark"
+          className="mt-8 inline-flex h-12 items-center justify-center rounded-full bg-gold px-9 text-sm font-medium text-ink transition-transform hover:scale-[1.03] hover:bg-gold-dark active:scale-95"
         >
           {ctaLabel}
         </Link>
