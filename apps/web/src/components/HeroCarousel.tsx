@@ -118,8 +118,11 @@ export function HeroCarousel() {
             />
             <Container className="relative flex h-full flex-col justify-end pb-24 pt-28">
               <div className="max-w-2xl">
-                <p className="text-xs uppercase tracking-[0.35em] text-gold">{slide.eyebrow}</p>
-                <h1 className="mt-4 font-serif text-5xl font-medium leading-[1.05] text-white drop-shadow-sm sm:text-6xl lg:text-7xl">
+                <p className="flex items-center gap-3 text-xs uppercase tracking-[0.35em] text-gold">
+                  <span aria-hidden className="h-px w-8 bg-gold/60" />
+                  {slide.eyebrow}
+                </p>
+                <h1 className="mt-4 font-serif text-5xl font-medium leading-[0.98] tracking-tight text-white drop-shadow-sm sm:text-6xl lg:text-[5rem]">
                   {slide.title}
                 </h1>
                 <p className="mt-5 max-w-xl text-base text-white/90 sm:text-lg">{slide.subtitle}</p>

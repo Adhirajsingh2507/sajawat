@@ -65,7 +65,7 @@ export function Header() {
           className="group flex flex-col items-center leading-none"
           aria-label="Sajawat — home"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-gold/70 font-serif text-sm text-gold transition-colors group-hover:bg-gold group-hover:text-white">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/50 font-serif text-base italic leading-none text-gold transition-colors group-hover:border-gold group-hover:bg-gold group-hover:text-white">
             S
           </span>
           <span className="mt-1.5 font-serif text-lg font-semibold tracking-[0.28em] text-purple sm:text-xl">
