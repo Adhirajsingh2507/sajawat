@@ -5,7 +5,7 @@
  * (Featured / New In) row of 3 large cards. On hover each card: crossfades to a
  * second product image (falls back to a slow zoom when only one image exists),
  * lifts, and reveals an overlay with the name, price, and a "Shop now" cue. A
- * red SAVE% badge shows the discount. Links through to the PDP.
+ * deep-wine SAVE% badge (pale-gold text) shows the discount. Links to the PDP.
  */
 import { useState } from 'react';
 import Image from 'next/image';
@@ -71,9 +71,9 @@ function LargeCard({ product }: { product: PublicProduct }) {
           </span>
         </div>
 
-        {/* SAVE badge */}
+        {/* SAVE badge — deep wine, gold hairline (luxury, not loud red) */}
         {discount !== null && (
-          <span className="absolute left-0 top-4 bg-red-600 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white">
+          <span className="absolute left-0 top-4 border-y border-r border-gold/40 bg-[#6d1226] px-3 py-1 text-xs font-semibold uppercase tracking-wider text-gold-soft">
             Save {discount}%
           </span>
         )}
