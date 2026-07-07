@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { Container, Eyebrow, Heading, Section } from '@sajawat/ui';
 import type { PublicCategory, PublicCollection } from '@sajawat/types';
 import { useAsync } from '@/lib/use-async';
@@ -10,13 +11,26 @@ import { ProductGridSkeleton } from '@/components/ProductGrid';
 import { ProductCarousel } from '@/components/ProductCarousel';
 import { HeroCarousel } from '@/components/HeroCarousel';
 import { Marquee } from '@/components/Marquee';
+import { Reveal } from '@/components/Reveal';
 import { FeaturedCollectionGrid } from '@/components/FeaturedCollectionGrid';
 import { ProductShowcase } from '@/components/ProductShowcase';
-import { ShopTheLook } from '@/components/ShopTheLook';
-import { CinematicBanner } from '@/components/CinematicBanner';
-import { Testimonials } from '@/components/Testimonials';
-import { Lookbook } from '@/components/Lookbook';
-import { FeaturedBanner } from '@/components/FeaturedBanner';
+
+// Below-the-fold sections are code-split to trim the initial JS (PR-6).
+const ShopTheLook = dynamic(() =>
+  import('@/components/ShopTheLook').then((m) => ({ default: m.ShopTheLook })),
+);
+const CinematicBanner = dynamic(() =>
+  import('@/components/CinematicBanner').then((m) => ({ default: m.CinematicBanner })),
+);
+const Testimonials = dynamic(() =>
+  import('@/components/Testimonials').then((m) => ({ default: m.Testimonials })),
+);
+const Lookbook = dynamic(() =>
+  import('@/components/Lookbook').then((m) => ({ default: m.Lookbook })),
+);
+const FeaturedBanner = dynamic(() =>
+  import('@/components/FeaturedBanner').then((m) => ({ default: m.FeaturedBanner })),
+);
 
 /**
  * Home — an editorial luxury landing page (image hero → trust → shop-by-category
@@ -65,13 +79,17 @@ export default function HomePage() {
       </Section>
 
       {/* Featured collection grid — tabbed large cards w/ hover image-swap (PR-3) */}
-      <FeaturedCollectionGrid
-        featured={featured?.items ?? []}
-        newArrivals={newArrivals?.items ?? []}
-      />
+      <Reveal>
+        <FeaturedCollectionGrid
+          featured={featured?.items ?? []}
+          newArrivals={newArrivals?.items ?? []}
+        />
+      </Reveal>
 
       {/* Editorial showcase — bento w/ slow zoom + hover lift (PR-4) */}
-      <ProductShowcase />
+      <Reveal>
+        <ProductShowcase />
+      </Reveal>
 
       {/* Shop-the-look reel gallery (PR-5, video-ready) */}
       <ShopTheLook products={bestSellers?.items ?? newArrivals?.items ?? []} />

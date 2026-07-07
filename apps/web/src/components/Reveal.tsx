@@ -1,13 +1,12 @@
 'use client';
 
 /**
- * Scroll-reveal wrapper (PR-5). Fades + slides its children up the first time
- * they enter the viewport (IntersectionObserver). Respects
- * `prefers-reduced-motion` (shows immediately, no motion). Lightweight — no
- * animation library.
+ * Scroll-reveal wrapper (PR-6). Fades + slides its children up the first time
+ * they scroll into view, via Framer Motion's `whileInView`. Honors
+ * `prefers-reduced-motion` (renders statically, no motion). Same API as before,
+ * so existing callers keep working.
  */
-import { useEffect, useRef, useState } from 'react';
-import { useReducedMotion } from '@/lib/use-reduced-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
 export function Reveal({
   children,
@@ -19,38 +18,20 @@ export function Reveal({
   delay?: number;
 }) {
   const reduced = useReducedMotion();
-  const ref = useRef<HTMLDivElement>(null);
-  const [seen, setSeen] = useState(false);
-  const shown = reduced || seen;
 
-  useEffect(() => {
-    if (reduced) return;
-    const el = ref.current;
-    if (el === null) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting === true) {
-          setSeen(true);
-          io.disconnect();
-        }
-      },
-      { threshold: 0.15 },
-    );
-    io.observe(el);
-    return () => {
-      io.disconnect();
-    };
-  }, [reduced]);
+  if (reduced === true) {
+    return <div className={className}>{children}</div>;
+  }
 
   return (
-    <div
-      ref={ref}
-      className={`transition-all duration-700 ease-out ${
-        shown ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
-      } ${className}`}
-      style={delay > 0 ? { transitionDelay: `${String(delay)}ms` } : undefined}
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, y: 28 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 0.6, ease: 'easeOut', delay: delay / 1000 }}
     >
       {children}
-    </div>
+    </motion.div>
   );
 }
