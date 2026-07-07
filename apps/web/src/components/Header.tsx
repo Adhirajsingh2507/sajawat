@@ -8,7 +8,21 @@ import { useCart, useWishlist } from '@/features/commerce/commerce-context';
 import { SearchBox } from '@/components/SearchBox';
 import { MegaMenu } from '@/components/MegaMenu';
 
-/** Sticky storefront header — brand, shop nav, search, wishlist, cart, account, mobile menu. */
+/**
+ * Luxury storefront header (PR-1 homepage redesign). Two tiers: a centered
+ * stacked logo with account/search/wishlist/cart to the right, and a centered
+ * collection nav below (a thin gold hairline between them). Sticky + blurred.
+ * Mobile collapses the nav into a slide-down panel behind the hamburger.
+ */
+const NAV: { href: string; label: string }[] = [
+  { href: '/', label: 'Home' },
+  { href: '/products', label: 'Shop All' },
+  { href: '/products', label: 'New In' },
+  { href: '/products', label: 'Best Sellers' },
+  { href: '/wholesale', label: 'Wholesale' },
+  { href: '/contact', label: 'Contact' },
+];
+
 export function Header() {
   const { user, logout } = useAuth();
   const { itemCount, openCart } = useCart();
@@ -25,39 +39,52 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-cream/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-4 px-5 sm:gap-6 sm:px-8">
-        <button
-          type="button"
-          onClick={() => {
-            setMenuOpen((v) => !v);
-          }}
-          aria-label="Menu"
-          aria-expanded={menuOpen}
-          className="text-ink-soft transition-colors hover:text-purple sm:hidden"
-        >
-          <MenuIcon open={menuOpen} />
-        </button>
+      {/* Tier 1 — actions left/right, logo centered */}
+      <div className="mx-auto grid h-[68px] max-w-[1600px] grid-cols-[1fr_auto_1fr] items-center px-5 sm:px-8">
+        {/* Left: mobile menu toggle */}
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={() => {
+              setMenuOpen((v) => !v);
+            }}
+            aria-label="Menu"
+            aria-expanded={menuOpen}
+            className="text-ink-soft transition-colors hover:text-purple lg:hidden"
+          >
+            <MenuIcon open={menuOpen} />
+          </button>
+        </div>
 
+        {/* Center: stacked logo */}
         <Link
           href="/"
           onClick={() => {
             setMenuOpen(false);
           }}
-          className="font-serif text-xl font-semibold tracking-tight text-purple"
+          className="group flex flex-col items-center leading-none"
+          aria-label="Sajawat — home"
         >
-          Sajawat
+          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-gold/70 font-serif text-sm text-gold transition-colors group-hover:bg-gold group-hover:text-white">
+            S
+          </span>
+          <span className="mt-1.5 font-serif text-lg font-semibold tracking-[0.28em] text-purple sm:text-xl">
+            SAJAWAT
+          </span>
+          <span className="mt-0.5 text-[9px] uppercase tracking-[0.42em] text-gold">Jewellery</span>
         </Link>
-        <nav className="hidden items-center gap-5 text-sm text-ink-soft sm:flex">
-          <MegaMenu />
-          <Link href="/wholesale" className="hover:text-purple">
-            Wholesale
+
+        {/* Right: search + account actions */}
+        <div className="flex items-center justify-end gap-3 sm:gap-4">
+          <SearchBox className="hidden w-40 xl:block xl:w-56" />
+
+          <Link
+            href="/account"
+            aria-label={user !== null ? `Account — ${user.firstName}` : 'Account'}
+            className="text-ink-soft transition-colors hover:text-purple"
+          >
+            <UserIcon />
           </Link>
-          <Link href="/contact" className="hover:text-purple">
-            Contact
-          </Link>
-        </nav>
-        <div className="ml-auto flex items-center gap-3 sm:gap-4">
-          <SearchBox className="hidden w-44 sm:block lg:w-56" />
 
           <button
             type="button"
@@ -79,26 +106,36 @@ export function Header() {
             {itemCount > 0 && <CountBadge value={itemCount} />}
           </button>
 
-          <Link
-            href="/account"
-            className="hidden text-sm text-ink-soft transition-colors hover:text-purple md:inline"
-          >
-            {user !== null ? `Hi, ${user.firstName}` : 'Account'}
-          </Link>
-
           <button
             type="button"
             onClick={onLogout}
-            className="hidden text-sm font-medium text-purple hover:underline sm:inline"
+            className="hidden text-xs font-medium text-purple hover:underline xl:inline"
           >
             Sign out
           </button>
         </div>
       </div>
 
+      {/* Tier 2 — centered collection nav (desktop) */}
+      <div className="hidden border-t border-gold/25 lg:block">
+        <nav className="mx-auto flex h-11 max-w-[1600px] items-center justify-center gap-8 px-8 text-[13px] font-medium uppercase tracking-[0.14em] text-ink-soft">
+          {NAV.slice(0, 2).map((item) => (
+            <Link key={item.label} href={item.href} className="transition-colors hover:text-purple">
+              {item.label}
+            </Link>
+          ))}
+          <MegaMenu />
+          {NAV.slice(2).map((item) => (
+            <Link key={item.label} href={item.href} className="transition-colors hover:text-purple">
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
+
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="border-t border-line bg-cream sm:hidden">
+        <div className="border-t border-line bg-cream lg:hidden">
           <div className="mx-auto max-w-[1600px] px-5 py-4">
             <SearchBox
               className="mb-4"
@@ -107,18 +144,11 @@ export function Header() {
               }}
             />
             <nav className="flex flex-col text-sm">
-              <MobileLink href="/products" onNavigate={() => setMenuOpen(false)}>
-                Shop all
-              </MobileLink>
-              <MobileLink href="/wholesale" onNavigate={() => setMenuOpen(false)}>
-                Wholesale
-              </MobileLink>
-              <MobileLink href="/contact" onNavigate={() => setMenuOpen(false)}>
-                Contact
-              </MobileLink>
-              <MobileLink href="/account" onNavigate={() => setMenuOpen(false)}>
-                {user !== null ? `Hi, ${user.firstName}` : 'Account'}
-              </MobileLink>
+              {NAV.map((item) => (
+                <MobileLink key={item.label} href={item.href} onNavigate={() => setMenuOpen(false)}>
+                  {item.label}
+                </MobileLink>
+              ))}
               <MobileLink href="/account/orders" onNavigate={() => setMenuOpen(false)}>
                 My orders
               </MobileLink>
@@ -197,11 +227,30 @@ function MenuIcon({ open }: { open: boolean }) {
   );
 }
 
+function UserIcon() {
+  return (
+    <svg
+      width="21"
+      height="21"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </svg>
+  );
+}
+
 function BagIcon() {
   return (
     <svg
-      width="22"
-      height="22"
+      width="21"
+      height="21"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -220,8 +269,8 @@ function BagIcon() {
 function HeartIcon() {
   return (
     <svg
-      width="22"
-      height="22"
+      width="21"
+      height="21"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
