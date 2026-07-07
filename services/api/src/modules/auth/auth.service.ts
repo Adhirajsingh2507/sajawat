@@ -22,7 +22,8 @@ import { toPublicUser } from '../user/user.serializer.js';
 import type { PublicUser } from '../user/user.serializer.js';
 import { sessionService } from '../session/session.service.js';
 import type { IssuedTokens, SessionContext } from '../session/session.service.js';
-import type { GoogleBody, LoginBody, RegisterBody } from './auth.validation.js';
+import type { GoogleBody, LoginBody, RegisterBody, UpdateProfileBody } from './auth.validation.js';
+import type { IUser } from '../user/user.types.js';
 
 export interface AuthResult {
   user: PublicUser;
@@ -148,4 +149,26 @@ async function getMe(userId: string): Promise<PublicUser> {
   return toPublicUser(user);
 }
 
-export const authService = { register, login, googleLogin, refresh, logout, getMe };
+/** Self-service profile update. Only name/phone/address — never role/status/email. */
+async function updateProfile(userId: string, input: UpdateProfileBody): Promise<PublicUser> {
+  const patch: Partial<IUser> = {};
+  if (input.firstName !== undefined) patch.firstName = input.firstName;
+  if (input.lastName !== undefined) patch.lastName = input.lastName;
+  if (input.phone !== undefined) patch.phone = input.phone;
+  if (input.address !== undefined) patch.address = input.address;
+  const updated = await userRepository.updateById(userId, { $set: patch });
+  if (updated === null) {
+    throw new UnauthorizedError();
+  }
+  return toPublicUser(updated);
+}
+
+export const authService = {
+  register,
+  login,
+  googleLogin,
+  refresh,
+  logout,
+  getMe,
+  updateProfile,
+};

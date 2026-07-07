@@ -5,7 +5,7 @@
  */
 import type { HydratedDocument } from 'mongoose';
 import type { Role } from '@sajawat/shared';
-import type { CustomerType, IUser, UserStatus } from './user.types.js';
+import type { CustomerType, IUser, UserAddress, UserStatus } from './user.types.js';
 
 export interface PublicUser {
   id: string;
@@ -13,12 +13,27 @@ export interface PublicUser {
   lastName: string;
   email: string;
   phone?: string | undefined;
+  address?: UserAddress | undefined;
   role: Role;
   customerType: CustomerType;
   isEmailVerified: boolean;
   isPhoneVerified: boolean;
   status: UserStatus;
   createdAt?: Date | undefined;
+}
+
+function toAddress(address: UserAddress | undefined): UserAddress | undefined {
+  if (address === undefined) return undefined;
+  return {
+    fullName: address.fullName,
+    phone: address.phone,
+    line1: address.line1,
+    line2: address.line2,
+    city: address.city,
+    state: address.state,
+    postalCode: address.postalCode,
+    country: address.country,
+  };
 }
 
 export function toPublicUser(user: HydratedDocument<IUser>): PublicUser {
@@ -28,6 +43,7 @@ export function toPublicUser(user: HydratedDocument<IUser>): PublicUser {
     lastName: user.lastName,
     email: user.email,
     phone: user.phone,
+    address: toAddress(user.address),
     role: user.role,
     customerType: user.customerType,
     isEmailVerified: user.isEmailVerified,

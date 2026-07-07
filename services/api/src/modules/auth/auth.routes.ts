@@ -12,8 +12,13 @@ import { validate } from '../../middleware/validate.js';
 import { authRateLimiter } from '../../middleware/rate-limit.js';
 import { csrfGuard } from '../../middleware/csrf.js';
 import { requireAuth } from '../../middleware/auth.js';
-import { googleSchema, loginSchema, registerSchema } from './auth.validation.js';
-import { google, login, logout, me, refresh, register } from './auth.controller.js';
+import {
+  googleSchema,
+  loginSchema,
+  registerSchema,
+  updateProfileSchema,
+} from './auth.validation.js';
+import { google, login, logout, me, refresh, register, updateMe } from './auth.controller.js';
 
 export const authRouter: Router = express.Router();
 
@@ -23,3 +28,4 @@ authRouter.post('/google', authRateLimiter, validate(googleSchema), google);
 authRouter.post('/refresh-token', csrfGuard, refresh);
 authRouter.post('/logout', csrfGuard, logout);
 authRouter.get('/me', requireAuth, me);
+authRouter.patch('/me', requireAuth, validate(updateProfileSchema), updateMe);
