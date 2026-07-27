@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * Shared product listing (Milestone 1.4b) — filters (price range + in-stock),
- * sort, and pagination over a stable `fetcher` (pages pass a useCallback-memoized
- * fetcher so the effect doesn't loop). Keeps stale results during refetch.
+ * Shared product listing (Milestone 1.4b) — in-stock filter, sort, and
+ * pagination over a stable `fetcher` (pages pass a useCallback-memoized fetcher
+ * so the effect doesn't loop). Keeps stale results during refetch.
  */
 import { useState } from 'react';
 import type { Paginated, PublicProduct } from '@sajawat/types';
@@ -25,14 +25,6 @@ const SORTS = [
   { value: 'name', label: 'Name: A–Z' },
 ];
 
-const PRICE_RANGES: { label: string; min?: number; max?: number }[] = [
-  { label: 'All prices' },
-  { label: 'Under ₹1,000', max: 999 },
-  { label: '₹1,000–₹2,000', min: 1000, max: 2000 },
-  { label: '₹2,000–₹5,000', min: 2000, max: 5000 },
-  { label: 'Over ₹5,000', min: 5000 },
-];
-
 const pageBtn =
   'rounded-full border border-line px-4 py-1.5 text-sm text-ink transition-colors ' +
   'hover:border-purple hover:text-purple disabled:opacity-40 disabled:pointer-events-none';
@@ -40,54 +32,22 @@ const pageBtn =
 export function ProductListing({ fetcher }: { fetcher: ProductFetcher }) {
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState('-createdAt');
-  const [priceIdx, setPriceIdx] = useState(0);
   const [inStock, setInStock] = useState(false);
 
-  const range = PRICE_RANGES[priceIdx] ?? PRICE_RANGES[0];
   const { data, loading, error } = useAsync(
     () =>
       fetcher({
         page,
         sort,
-        minPrice: range?.min,
-        maxPrice: range?.max,
         inStock: inStock ? true : undefined,
       }),
-    [page, sort, priceIdx, inStock, fetcher],
+    [page, sort, inStock, fetcher],
   );
-
-  function selectPrice(i: number) {
-    setPriceIdx(i);
-    setPage(1);
-  }
 
   return (
     <div>
       {/* Filter bar */}
-      <div className="mb-6 flex flex-col gap-4 border-b border-line pb-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-ink-faint">
-            Price
-          </span>
-          {PRICE_RANGES.map((r, i) => (
-            <button
-              key={r.label}
-              type="button"
-              aria-pressed={i === priceIdx}
-              onClick={() => {
-                selectPrice(i);
-              }}
-              className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
-                i === priceIdx
-                  ? 'border-purple bg-purple text-white'
-                  : 'border-line text-ink-soft hover:border-purple hover:text-purple'
-              }`}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-
+      <div className="mb-6 border-b border-line pb-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-soft">
             <input
@@ -131,9 +91,7 @@ export function ProductListing({ fetcher }: { fetcher: ProductFetcher }) {
         <ProductGridSkeleton />
       ) : data !== null ? (
         data.items.length === 0 ? (
-          <p className="py-16 text-center text-sm text-ink-soft">
-            No pieces match these filters. Try widening your price range.
-          </p>
+          <p className="py-16 text-center text-sm text-ink-soft">No pieces to show here yet.</p>
         ) : (
           <>
             <ProductGrid products={data.items} />

@@ -27,6 +27,8 @@ import { promotionRepository } from '../promotion/promotion.repository.js';
 import { paymentRepository } from '../payment/payment.repository.js';
 import type { IPayment } from '../payment/payment.types.js';
 import { razorpayProvider } from '../../payments/razorpay-provider.js';
+import { notificationService } from '../../notifications/notification.service.js';
+import { logger } from '../../config/logger.js';
 import { orderRepository } from './order.repository.js';
 import type { IOrder, IOrderItem, IOrderPromotion } from './order.types.js';
 
@@ -220,6 +222,16 @@ async function placeCodOrder(userId: string, input: CheckoutInput): Promise<Publ
     total: order.total,
     paymentMethod: 'cod',
   });
+  void notificationService
+    .sendSaleAlert({
+      orderNumber: order.orderNumber,
+      total: order.total,
+      paymentMethod: 'cod',
+      itemCount: order.items.length,
+    })
+    .catch((err: unknown) => {
+      logger.warn({ err }, 'sale alert failed');
+    });
   return toPublicOrder(order);
 }
 
@@ -260,6 +272,16 @@ async function fulfillPaidOrder(
     total: order.total,
     paymentMethod: 'online',
   });
+  void notificationService
+    .sendSaleAlert({
+      orderNumber: order.orderNumber,
+      total: order.total,
+      paymentMethod: 'online',
+      itemCount: order.items.length,
+    })
+    .catch((err: unknown) => {
+      logger.warn({ err }, 'sale alert failed');
+    });
 }
 
 async function initiateOnline(userId: string, input: CheckoutInput): Promise<OnlineCheckoutResult> {

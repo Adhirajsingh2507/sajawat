@@ -205,6 +205,11 @@ Enable
 
 Disable
 
+Assign parent (subcategories) — the form has a "Parent category" selector
+("None (top-level)" or a top-level category). One level deep only. The list
+shows a Parent column and indents children. Deleting a category is blocked while
+it still has subcategories.
+
 ---
 
 # COLLECTION MANAGEMENT

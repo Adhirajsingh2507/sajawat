@@ -712,7 +712,9 @@ on each merge.
   new-arrivals, PDP related).
 - Commerce overlays: `CartDrawer` (+ `CartCoupon`), `WishlistDrawer` — drawer
   state added to `CartContext`/`WishlistContext` (`open/close` + `isOpen`).
-- Discovery: `MegaMenu` (desktop), `SearchBox` (typeahead), PLP filter bar in
+- Discovery: inline category nav with single-open subcategory dropdowns
+  (`Header.tsx` `NavCategory`) + `CategorySwitcher` (in-category), `SearchBox`
+  (typeahead), PLP filter bar (in-stock + sort; price-range filter removed) in
   `ProductListing`, `features/quickview/*` (context + modal + card button).
 - PDP: `ZoomImage` (hover-zoom), gallery video slot, `ProductOffers`.
 - `NewsletterForm` (footer). Motion: `fade-in` util (reduced-motion safe).

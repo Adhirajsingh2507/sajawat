@@ -569,6 +569,15 @@ Inventory Low
 
 Coupon Created
 
+Implemented WhatsApp alerts (to the admin number in /admin/settings, best-effort
+— never blocks or rolls back the persisted record; skipped when no number is set
+or the provider is unconfigured):
+
+- **Lead Created** — instant alert on a new B2B wholesale enquiry (1.8).
+- **Sale (Order Placed)** — instant alert on every sale, both COD placement and
+  captured online payment (order number, amount, item count, payment method).
+  The admin number is removable in /admin/settings (blank = alerts off).
+
 ---
 
 # CACHING ARCHITECTURE (PHASE 2 — PLANNED)

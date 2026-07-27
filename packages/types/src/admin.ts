@@ -90,6 +90,8 @@ export interface AdminCategory {
   image?: string | undefined;
   status: CategoryStatus;
   sortOrder: number;
+  /** Null = top-level; otherwise the id of the parent category (one level deep). */
+  parentId?: string | null;
   createdAt?: Date | undefined;
   updatedAt?: Date | undefined;
 }

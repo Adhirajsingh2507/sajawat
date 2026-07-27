@@ -267,7 +267,10 @@ isBestSeller
 
 Purpose:
 
-Product grouping.
+Product grouping. Supports one level of nesting (parent → subcategory) via a
+self-reference; the service enforces the two-level ceiling (a parent must itself
+be top-level, no self-parenting, and a category with children cannot become a
+child).
 
 Fields:
 
@@ -285,6 +288,8 @@ status
 
 sortOrder
 
+parentId  (ObjectId ref → Category; null = top-level, else the parent category)
+
 createdAt
 
 updatedAt
@@ -294,6 +299,10 @@ Indexes:
 slug
 
 status
+
+sortOrder
+
+parentId
 
 ---
 

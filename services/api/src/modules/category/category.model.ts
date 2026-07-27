@@ -16,6 +16,9 @@ const categorySchema = new Schema<ICategory>({
   image: { type: String, trim: true, maxlength: 2048 },
   status: { type: String, enum: ['active', 'inactive'], default: 'active' },
   sortOrder: { type: Number, default: 0 },
+  // Self-reference for one-level nesting (top-level = null). The service enforces
+  // that a parent is itself top-level, so the tree never exceeds two levels.
+  parentId: { type: Schema.Types.ObjectId, ref: 'Category', default: null },
   deletedAt: { type: Date, default: null },
 });
 
@@ -24,6 +27,7 @@ categorySchema.plugin(baseSchemaPlugin);
 categorySchema.index({ slug: 1 }, { unique: true });
 categorySchema.index({ status: 1 });
 categorySchema.index({ sortOrder: 1 });
+categorySchema.index({ parentId: 1 });
 
 export const Category: Model<ICategory> =
   (mongoose.models.Category as Model<ICategory> | undefined) ??

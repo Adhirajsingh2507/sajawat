@@ -12,11 +12,14 @@ import type { CategoryWriteInput } from '@/services/categories';
 
 export function CategoryForm({
   initial,
+  parents,
   onSubmit,
   onDone,
   onCancel,
 }: {
   initial?: AdminCategory | undefined;
+  /** Eligible parents (top-level categories), excluding the one being edited. */
+  parents: AdminCategory[];
   onSubmit: (input: CategoryWriteInput) => Promise<AdminCategory>;
   onDone: () => void;
   onCancel: () => void;
@@ -27,6 +30,7 @@ export function CategoryForm({
   const [image, setImage] = useState(initial?.image ?? '');
   const [status, setStatus] = useState<CategoryStatus>(initial?.status ?? 'active');
   const [sortOrder, setSortOrder] = useState(String(initial?.sortOrder ?? 0));
+  const [parentId, setParentId] = useState(initial?.parentId ?? '');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -38,6 +42,7 @@ export function CategoryForm({
       name: name.trim(),
       status,
       sortOrder: Number(sortOrder) || 0,
+      parentId: parentId === '' ? null : parentId,
     };
     if (slug.trim().length > 0) payload.slug = slug.trim();
     if (description.trim().length > 0) payload.description = description.trim();
@@ -102,6 +107,27 @@ export function CategoryForm({
               setSortOrder(e.target.value);
             }}
           />
+        </div>
+        <div className="sm:col-span-2">
+          <Label htmlFor="cat-parent">Parent category</Label>
+          <select
+            id="cat-parent"
+            value={parentId}
+            onChange={(e) => {
+              setParentId(e.target.value);
+            }}
+            className="h-11 w-full rounded-lg border border-line bg-cream px-3 text-sm focus:border-purple focus:outline-none"
+          >
+            <option value="">None (top-level)</option>
+            {parents.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-ink-faint">
+            Pick a top-level category to make this a subcategory. Nesting is one level deep.
+          </p>
         </div>
         <div className="sm:col-span-2">
           <Label htmlFor="cat-image">Image URL (optional)</Label>

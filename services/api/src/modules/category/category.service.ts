@@ -3,9 +3,9 @@
  * are scoped to `active`; admin reads see all (soft-deleted excluded by the
  * repository). Slugs are derived + uniquified across all rows.
  */
-import type { HydratedDocument } from 'mongoose';
+import type { HydratedDocument, Types } from 'mongoose';
 import type { Paginated, PublicCategory } from '@sajawat/types';
-import { ConflictError, NotFoundError } from '../../errors/app-error.js';
+import { BadRequestError, ConflictError, NotFoundError } from '../../errors/app-error.js';
 import type { PaginatedResult } from '../../db/base-repository.js';
 import { ensureUniqueSlug, slugify } from '../../utils/slug.js';
 import { categoryRepository } from './category.repository.js';
@@ -22,6 +22,7 @@ function toPublicCategory(doc: CategoryDoc): PublicCategory {
     description: doc.description,
     image: doc.image,
     sortOrder: doc.sortOrder,
+    parentId: doc.parentId != null ? String(doc.parentId) : null,
   };
 }
 
@@ -34,9 +35,39 @@ function toAdminCategory(doc: CategoryDoc): AdminCategory {
     image: doc.image,
     status: doc.status,
     sortOrder: doc.sortOrder,
+    parentId: doc.parentId != null ? String(doc.parentId) : null,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };
+}
+
+/**
+ * Validate a requested parent and return the ObjectId to persist. Returns
+ * `undefined` when the field isn't being changed, `null` to make the category
+ * top-level, or the parent's ObjectId. Enforces the two-level ceiling (a parent
+ * must itself be top-level) and blocks self-parenting / demoting a category that
+ * already has children.
+ */
+async function resolveParent(
+  parentId: string | null | undefined,
+  selfId?: string,
+): Promise<Types.ObjectId | null | undefined> {
+  if (parentId === undefined) return undefined;
+  if (parentId === null || parentId === '') return null;
+  if (selfId !== undefined && parentId === selfId) {
+    throw new BadRequestError('A category cannot be its own parent');
+  }
+  const parent = await categoryRepository.findById(parentId);
+  if (parent === null) {
+    throw new BadRequestError('Parent category not found');
+  }
+  if (parent.parentId != null) {
+    throw new BadRequestError('Categories can only be nested one level deep');
+  }
+  if (selfId !== undefined && (await categoryRepository.exists({ parentId: selfId }))) {
+    throw new BadRequestError('This category has subcategories and cannot become a subcategory');
+  }
+  return parent._id;
 }
 
 function paginated<T>(res: PaginatedResult<CategoryDoc>, map: (d: CategoryDoc) => T): Paginated<T> {
@@ -88,6 +119,7 @@ async function create(input: CreateCategoryBody): Promise<AdminCategory> {
   const slug = await ensureUniqueSlug(base, (candidate) =>
     categoryRepository.existsBySlug(candidate),
   );
+  const parentId = await resolveParent(input.parentId);
   const doc = await categoryRepository.create({
     name: input.name,
     slug,
@@ -95,6 +127,7 @@ async function create(input: CreateCategoryBody): Promise<AdminCategory> {
     image: input.image,
     status: input.status ?? 'active',
     sortOrder: input.sortOrder ?? 0,
+    parentId: parentId ?? null,
   });
   return toAdminCategory(doc);
 }
@@ -106,6 +139,8 @@ async function update(id: string, input: UpdateCategoryBody): Promise<AdminCateg
   if (input.image !== undefined) patch.image = input.image;
   if (input.status !== undefined) patch.status = input.status;
   if (input.sortOrder !== undefined) patch.sortOrder = input.sortOrder;
+  const parentId = await resolveParent(input.parentId, id);
+  if (parentId !== undefined) patch.parentId = parentId;
   if (input.slug !== undefined) {
     const slug = slugify(input.slug);
     const conflict = await categoryRepository.findBySlug(slug, { includeDeleted: true });
@@ -122,6 +157,9 @@ async function update(id: string, input: UpdateCategoryBody): Promise<AdminCateg
 }
 
 async function remove(id: string): Promise<void> {
+  if (await categoryRepository.exists({ parentId: id })) {
+    throw new ConflictError('Remove or reassign its subcategories first');
+  }
   const deleted = await categoryRepository.softDeleteById(id);
   if (deleted === null) {
     throw new NotFoundError('Category not found');

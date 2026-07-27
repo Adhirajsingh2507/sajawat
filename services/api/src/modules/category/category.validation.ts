@@ -12,6 +12,15 @@ const slugField = z
   .max(140)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Invalid slug');
 
+// Accept a 24-char hex ObjectId, or '' / null to mean "top-level" (clear parent).
+const parentIdField = z
+  .string()
+  .trim()
+  .regex(/^[a-f0-9]{24}$/, 'Invalid parent category')
+  .or(z.literal(''))
+  .nullable()
+  .optional();
+
 export const createCategorySchema = z.object({
   body: z.object({
     name: z.string().trim().min(1).max(120),
@@ -20,6 +29,7 @@ export const createCategorySchema = z.object({
     image: z.string().trim().max(2048).optional(),
     status: z.enum(['active', 'inactive']).optional(),
     sortOrder: z.number().int().optional(),
+    parentId: parentIdField,
   }),
 });
 
@@ -32,6 +42,7 @@ export const updateCategorySchema = z.object({
     image: z.string().trim().max(2048).optional(),
     status: z.enum(['active', 'inactive']).optional(),
     sortOrder: z.number().int().optional(),
+    parentId: parentIdField,
   }),
 });
 

@@ -634,7 +634,13 @@ full-width) → **featured** grid (4 cards, full-width) → collections strip �
 social grid** → wholesale CTA band → **newsletter** signup → footer.
 
 ## Global interactions
-- **Mega-menu:** desktop "Shop" dropdown — category tiles + collections column.
+- **Category nav + subcategory dropdowns:** top-level categories render inline in
+  the desktop header bar; each with children opens a controlled hover dropdown of
+  its subcategories. Only one is open at a time — moving to another category (or
+  off the bar) closes the previous. Mobile lists subcategories indented in the
+  slide-down menu. (Replaced the old "Shop" mega-menu.)
+- **In-category switcher:** on a category page, chips for "All {parent}" + its
+  subcategories (current highlighted) let users move within the group.
 - **Typeahead search:** debounced product suggestions (header + mobile menu).
 - **Cart drawer:** slide-in on add-to-cart and the header bag; coupon apply/remove.
 - **Wishlist drawer:** slide-in from the header heart; "Move to bag" hands off to

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { NewsletterForm } from '@/components/NewsletterForm';
+import { FooterSocials } from '@/components/FooterSocials';
 
 /** Storefront footer (newsletter + navigation). Static for now; CMS-driven later. */
 export function Footer() {
@@ -42,11 +43,7 @@ export function Footer() {
             <FooterLink href="/cart">Cart</FooterLink>
           </FooterColumn>
 
-          <FooterColumn title="Connect">
-            <li className="text-ink-soft">Instagram</li>
-            <li className="text-ink-soft">Facebook</li>
-            <li className="text-ink-soft">WhatsApp</li>
-          </FooterColumn>
+          <FooterSocials />
         </div>
         <p className="mt-10 text-xs text-ink-faint">
           © {new Date().getFullYear()} Sajawat Jewellery. All rights reserved.

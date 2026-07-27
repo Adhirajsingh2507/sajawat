@@ -20,6 +20,8 @@ export interface PublicCategory {
   description?: string | undefined;
   image?: string | undefined;
   sortOrder: number;
+  /** Null/undefined = top-level; otherwise the id of the parent category. */
+  parentId?: string | null;
 }
 
 export interface PublicCollection {

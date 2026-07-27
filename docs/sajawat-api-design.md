@@ -161,6 +161,8 @@ GET
 GET
 
 /api/v1/categories
+  (returns active categories incl. `parentId`; storefront groups top-level +
+   subcategories client-side for the nav dropdown and in-category switcher)
 
 GET
 
@@ -375,6 +377,10 @@ DELETE
 CRUD
 
 /api/v1/admin/categories
+  Create/Update accept optional `parentId` ('' / null = top-level). Validation:
+  parent must exist and be top-level (one level deep), no self-parent, and a
+  category that already has children cannot become a subcategory (400). Delete is
+  blocked while a category still has subcategories (409 — reassign/remove first).
 
 ---
 

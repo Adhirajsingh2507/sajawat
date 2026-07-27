@@ -44,9 +44,10 @@ version of each — do not copy the reference's specific markup/styles/assets.
       (presentational; wire to a subscribe endpoint later).
 
 ### Product listing (PLP)
-- [x] **Price range + in-stock filters** — chip filter bar in `ProductListing`.
-      Backend: `minPrice`/`maxPrice`/`inStock` on the products query
-      (product.validation + product.service; inventory `getInStockProductIds`).
+- [x] **In-stock filter + sort** — filter bar in `ProductListing`. Price-range
+      filter **removed** (2026-07-27, client request); the API still accepts
+      `minPrice`/`maxPrice` (unused by the UI). In-stock uses inventory
+      `getInStockProductIds`; sort still includes price low→high / high→low.
 - [ ] Optional: category/best-seller facets, **grid density toggle**.
 - [ ] **Quick-view** modal + hover second-image swap on cards.
 
@@ -60,7 +61,20 @@ version of each — do not copy the reference's specific markup/styles/assets.
 ### Global / interaction
 - [x] **Slide-in cart drawer** — `features/commerce/CartDrawer.tsx` (opens on
       add-to-cart + header bag; `isCartOpen/openCart/closeCart` on CartContext).
-- [x] **Mega-menu** category dropdown on desktop header — `components/MegaMenu.tsx`.
+- [x] **Category nav + subcategory dropdowns** (2026-07-27) — replaced the old
+      `MegaMenu.tsx` (deleted). Top-level categories render inline in the header
+      bar (`Header.tsx`, `NavCategory`); each with children shows a controlled
+      hover dropdown of its subcategories. Open state is shared (`openCat`) so
+      only one is open at a time and moving to another closes the previous.
+      Mobile menu lists subcategories indented under their parent.
+- [x] **In-category subcategory switcher** (2026-07-27) — `CategorySwitcher.tsx`
+      renders "All {parent}" + subcategory chips on category pages (current
+      highlighted), so users switch between a category and its subcategories
+      without returning to the nav.
+- [x] **Bigger centered brand logo** in the header (2026-07-27).
+- [x] **Footer social icons** — `FooterSocials.tsx` (Instagram / Facebook /
+      WhatsApp) wired to `/settings/public`; each hides when its URL is blank,
+      and the whole block hides when none are set.
 - [x] Search with **suggestions/typeahead** — `components/SearchBox.tsx`.
 - [x] **Quick-view** modal — `features/quickview/*` (also listed under PLP).
 - [~] Subtle motion polish — `fade-in` util added; more on scroll/hover next.
