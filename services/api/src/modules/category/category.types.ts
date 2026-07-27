@@ -3,6 +3,8 @@
  * (no vendor ownership). `image` is a URL/key reference; the binary upload
  * pipeline (GCS) is deferred to 1.3-media.
  */
+import type mongoose from 'mongoose';
+
 export type CategoryStatus = 'active' | 'inactive';
 
 export interface ICategory {
@@ -12,6 +14,8 @@ export interface ICategory {
   image?: string | undefined;
   status: CategoryStatus;
   sortOrder: number;
+  /** Parent category ref for one-level nesting; null/absent = top-level. */
+  parentId?: mongoose.Types.ObjectId | null;
   deletedAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
@@ -26,6 +30,7 @@ export interface AdminCategory {
   image?: string | undefined;
   status: CategoryStatus;
   sortOrder: number;
+  parentId?: string | null;
   createdAt?: Date | undefined;
   updatedAt?: Date | undefined;
 }

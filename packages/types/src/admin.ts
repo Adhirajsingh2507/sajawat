@@ -8,6 +8,19 @@ import type { ProductImage, ProductSeo, ProductVideo } from './catalog.js';
 
 export type ProductStatus = 'draft' | 'active' | 'archived';
 
+/** Media kind an admin upload resolves to (Milestone 1.3-media). */
+export type MediaKind = 'image' | 'video';
+
+/** Result of `POST /admin/media` — a durable public URL for the stored object. */
+export interface MediaUploadResult {
+  url: string;
+  kind: MediaKind;
+  contentType: string;
+  bytes: number;
+  width?: number | undefined;
+  height?: number | undefined;
+}
+
 export interface AdminProduct {
   id: string;
   name: string;
@@ -15,6 +28,8 @@ export interface AdminProduct {
   shortDescription?: string | undefined;
   description?: string | undefined;
   sku: string;
+  /** Physical scannable code (EAN/UPC/Code-128); distinct from `sku`. Optional, unique if set. */
+  barcode?: string | undefined;
   price: number;
   salePrice?: number | undefined;
   categoryId: string;
@@ -75,6 +90,8 @@ export interface AdminCategory {
   image?: string | undefined;
   status: CategoryStatus;
   sortOrder: number;
+  /** Null = top-level; otherwise the id of the parent category (one level deep). */
+  parentId?: string | null;
   createdAt?: Date | undefined;
   updatedAt?: Date | undefined;
 }
@@ -122,5 +139,27 @@ export interface AdminSettings {
   supportEmail?: string | undefined;
   /** E.164 number that receives instant WhatsApp lead alerts; null = unset. */
   adminWhatsappNumber?: string | null | undefined;
+  /** Public storefront display fields (Contact page — 1.3-media era). */
+  instagramUrl?: string | undefined;
+  facebookUrl?: string | undefined;
+  youtubeUrl?: string | undefined;
+  addressText?: string | undefined;
+  businessHours?: string | undefined;
   updatedAt?: Date | undefined;
+}
+
+/**
+ * Non-secret business info exposed publicly (`GET /api/v1/settings/public`) for
+ * the storefront Contact page. Only display fields — never alert targets/secrets.
+ */
+export interface PublicSettings {
+  businessName?: string | undefined;
+  supportEmail?: string | undefined;
+  /** Public WhatsApp number for the storefront (same value as the alert number). */
+  whatsappNumber?: string | undefined;
+  instagramUrl?: string | undefined;
+  facebookUrl?: string | undefined;
+  youtubeUrl?: string | undefined;
+  addressText?: string | undefined;
+  businessHours?: string | undefined;
 }

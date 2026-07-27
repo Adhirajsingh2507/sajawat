@@ -6,6 +6,7 @@
 import type { HydratedDocument } from 'mongoose';
 import type { Paginated } from '@sajawat/types';
 import { BadRequestError, NotFoundError } from '../../errors/app-error.js';
+import { EVENTS, logEvent } from '../../observability/events.js';
 import type { PaginatedResult } from '../../db/base-repository.js';
 import { inventoryRepository } from './inventory.repository.js';
 import { inventoryMovementRepository } from './inventory-movement.repository.js';
@@ -126,6 +127,11 @@ async function adjust(
     reason: input.reason,
     performedBy,
   });
+  if (status === 'out_of_stock') {
+    logEvent(EVENTS.INVENTORY_OUT_OF_STOCK, { productId, availableQuantity });
+  } else if (status === 'low_stock') {
+    logEvent(EVENTS.INVENTORY_LOW_STOCK, { productId, availableQuantity, lowStockThreshold });
+  }
   return toAdminInventory(updated);
 }
 
@@ -262,8 +268,15 @@ async function getInStockMap(productIds: string[]): Promise<Map<string, boolean>
   return map;
 }
 
+/** Product IDs that are currently purchasable (for the storefront in-stock filter). */
+async function getInStockProductIds(): Promise<string[]> {
+  const rows = await inventoryRepository.findInStock();
+  return rows.map((row) => String(row.productId));
+}
+
 export const inventoryService = {
   createForProduct,
+  getInStockProductIds,
   adjust,
   commit,
   restock,

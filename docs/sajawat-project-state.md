@@ -8,11 +8,16 @@
 ## 1. Project State
 
 - **Project:** Sajawat Jewellery — luxury jewelry e-commerce (B2C + B2B leads + CRM + admin).
-- **Current status (2026-06-22):** Phase 0 **complete**; **Phase 1 in progress — both revenue funnels are functional end-to-end** (B2C storefront → cart → checkout → orders, and B2B enquiry → CRM), with a full admin operations console, **per-app CSP shipped** (D12 closed), and the **B2C/B2B business journeys covered by live-stack E2E**. Single-company two-model business (B2C retail + B2B bulk), **fully login-gated storefront** per owner decision (D17). `origin/develop` = `ff14bf5` (1.10a). **143 API tests** + web/admin component tests + **3 full-stack E2E journeys** (web+API+Mongo, gated on `E2E_FULL_STACK=1`) green; all gates green.
+- **Current status (2026-07-06):** Phase 0 **complete**; **Phase 1 effectively code-complete** — both revenue funnels functional end-to-end (B2C storefront → cart → checkout → orders, and B2B enquiry → CRM), full admin operations console, per-app CSP (D12 closed), live-stack business-journey E2E (1.10a), **launch readiness 1.10b fully authored** (perf/load, coverage ratchet, observability/alerting, backups & DR), and the **1.3-media GCS upload pipeline** + **barcode/scan-to-receive**. Single-company two-model business (B2C retail + B2B bulk), **fully login-gated storefront** (D17). `origin/develop` = `61232b2`. **178 API tests** + web/admin component tests + **3 full-stack E2E journeys** (gated on `E2E_FULL_STACK=1`) green; coverage ratchet enforced. **Remaining for `v1.0.0` = operator activation** (production CD/monitoring/backups) + prod deploy/rollback/restore drills + dormant third-party keys.
 - **Done in Phase 1 (API unless noted):** **1.1** persistence + `BaseRepository` + `User` · **1.2** auth endpoints + session store + Google (closes D15) · **1.3a/b** catalog (categories, collections, products, inventory, search) · **1.4a** storefront foundation + design system + **login gate** (web), **1.4b** gated catalog pages (web), **1.4c** storefront shopping UI (cart/wishlist/checkout/account — web) · **1.5** cart + wishlist + promotions engine · **1.6a** COD checkout + orders, **1.6b** Razorpay online (dormant until keys), **1.6c** admin order management · **1.7a/b** admin panel UI (orders/products/inventory/categories/collections/promotions — closes D4-admin) · **1.8a** B2B backend (CRM lead + settings + notification/WhatsApp abstraction, dormant until keys), **1.8b** B2B frontend (web enquiry form + admin CRM board + settings UI) · **1.9a** strict nonce-based **CSP + security headers** in `apps/web` + `apps/admin` (per-request nonce via `proxy.ts`; closes **D12-web/admin**), **1.9b** CI **dependency + secret scanning + dependency remediation** · **1.10a** customer + B2B **business-journey E2E** (live web+API+Mongo) — replaces the 0.9 smoke scaffold for the revenue paths; surfaced + fixed a CORS `x-csrf-token` preflight bug. See §9 for the full table.
-- **Remaining Phase 1:** **1.10b+** launch readiness — performance/load tests, coverage ratchet, observability/alerting, backups → **`v1.0.0`** production release. (1.9 hardening + 1.10a E2E journeys are **done**.)
+- **Remaining Phase 1:** **1.10b launch readiness is COMPLETE** — 1.10b.1 perf/load (k6+Lighthouse), 1.10b.2 coverage ratchet, 1.10b.3 observability/alerting, and 1.10b.4 backups & DR all done. The remaining step to **`v1.0.0`** is **operator activation** of the authored-but-unrun infra (D16 production CD, monitoring, backups) + a production deploy/rollback + restore drill. (1.9 hardening + 1.10a E2E journeys also done.)
 - **Infra / CD:** staging API auto-deploys on push to `develop` (verified live via the WIF deployer SA). **D16 ~75% closed** — production promotion pipeline authored but unrun (`sajawat-production` has 0 services; needs operator prereqs + a `v*` tag). GCP: separate `sajawat-staging`/`sajawat-production` projects, `asia-south1`. **Web is not auto-deployed yet** (AD-54, API-only CD). Mongoose 9 is the approved baseline.
-- **External deps to provide (build-complete, dormant until keys):** Google OAuth (`GOOGLE_CLIENT_ID`) for live Google sign-in (1.2/1.4); Razorpay (`RAZORPAY_KEY_ID`/`KEY_SECRET`/`WEBHOOK_SECRET`) for live online payments (1.6b) — COD works without keys; WhatsApp Business / Meta Cloud API (`WHATSAPP_PHONE_NUMBER_ID`/`WHATSAPP_ACCESS_TOKEN`) **+ an admin number in /admin/settings** for live B2B lead alerts (1.8) — leads persist without keys (alert skipped).
+- **External deps to provide (build-complete, dormant until keys):** Google OAuth (`GOOGLE_CLIENT_ID`) for live Google sign-in (1.2/1.4); Razorpay (`RAZORPAY_KEY_ID`/`KEY_SECRET`/`WEBHOOK_SECRET`) for live online payments (1.6b) — COD works without keys; WhatsApp Business / Meta Cloud API (`WHATSAPP_PHONE_NUMBER_ID`/`WHATSAPP_ACCESS_TOKEN`) **+ an admin number in /admin/settings** for live B2B lead alerts (1.8) **and sale alerts** — leads/orders persist without keys (alert skipped).
+- **Post-1.10 storefront/category enhancements (2026-07-27, client requests — not a milestone):**
+  - **Category subcategories** — `Category.parentId` (one level deep) with admin parent selector + list hierarchy; validation enforces the two-level ceiling and blocks deleting a parent with children. Public `/categories` exposes `parentId`. (DB design, API design, admin spec updated; gap D-SF5.)
+  - **Storefront nav** — top-level categories render inline in the header bar; each with children shows a controlled single-open hover dropdown of its subcategories (replaced/deleted `MegaMenu.tsx`). Added an **in-category subcategory switcher** (`CategorySwitcher.tsx`).
+  - **Sale WhatsApp alert** — `notificationService.sendSaleAlert` fires on COD placement + captured online payment (best-effort, admin number removable). See NOTIFICATION ARCHITECTURE.
+  - **Footer social icons** (`FooterSocials.tsx`) wired to `/settings/public`; **enlarged header logo**; **removed the PLP price-range filter** (in-stock + sort kept).
 
 ### Manual staging deploy (verified — NOT milestone 0.10b)
 - **Service URL:** `https://sajawat-api-staging-1019894285252.asia-south1.run.app`
@@ -378,7 +383,7 @@ revenue path); then content/SEO and admin; hardening last.
 | **1.2** | **Auth endpoints + session store + Google** ✅ DONE | register/login/refresh/logout/me on the 0.7 primitives; **persisted `sessions` store** with rotation + reuse-detection (revoke `family`, TTL); `csrfGuard` on cookie routes; `authRateLimiter` on credential routes; **Google sign-in (GIS ID-token flow) behind the optional `GOOGLE_CLIENT_ID` flag → 501 when unset** (mocked verifier + tests; real Client IDs at 1.4). OTP/email-verify deferred to the notification milestone. | backend, security | **D15** |
 | **1.3a** | **Catalog base (Category + Collection)** ✅ DONE | `Category`/`Collection` models+repos+services, public read (`GET /categories`, `/categories/:slug`, `/collections`, `/collections/:slug`) + admin CRUD (`/admin/...`, RBAC `CATEGORY_WRITE`/`COLLECTION_WRITE`); slug derive+uniquify util; **`@sajawat/types` populated** with `PublicCategory`/`PublicCollection`/`Paginated<T>` (type-only pkg → storefront-shareable). Static-before-param routing. **No variants** (one product = one SKU, locked); **media as URL/key references** (GCS upload deferred). | backend, database, ecommerce | — |
 | **1.3b** | **Products + Inventory + Search** ✅ DONE | `Product` (refs Category/Collections; embedded image/video/seo; text index) + `Inventory` (1:1, derived availableQuantity/status) + `InventoryMovement` (immutable signed-delta audit). Public list (filter by category/collection slug, featured/bestSeller, whitelisted sort, pagination) + `/search` (Mongo `$text`) + `/featured` `/best-sellers` `/new-arrivals` + `/:slug` (active-only); `PublicProduct.inStock` joined from inventory (batched). Admin product CRUD (PRODUCT_READ/WRITE/DELETE) + inventory adjust + `/history` (INVENTORY_READ/WRITE). Product create auto-creates inventory. **Note (AD-9):** global `sanitizeFilter` rejects developer operators — `$in`/`$text` are wrapped in `mongoose.trusted()` at the (trusted, validated) repository/service layer. Static-before-`:slug` enforced. | backend, database, ecommerce | — |
-| **1.3-media** *(deferred)* | **GCS upload pipeline** | Bucket provisioning + `@google-cloud/storage` + signed-URL/multipart upload + MIME/size validation + image optimization. Lands with the admin UI (1.7). | devops, backend, security | — |
+| **1.3-media** ✅ DONE | **GCS media upload pipeline** | API-proxied `POST /admin/media` (`product:write`): magic-byte validation → `sharp` image optimization (WebP, ≤1600px) / mp4 passthrough → public GCS bucket → durable URL. `@google-cloud/storage` + `multer` + `sharp`; config-gated (501 + admin URL fallback when `GCS_BUCKET` unset). Admin ProductForm gains image+video upload; operator bucket script `06-media-bucket.sh`. | devops, backend, security | — |
 | **1.4a** | **Storefront foundation + auth gate** ✅ DONE | Replaces Next starter (D4-web). Brand design system in **`@sajawat/ui`** (tokens: Royal Purple/Gold + neutrals, Playfair/Inter via next/font; primitives: Button/Input/Card/Badge/Container/Heading). Browser **API client** + **AuthProvider** (silent refresh-on-load). **Login + register** pages. **Fully login-gated storefront** (owner decision AD-1.4G — see debt **D17**): `(shop)` client gate redirects unauthenticated users to `/login`. App shell (Header/Footer) + branded Home. **1.2 support change:** CSRF cookie made persistent + re-issued on `/refresh-token` so returning users can silent-refresh. | frontend, ecommerce | **D4** (web) |
 | **1.4b** | **Gated catalog (web)** ✅ DONE | PLP (`/products`, `/categories/[slug]`, `/collections/[slug]`), PDP (`/products/[slug]`), `/search` — **client-side fetch behind the auth gate** via a typed catalog service + `useAsync` hook; `ProductCard`/`ProductGrid`, sort + pagination (local state), loading skeletons / empty / error states; Home wired to live categories + featured; Header search → `/search`. `next/image` with broad remote patterns (tighten with 1.3-media). **SEO dropped** (moot behind login — D17). **Note:** per-app **CSP (D12-web) shipped in 1.9a**; add-to-cart/wishlist await 1.5. | frontend, ecommerce | **D12** (web, closed 1.9a) |
 | **1.4c** | **Storefront shopping UI (web)** ✅ DONE | B2C revenue path in `apps/web` over the existing APIs. Server-authoritative `CommerceProvider` (`useCart`/`useWishlist`, no optimistic UI, no client-side totals); `commerce.ts` service layer; Header cart/wishlist badges; PDP add-to-cart + wishlist; `/cart`, `/wishlist`, `/checkout` (**COD live; Razorpay online wired-but-dormant** → graceful 501 fallback to COD), `/account` hub + `/account/orders` + order detail (cancel). Shared `CheckoutRequest`/`VerifyPaymentRequest` DTOs. `commit 3086904`. | frontend, ecommerce | — |
@@ -389,7 +394,7 @@ revenue path); then content/SEO and admin; hardening last.
 | **1.7** | **Admin panel** ✅ DONE | Replaces the admin Next starter (closes **D4-admin**). Role-gated console (`@sajawat/ui`; staff-role gate; permission-driven nav from the shared RBAC catalog). **1.7a** (`commit 05cc7db`): shell + AuthProvider + orders (list/detail, PATCH status/payment), products (CRUD, image-URL inputs), inventory (adjust + history), dashboard. **1.7b** (`commit 296052a`): categories, collections, promotions/coupons (list + inline create/edit + delete). `AdminProduct`/`AdminInventory`/`AdminCategory`/`AdminCollection`/`AdminPromotion` DTOs in `@sajawat/types`. **No DB/API changes** — pure UI over existing endpoints. CSP shipped in **1.9a** (**D12-admin closed**). | frontend, ecommerce | **D4** (admin) |
 | **1.8** | **B2B bulk enquiry + CRM + notifications (Model B)** ✅ DONE | **1.8a backend** (`commit 4abc328`): `CrmLead` model (7-stage pipeline new→contacted→follow_up→quotation_sent→negotiation→won/lost per the specs, embedded staff notes, soft-delete); **gated, rate-limited `POST /enquiries`** → persist + **instant WhatsApp admin alert**; `NotificationProvider` abstraction + `WhatsAppProvider` (Meta Cloud API via fetch, **config-gated/dormant** — unconfigured sends skipped, never thrown); Settings singleton + `/admin/settings` (`SETTINGS_MANAGE`) holding the admin number; admin `/admin/crm/leads` (`CRM_READ`/`CRM_WRITE`). **1.8b frontend** (`commit ead87a7`): gated `/wholesale` enquiry form (web) + admin **CRM pipeline board** + lead detail (stage/assign/notes) + **Settings** page. **No automated wholesale checkout** (leads worked manually). Needs `WHATSAPP_*` keys + an admin number to alert live; leads persist regardless. | backend, ecommerce, frontend | — |
 | **1.9** | **Frontend CSP + security hardening** ✅ DONE | **1.9a** (`commit acfa416`): strict **nonce-based CSP + security headers** in `apps/web` **and** `apps/admin` — per-request nonce injected via each app's `proxy.ts`, root layouts read it per request (closes **D12-web/admin**). **1.9b** (`commit bb0aa87`): CI **dependency + secret scanning** in `ci.yml` + **dependency remediation** (`package.json`/lockfile), open-debt updated. | security, frontend | **D12** |
-| **1.10** | **Launch readiness** 🚧 IN PROGRESS | **1.10a** ✅ (`commits 82cf8b5` + `ff14bf5`): customer + B2B **business-journey E2E** against a live web+API+Mongo stack (register → COD checkout → wholesale enquiry), replacing the 0.9 smoke scaffold for the revenue paths; deterministic idempotent product seed (`tests/e2e/global-setup.ts`, fail-fast); gated on `E2E_FULL_STACK=1` (`pnpm test:e2e:full`) so CI keeps the web-only smoke. Fixed a real CORS `x-csrf-token` preflight bug + checkout `htmlFor`/`id` a11y. **Remaining (1.10b+):** performance/load tests (`tests/performance/`); coverage ratchet; observability/alerting (`infrastructure/monitoring/`); backups (`infrastructure/backups/`); **`v1.0.0` production release**. | devops, architect, seo | — |
+| **1.10** | **Launch readiness** 🚧 IN PROGRESS | **1.10a** ✅ (`commits 82cf8b5` + `ff14bf5`): customer + B2B **business-journey E2E** against a live web+API+Mongo stack (register → COD checkout → wholesale enquiry), replacing the 0.9 smoke scaffold for the revenue paths; deterministic idempotent product seed (`tests/e2e/global-setup.ts`, fail-fast); gated on `E2E_FULL_STACK=1` (`pnpm test:e2e:full`) so CI keeps the web-only smoke. Fixed a real CORS `x-csrf-token` preflight bug + checkout `htmlFor`/`id` a11y. **1.10b.1** ✅ (`923ee3b`): k6 load scenarios (smoke/search/checkout/enquiry, SLOs as thresholds) + Lighthouse CI (`tests/performance/`). **1.10b.2** ✅ (`4ec2095`): Vitest coverage ratchet (per-module floors). **1.10b.3** ✅: business-event logging (`src/observability/events.ts`) + operator-run Cloud Monitoring scripts (`infrastructure/monitoring/`: uptime, log-metrics, alert policies, dashboard). **1.10b.4** ✅: backups & DR (`infrastructure/backups/`) — Atlas native backup + mongodump→GCS Cloud Run Job + scheduler + restore runbook/drill. **1.10b complete; remaining for `v1.0.0` = operator activation** (D16 prod CD + monitoring + backups) + a prod deploy/rollback + restore drill. | devops, architect, seo | — |
 
 **Cross-cutting (every milestone):** architecture-first planning + approval gate;
 Conventional Commits + annotated tags; CI gates green; threat-model new surfaces
@@ -454,23 +459,155 @@ STEP 7 — WAIT for explicit approval before implementing. Then implement,
   file changes · what was implemented · key decisions · verification results ·
   remaining technical debt. Then stop.
 
-The next work is the rest of MILESTONE 1.10 LAUNCH READINESS (1.10b+).
-Phase 1 is largely built: both revenue funnels work end-to-end (B2C storefront
-→ cart → checkout → orders, and B2B enquiry → CRM), the admin operations
-console covers orders/products/inventory/categories/collections/promotions/CRM/
-settings, per-app CSP is shipped (1.9a, closes D12), CI runs dependency + secret
-scanning (1.9b), and the revenue-path business journeys are covered by live-stack
-E2E (1.10a). `origin/develop` = `ff14bf5` (1.10a). The 1.10a journeys are gated
-on E2E_FULL_STACK=1 and run via `pnpm test:e2e:full` against a live
-web+API+Mongo stack; CI keeps the web-only smoke spec. Remaining for v1.0.0:
-performance/load tests (tests/performance/), coverage ratchet,
-observability/alerting (infrastructure/monitoring/), backups
-(infrastructure/backups/) → v1.0.0.
+Phase 1 is effectively CODE-COMPLETE. Both revenue funnels work end-to-end (B2C
+storefront → cart → checkout → orders, and B2B enquiry → CRM); the admin
+operations console covers orders/products/inventory/categories/collections/
+promotions/CRM/settings; per-app CSP (1.9a, closes D12); CI dependency + secret
+scanning (1.9b); live-stack business-journey E2E (1.10a); **launch readiness
+1.10b fully authored** — perf/load k6+Lighthouse (1.10b.1), coverage ratchet
+(1.10b.2), observability/alerting `infrastructure/monitoring/` (1.10b.3),
+backups & DR `infrastructure/backups/` (1.10b.4); plus the **1.3-media GCS upload
+pipeline** and **barcode/scan-to-receive**. `origin/develop` = `61232b2`.
+The remaining path to `v1.0.0` is NOT authoring — it is **operator activation**
+(requires GCP/Atlas creds Claude can't hold): run production CD (D16) +
+monitoring + backups provisioning, then a gated prod deploy, a rollback drill,
+and a restore drill; run the load tests against a live stack.
 External deps remain dormant-until-keys: Google OAuth (GOOGLE_CLIENT_ID),
-Razorpay (RAZORPAY_KEY_*), and WhatsApp (WHATSAPP_* + an admin number in
-/admin/settings) — COD and lead capture work without any of them. Infra
-carry-forward: D16 production CD (staging auto-deploys on develop; the
-production pipeline is authored but unrun — needs operator prereqs + a v* tag).
-Mongoose 9 is the
-approved baseline.
+Razorpay (RAZORPAY_KEY_*), WhatsApp (WHATSAPP_* + an admin number in
+/admin/settings), and GCS media uploads (GCS_BUCKET + a provisioned bucket) —
+COD, lead capture, and manual media URLs all work without any of them.
+Mongoose 9 is the approved baseline.
 ```
+
+---
+
+## Update — Storefront experience redesign (2026-07-04)
+
+Client-showcase redesign of `apps/web`, merged to `develop` in PRs **#3–#10**
+(all CI Quality-gate + E2E-smoke green; the repo-wide Dependency-Review
+"Security scan" was red at the time — needs GitHub Advanced Security — but was
+later made non-blocking in **PR #13** (2026-07-05, D-CI1), so CI is now fully
+green on PRs).
+Presentation + **one** read-only API addition; **no** changes to domain models,
+cart/order/promotion logic, or the login gate.
+
+- **New public API:** `GET /api/v1/offers` (advertisable store-wide promotions);
+  `GET /api/v1/products` gains `minPrice`/`maxPrice`/`inStock` filters. See
+  `sajawat-api-design.md` addendum.
+- **Storefront:** hero carousel, announcement bar, inline category nav with
+  single-open subcategory hover dropdowns + in-category switcher, typeahead search,
+  cart + wishlist drawers, quick-view, product carousels, PDP hover-zoom + video
+  slot + "Available offers" box, testimonials, lookbook, newsletter, featured
+  banner, PLP price/in-stock filters; site width 1280→1600px. Full component list
+  in `sajawat-current-architecture.md` §21 and `sajawat-ui-ux-specification.md`
+  addendum.
+- **Demo data:** `seed-demo.ts` (`pnpm --filter @sajawat/api seed:demo`) — 5
+  categories, 3 collections, 24 products + inventory, 3 promotions, demo customer
+  `demo@sajawat.example`. `apps/web/public/demo` imagery is DEMO-ONLY.
+- **Pending client assets:** real product videos (feature built, unseeded) +
+  exact sizing/deal-copy from the client's screenshot spec. Backlog:
+  `sajawat-storefront-redesign-notes.md`.
+- **Note:** the shared `Container` (packages/ui) width cap change also widened the
+  `apps/admin` content area (harmless).
+
+## Update — Barcode & scan-to-receive stock (2026-07-05)
+
+Owner-requested inventory feature (develop). No new inventory schema.
+
+- **DB/API:** `products.barcode?` (unique sparse; admin-only, not on
+  `PublicProduct`); admin create/update accept `barcode` (409 on clash);
+  `GET /api/v1/admin/products/barcode/:code` resolves a scan to a product.
+- **Admin:** Barcode field on the product form; new **`/inventory/scan`**
+  ("Receive stock", `INVENTORY_WRITE`) — scan barcodes → running per-product
+  count (re-scan increments) → **Submit** applies `stock_added` inventory
+  movements → live on the storefront. See `sajawat-admin-specification.md` +
+  `sajawat-current-architecture.md` §22.
+- **Demo:** `seed-demo.ts` assigns deterministic `8901…` demo barcodes
+  (DEMO-ONLY — swap for the client's printed codes).
+- **Verified:** barcode lookup + `stock_added` intake exercised via the live admin
+  HTTP API (scan → 404 on unknown code → `stock_added` movement → storefront
+  stock updated); **regression tests** added to `product.service.test.ts` (lookup,
+  404, duplicate-barcode 409, update-clash 409, sparse-unique) — **PR #14**; admin
+  UI typecheck+lint clean.
+
+## Update — 1.10b Launch readiness (2026-07-05)
+
+Discovered on resuming that **1.10b.1 (perf/load) and 1.10b.2 (coverage ratchet)
+were already built** (`923ee3b`, `4ec2095`) but the docs still listed them as
+remaining — corrected above. Then built **1.10b.3 Observability & Alerting**:
+
+- **App-side (`services/api`):** new `src/observability/events.ts` — a stable
+  `event: '<domain>.<action>'` + `outcome` contract on the pino logger.
+  Instrumented auth (login ok/fail, register), order (placed COD+online,
+  cancelled), payment (succeeded, failed), inventory (low/out-of-stock on
+  adjust), CRM (lead created). Unit-tested; full suite + coverage ratchet green.
+- **Infra (operator-run, `infrastructure/monitoring/`):** idempotent gcloud
+  scripts (same pattern as `infrastructure/scripts/gcp/`) — email notification
+  channel, uptime checks (API liveness `/health`, readiness `/api/v1/health` =
+  DB-health monitor, web when deployed), log-based metrics (5xx, error logs,
+  payment_failed, order_placed, backup_failed), alert policies (every
+  deployment-plan alert + latency p95 SLO), and an ops dashboard. Plus
+  `provision-monitoring.sh` / `verify-monitoring.sh` / runbook. **bash -n +
+  shellcheck 0.10.0 clean**; not yet run against GCP (operator-activated, like CD).
+- **Remaining:** **1.10b.4** backups & DR (`infrastructure/backups/`) → `v1.0.0`.
+
+## Update — 1.10b.4 Backups & DR (2026-07-05)
+
+Completes 1.10b. Operator-run backup provisioning under `infrastructure/backups/`
+(same idempotent-gcloud pattern), two layers:
+- **Primary:** MongoDB Atlas native Cloud Backup — daily snapshots, 30-day
+  retention, PITR — via `04-atlas-backup-policy.sh` (read-only; `--apply`).
+- **Secondary:** `mongodump → GCS` daily. `Dockerfile` + `entrypoint.sh` (streams
+  a gzip archive to GCS, emits `backup.started/succeeded/failed` log markers), a
+  versioned bucket with a 30-day lifecycle (`01`), a Cloud Run Job + least-priv SA
+  (`02`), and a Cloud Scheduler daily trigger (`03`). Plus `provision-backups.sh`,
+  `verify-backups.sh`, and `restore-runbook.md` (Atlas + mongodump restore paths,
+  post-restore checks, RPO≤24h/RTO≤4h, and the **required restore drill**).
+- Fixed the 1.10b.3 `backup_failed` metric/alert filter (backup job logs as
+  `cloud_run_job`, not `cloud_run_revision`).
+- `bash -n` + `shellcheck 0.10.0` clean; entrypoint/lifecycle/Atlas JSON verified.
+  Not run against GCP/Atlas (operator-activated).
+
+**1.10b is now fully authored.** The path to `v1.0.0` is operator activation
+(D16 production CD + monitoring + backups) + a gated prod deploy, a rollback
+drill, and a restore drill.
+
+## Update — 1.3-media GCS upload pipeline (2026-07-06)
+
+Closes the long-deferred media milestone. **API-proxied** upload (per owner
+choice): `POST /api/v1/admin/media` (`product:write`, multipart) →
+**magic-byte** validation (client MIME untrusted) → images optimized with
+**sharp** (auto-orient, ≤1600px long edge, WebP, metadata stripped) / **mp4**
+validated + passed through → uploaded to a **public GCS bucket** → returns a
+durable public URL (`MediaUploadResult`).
+- **API:** `storage/gcs-provider.ts` (config-gated, ADC creds, no key file) +
+  `modules/media` (service/controller/routes; multer memory, 64 MB cap). Env
+  `GCS_BUCKET`/`GCS_PROJECT_ID`/`GCS_PUBLIC_HOST` (optional) — unset ⇒ **501**
+  and the admin keeps manual URL entry. Deps: `@google-cloud/storage`, `multer`,
+  `sharp`. 7 unit + 4 integration tests; coverage ratchet green.
+- **Admin:** ProductForm "Upload files" (images append to the gallery, an mp4
+  sets the product video) + a video field; `apiUpload()` multipart helper.
+- **Infra:** `infrastructure/scripts/gcp/06-media-bucket.sh` (public bucket,
+  `api-run` objectAdmin) — operator-run; activate by setting `GCS_BUCKET`/
+  `GCS_PROJECT_ID` on the api service.
+- **Still pending (client):** real product photography/videos to replace the
+  `/demo` stock (D-SF1) — the *pipeline* is done; the *assets* are the client's.
+
+## Update — Homepage redesign v2 + Account profile (2026-07-07)
+
+Client-requested **luxury homepage redesign** of `apps/web` (7-image reference
+set), shipped as **six small PRs** (#22–#27), each screenshot-verified (desktop +
+mobile), plus **Account profile/address** (#28). Details in
+`sajawat-current-architecture.md` §26 + the `sajawat-ui-ux-specification.md` addendum.
+- **Homepage:** two-tier luxury navbar + fullscreen sliding hero (#22); animated
+  offer + "Sale is live" marquees (#23); tabbed featured grid w/ hover image-swap
+  + SAVE% (#24); "Jewellery that speaks for you" bento w/ slow zoom (#25); "Shop
+  the look" reel gallery + full-width cinematic banner (#26); **Framer Motion**
+  polish — scroll reveals, parallax, `next/dynamic` lazy-load, micro-interactions
+  (#27). New web dep: `framer-motion`.
+- **Account:** `PATCH /auth/me` (name/phone/address; address on `PublicUser`) +
+  `/account/profile` form + hub tile (#28). **188 API tests**, coverage ratchet green.
+- **Video-ready:** reels + cinematic banner autoplay on `product.video` / a banner
+  `videoSrc`; graceful placeholders until real footage lands (D-SF1).
+- Contact page shipped earlier (#20). Completes the requested homepage +
+  Contact/Account scope.

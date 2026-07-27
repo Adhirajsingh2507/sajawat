@@ -137,3 +137,29 @@ describe('google (feature-flagged off)', () => {
     });
   });
 });
+
+describe('updateProfile', () => {
+  it('updates name, phone, and address; returns them on the public user', async () => {
+    const { user } = await register('profile@example.com');
+    const updated = await authService.updateProfile(user.id, {
+      firstName: 'Aditi',
+      phone: '9876500000',
+      address: {
+        line1: '12 Jewel Lane',
+        city: 'Jaipur',
+        state: 'Rajasthan',
+        postalCode: '302001',
+      },
+    });
+    expect(updated.firstName).toBe('Aditi');
+    expect(updated.phone).toBe('9876500000');
+    expect(updated.address?.line1).toBe('12 Jewel Lane');
+    expect(updated.address?.city).toBe('Jaipur');
+  });
+
+  it('401s for an unknown user id', async () => {
+    await expect(
+      authService.updateProfile(new mongoose.Types.ObjectId().toString(), { firstName: 'X' }),
+    ).rejects.toMatchObject({ statusCode: 401 });
+  });
+});

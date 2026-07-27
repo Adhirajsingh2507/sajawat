@@ -34,6 +34,7 @@ const productBodyShape = {
   shortDescription: z.string().trim().max(500).optional(),
   description: z.string().trim().max(8000).optional(),
   sku: z.string().trim().min(1).max(64),
+  barcode: z.string().trim().min(1).max(64).optional(),
   price: z.number().nonnegative(),
   salePrice: z.number().nonnegative().optional(),
   categoryId: z.string().min(1),
@@ -60,6 +61,7 @@ export const updateProductSchema = z.object({
     shortDescription: productBodyShape.shortDescription,
     description: productBodyShape.description,
     sku: productBodyShape.sku.optional(),
+    barcode: productBodyShape.barcode,
     price: productBodyShape.price.optional(),
     salePrice: productBodyShape.salePrice,
     categoryId: productBodyShape.categoryId.optional(),
@@ -83,6 +85,9 @@ export const productListQuerySchema = z.object({
     collection: z.string().min(1).optional(),
     featured: queryBool.optional(),
     bestSeller: queryBool.optional(),
+    minPrice: z.coerce.number().nonnegative().optional(),
+    maxPrice: z.coerce.number().nonnegative().optional(),
+    inStock: queryBool.optional(),
   }),
 });
 
@@ -96,6 +101,9 @@ export const productSearchQuerySchema = z.object({
 });
 
 export const slugParamSchema = z.object({ params: z.object({ slug: z.string().min(1) }) });
+export const barcodeParamSchema = z.object({
+  params: z.object({ code: z.string().trim().min(1).max(64) }),
+});
 export const idParamSchema = z.object({ params: z.object({ id: z.string().min(1) }) });
 
 export type CreateProductBody = z.infer<typeof createProductSchema>['body'];

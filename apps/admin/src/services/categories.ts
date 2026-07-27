@@ -12,6 +12,8 @@ export interface CategoryWriteInput {
   image?: string;
   status?: CategoryStatus;
   sortOrder?: number;
+  /** Parent category id; '' or null = top-level. */
+  parentId?: string | null;
 }
 
 export function listCategories(

@@ -1,17 +1,19 @@
 'use client';
 
 /**
- * Product create/edit form (Milestone 1.7a). Media are URL references (GCS
- * upload lands in 1.3-media), so images are entered as URL + alt rows. `quantity`
- * seeds initial inventory and is shown only on create (stock is adjusted from the
- * Inventory module afterwards). The server validates everything; we surface its
- * errors and never compute anything authoritative client-side.
+ * Product create/edit form (Milestone 1.7a; media upload 1.3-media). Images +
+ * video can be uploaded (proxied through the API → optimized → GCS), or entered
+ * as URLs — the manual URL entry remains a fallback for when GCS is unconfigured
+ * (upload returns 501). `quantity` seeds initial inventory and is shown only on
+ * create. The server validates everything; we surface its errors and never
+ * compute anything authoritative client-side.
  */
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Input, Label } from '@sajawat/ui';
 import type { AdminProduct, ProductImage, ProductStatus, PublicCategory } from '@sajawat/types';
 import { ApiError } from '@/lib/api';
+import { uploadMedia } from '@/services/media';
 import type { ProductWriteInput } from '@/services/products';
 
 const STATUSES: ProductStatus[] = ['draft', 'active', 'archived'];
@@ -36,6 +38,7 @@ export function ProductForm({
   const [name, setName] = useState(initial?.name ?? '');
   const [slug, setSlug] = useState(initial?.slug ?? '');
   const [sku, setSku] = useState(initial?.sku ?? '');
+  const [barcode, setBarcode] = useState(initial?.barcode ?? '');
   const [price, setPrice] = useState(initial?.price !== undefined ? String(initial.price) : '');
   const [salePrice, setSalePrice] = useState(
     initial?.salePrice !== undefined ? String(initial.salePrice) : '',
@@ -50,8 +53,37 @@ export function ProductForm({
   const [images, setImages] = useState<ImageRow[]>(
     initial?.images.map((i) => ({ url: i.url, alt: i.alt ?? '' })) ?? [],
   );
+  const [video, setVideo] = useState(initial?.video?.url ?? '');
+  const [uploading, setUploading] = useState(false);
+  const [uploadNote, setUploadNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  async function handleUpload(files: FileList | null): Promise<void> {
+    if (files === null || files.length === 0) return;
+    setUploading(true);
+    setUploadNote(null);
+    try {
+      for (const file of Array.from(files)) {
+        const media = await uploadMedia(file);
+        if (media.kind === 'video') {
+          setVideo(media.url);
+        } else {
+          setImages((rows) => [...rows, { url: media.url, alt: '' }]);
+        }
+      }
+    } catch (err: unknown) {
+      setUploadNote(
+        err instanceof ApiError && err.status === 501
+          ? 'Uploads are not configured on this environment — paste a media URL below instead.'
+          : err instanceof ApiError
+            ? err.message
+            : 'Upload failed.',
+      );
+    } finally {
+      setUploading(false);
+    }
+  }
 
   function buildPayload(): ProductWriteInput {
     const cleanImages: ProductImage[] = images
@@ -72,10 +104,12 @@ export function ProductForm({
       isBestSeller,
       images: cleanImages,
     };
+    if (barcode.trim().length > 0) payload.barcode = barcode.trim();
     if (slug.trim().length > 0) payload.slug = slug.trim();
     if (salePrice.trim().length > 0) payload.salePrice = Number(salePrice);
     if (shortDescription.trim().length > 0) payload.shortDescription = shortDescription.trim();
     if (description.trim().length > 0) payload.description = description.trim();
+    if (video.trim().length > 0) payload.video = { url: video.trim() };
     if (mode === 'create') payload.quantity = Number(quantity) || 0;
     return payload;
   }
@@ -118,6 +152,17 @@ export function ProductForm({
               setSku(e.target.value);
             }}
             required
+          />
+        </div>
+        <div>
+          <Label htmlFor="barcode">Barcode (optional)</Label>
+          <Input
+            id="barcode"
+            value={barcode}
+            onChange={(e) => {
+              setBarcode(e.target.value);
+            }}
+            placeholder="Scan or type the product barcode"
           />
         </div>
         <div>
@@ -233,17 +278,34 @@ export function ProductForm({
 
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <Label className="mb-0">Images (URLs)</Label>
-          <button
-            type="button"
-            onClick={() => {
-              setImages((rows) => [...rows, { url: '', alt: '' }]);
-            }}
-            className="text-sm font-medium text-purple hover:underline"
-          >
-            + Add image
-          </button>
+          <Label className="mb-0">Images &amp; video</Label>
+          <div className="flex items-center gap-3">
+            <label className="cursor-pointer text-sm font-medium text-purple hover:underline">
+              {uploading ? 'Uploading…' : '⤒ Upload files'}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,video/mp4"
+                multiple
+                disabled={uploading}
+                onChange={(e) => {
+                  void handleUpload(e.target.files);
+                  e.target.value = '';
+                }}
+                className="hidden"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                setImages((rows) => [...rows, { url: '', alt: '' }]);
+              }}
+              className="text-sm font-medium text-ink-soft hover:text-purple"
+            >
+              + Add URL
+            </button>
+          </div>
         </div>
+        {uploadNote !== null && <p className="mb-2 text-xs text-amber-700">{uploadNote}</p>}
         <div className="space-y-2">
           {images.length === 0 && <p className="text-xs text-ink-faint">No images added.</p>}
           {images.map((row, i) => (
@@ -279,6 +341,32 @@ export function ProductForm({
               </button>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="video">Product video (URL, or upload an MP4 above)</Label>
+        <div className="flex gap-2">
+          <Input
+            id="video"
+            value={video}
+            onChange={(e) => {
+              setVideo(e.target.value);
+            }}
+            placeholder="https://…/video.mp4"
+          />
+          {video.trim().length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setVideo('');
+              }}
+              aria-label="Remove video"
+              className="shrink-0 rounded-lg border border-line px-3 text-sm text-ink-soft hover:text-red-600"
+            >
+              ✕
+            </button>
+          )}
         </div>
       </div>
 

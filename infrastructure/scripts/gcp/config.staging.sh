@@ -46,3 +46,10 @@ SECRETS=(
   "RAZORPAY_WEBHOOK_SECRET" # D18 — webhook HMAC verification
   "WHATSAPP_ACCESS_TOKEN"   # D19 — B2B lead alerts (absent => skip-and-log)
 )
+
+# ---- Media bucket (Milestone 1.3-media) ----
+# PUBLIC GCS bucket for product images/video (API-proxied uploads write here;
+# the storefront reads objects directly). Provisioned by 06-media-bucket.sh.
+# Set GCS_BUCKET (= this) + GCS_PROJECT_ID on the api Cloud Run service to
+# activate uploads (absent => the media endpoint returns 501).
+MEDIA_BUCKET="sajawat-staging-media"

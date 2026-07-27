@@ -1,10 +1,25 @@
 import Link from 'next/link';
+import { NewsletterForm } from '@/components/NewsletterForm';
+import { FooterSocials } from '@/components/FooterSocials';
 
-/** Storefront footer (trust + navigation). Static for now; CMS-driven later. */
+/** Storefront footer (newsletter + navigation). Static for now; CMS-driven later. */
 export function Footer() {
   return (
     <footer className="mt-auto border-t border-line bg-white">
-      <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8">
+      {/* Newsletter band */}
+      <div className="border-b border-line bg-mist">
+        <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-5 py-10 sm:px-8 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="font-serif text-xl font-semibold text-ink">Join the Sajawat list</h2>
+            <p className="mt-1 text-sm text-ink-soft">
+              First access to new arrivals, festive offers, and styling tips.
+            </p>
+          </div>
+          <NewsletterForm />
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-[1600px] px-5 py-12 sm:px-8">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <span className="font-serif text-lg font-semibold text-purple">Sajawat</span>
@@ -18,6 +33,7 @@ export function Footer() {
             <FooterLink href="/products">Best sellers</FooterLink>
             <FooterLink href="/categories/bridal-sets">Bridal sets</FooterLink>
             <FooterLink href="/wholesale">Wholesale enquiries</FooterLink>
+            <FooterLink href="/contact">Contact us</FooterLink>
           </FooterColumn>
 
           <FooterColumn title="Account">
@@ -27,11 +43,7 @@ export function Footer() {
             <FooterLink href="/cart">Cart</FooterLink>
           </FooterColumn>
 
-          <FooterColumn title="Connect">
-            <li className="text-ink-soft">Instagram</li>
-            <li className="text-ink-soft">Facebook</li>
-            <li className="text-ink-soft">WhatsApp</li>
-          </FooterColumn>
+          <FooterSocials />
         </div>
         <p className="mt-10 text-xs text-ink-faint">
           © {new Date().getFullYear()} Sajawat Jewellery. All rights reserved.

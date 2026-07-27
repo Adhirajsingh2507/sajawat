@@ -2,11 +2,35 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { Container, Eyebrow, Heading, Section } from '@sajawat/ui';
 import type { PublicCategory, PublicCollection } from '@sajawat/types';
 import { useAsync } from '@/lib/use-async';
 import { getCategories, getCollections, getProducts } from '@/services/catalog';
-import { ProductGrid, ProductGridSkeleton } from '@/components/ProductGrid';
+import { ProductGridSkeleton } from '@/components/ProductGrid';
+import { ProductCarousel } from '@/components/ProductCarousel';
+import { HeroCarousel } from '@/components/HeroCarousel';
+import { Marquee } from '@/components/Marquee';
+import { Reveal } from '@/components/Reveal';
+import { FeaturedCollectionGrid } from '@/components/FeaturedCollectionGrid';
+import { ProductShowcase } from '@/components/ProductShowcase';
+
+// Below-the-fold sections are code-split to trim the initial JS (PR-6).
+const ShopTheLook = dynamic(() =>
+  import('@/components/ShopTheLook').then((m) => ({ default: m.ShopTheLook })),
+);
+const CinematicBanner = dynamic(() =>
+  import('@/components/CinematicBanner').then((m) => ({ default: m.CinematicBanner })),
+);
+const Testimonials = dynamic(() =>
+  import('@/components/Testimonials').then((m) => ({ default: m.Testimonials })),
+);
+const Lookbook = dynamic(() =>
+  import('@/components/Lookbook').then((m) => ({ default: m.Lookbook })),
+);
+const FeaturedBanner = dynamic(() =>
+  import('@/components/FeaturedBanner').then((m) => ({ default: m.FeaturedBanner })),
+);
 
 /**
  * Home — an editorial luxury landing page (image hero → trust → shop-by-category
@@ -16,18 +40,24 @@ import { ProductGrid, ProductGridSkeleton } from '@/components/ProductGrid';
 export default function HomePage() {
   const { data: categories } = useAsync(() => getCategories(), []);
   const { data: collections } = useAsync(() => getCollections(), []);
-  const { data: featured, loading: featuredLoading } = useAsync(
-    () => getProducts({ featured: true, limit: 8 }),
-    [],
-  );
+  const { data: featured } = useAsync(() => getProducts({ featured: true, limit: 8 }), []);
   const { data: bestSellers, loading: bestLoading } = useAsync(
-    () => getProducts({ bestSeller: true, limit: 4 }),
+    () => getProducts({ bestSeller: true, limit: 8 }),
     [],
   );
+  const { data: newArrivals } = useAsync(() => getProducts({ sort: '-createdAt', limit: 8 }), []);
 
   return (
     <>
-      <Hero />
+      <HeroCarousel />
+
+      {/* Sale marquee band (reference img 2) */}
+      <Marquee
+        items={['The Festive Edit', 'Sale is live', 'Up to 30% off', 'New arrivals']}
+        variant="light"
+        itemClassName="font-serif text-xs tracking-[0.3em]"
+        ariaLabel="Sale highlights"
+      />
 
       <TrustBar />
 
@@ -48,24 +78,21 @@ export default function HomePage() {
         </Container>
       </Section>
 
-      {/* Featured */}
-      <Section className="bg-white">
-        <Container>
-          <SectionHeader
-            eyebrow="Editor’s picks"
-            title="Featured this season"
-            href="/products"
-            linkLabel="Shop all"
-          />
-          <div className="mt-8">
-            {featuredLoading && featured === null ? (
-              <ProductGridSkeleton count={4} />
-            ) : (
-              <ProductGrid products={featured?.items ?? []} />
-            )}
-          </div>
-        </Container>
-      </Section>
+      {/* Featured collection grid — tabbed large cards w/ hover image-swap (PR-3) */}
+      <Reveal>
+        <FeaturedCollectionGrid
+          featured={featured?.items ?? []}
+          newArrivals={newArrivals?.items ?? []}
+        />
+      </Reveal>
+
+      {/* Editorial showcase — bento w/ slow zoom + hover lift (PR-4) */}
+      <Reveal>
+        <ProductShowcase />
+      </Reveal>
+
+      {/* Shop-the-look reel gallery (PR-5, video-ready) */}
+      <ShopTheLook products={bestSellers?.items ?? newArrivals?.items ?? []} />
 
       {/* Collections */}
       {(collections?.items.length ?? 0) > 0 && (
@@ -81,6 +108,8 @@ export default function HomePage() {
         </Section>
       )}
 
+      <FeaturedBanner />
+
       {/* Best sellers */}
       <Section className="bg-white">
         <Container>
@@ -94,84 +123,84 @@ export default function HomePage() {
             {bestLoading && bestSellers === null ? (
               <ProductGridSkeleton count={4} />
             ) : (
-              <ProductGrid products={bestSellers?.items ?? []} />
+              <ProductCarousel products={bestSellers?.items ?? []} />
             )}
           </div>
         </Container>
       </Section>
 
+      {/* New arrivals */}
+      {(newArrivals?.items.length ?? 0) > 0 && (
+        <Section>
+          <Container>
+            <SectionHeader
+              eyebrow="Just in"
+              title="New arrivals"
+              href="/products"
+              linkLabel="Shop all"
+            />
+            <div className="mt-8">
+              <ProductCarousel products={newArrivals?.items ?? []} />
+            </div>
+          </Container>
+        </Section>
+      )}
+
       <StorySection />
+
+      <Testimonials />
+
+      <Lookbook />
+
+      {/* Full-width cinematic banner before the footer (PR-5) */}
+      <CinematicBanner />
 
       <WholesaleBand />
     </>
   );
 }
 
-/* ---------------------------------- Hero ---------------------------------- */
-
-function Hero() {
-  return (
-    <section className="relative isolate overflow-hidden bg-purple">
-      <Image
-        src="/demo/hero/hero-bridal.jpg"
-        alt=""
-        fill
-        priority
-        sizes="100vw"
-        className="object-cover object-center opacity-60"
-      />
-      {/* Legibility scrim: darker at the bottom where the copy sits. */}
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-gradient-to-t from-purple-dark via-purple-dark/60 to-purple/30"
-      />
-      <Container className="relative flex min-h-[78vh] flex-col justify-end pb-16 pt-28 sm:min-h-[80vh] sm:pb-20">
-        <div className="max-w-2xl">
-          <Eyebrow className="text-gold">The Sajawat Collection</Eyebrow>
-          <Heading level={1} className="text-white">
-            Jewellery made for every celebration
-          </Heading>
-          <p className="mt-5 max-w-xl text-lg text-white/85">
-            Necklaces, earrings, and bridal sets crafted to feel precious — without the
-            precious-metal price.
-          </p>
-          <div className="mt-9 flex flex-wrap gap-3">
-            <Link
-              href="/products"
-              className="inline-flex h-12 items-center justify-center rounded-full bg-gold px-8 text-sm font-medium text-ink transition-colors hover:bg-gold-dark"
-            >
-              Shop the collection
-            </Link>
-            <Link
-              href="#categories"
-              className="inline-flex h-12 items-center justify-center rounded-full border border-white/70 px-8 text-sm font-medium text-white transition-colors hover:bg-white hover:text-purple"
-            >
-              Shop by category
-            </Link>
-          </div>
-        </div>
-      </Container>
-    </section>
-  );
-}
-
 /* -------------------------------- Trust bar ------------------------------- */
 
-const TRUST: { title: string; sub: string }[] = [
-  { title: 'Handcrafted finish', sub: 'Detailed by artisans' },
-  { title: 'Free shipping', sub: 'On orders over ₹1,499' },
-  { title: 'Easy 7-day returns', sub: 'Shop with confidence' },
-  { title: 'Secure checkout', sub: 'Razorpay protected' },
+const TRUST: { title: string; sub: string; icon: 'craft' | 'ship' | 'return' | 'secure' }[] = [
+  { title: 'Handcrafted finish', sub: 'Detailed by artisans', icon: 'craft' },
+  { title: 'Free shipping', sub: 'On orders over ₹1,499', icon: 'ship' },
+  { title: 'Easy 7-day returns', sub: 'Shop with confidence', icon: 'return' },
+  { title: 'Secure checkout', sub: 'Razorpay protected', icon: 'secure' },
 ];
+
+const TRUST_PATHS: Record<'craft' | 'ship' | 'return' | 'secure', string> = {
+  craft: 'M12 3l1.9 4.6L18.5 9l-3.7 3.1L15.9 17 12 14.4 8.1 17l1.1-4.9L5.5 9l4.6-1.4L12 3z',
+  ship: 'M3 7h11v8H3zM14 10h4l3 3v2h-7zM7 19a2 2 0 100-4 2 2 0 000 4zm11 0a2 2 0 100-4 2 2 0 000 4z',
+  return: 'M3 12a9 9 0 109-9 9 9 0 00-7 3.3M3 3v4h4',
+  secure: 'M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z',
+};
 
 function TrustBar() {
   return (
     <div className="border-y border-line bg-gold-soft/40">
-      <Container className="grid grid-cols-2 gap-x-6 gap-y-5 py-6 sm:grid-cols-4">
+      <Container className="grid grid-cols-2 gap-x-6 gap-y-6 py-7 sm:grid-cols-4">
         {TRUST.map((t) => (
-          <div key={t.title} className="text-center sm:text-left">
-            <p className="text-sm font-semibold text-ink">{t.title}</p>
-            <p className="mt-0.5 text-xs text-ink-soft">{t.sub}</p>
+          <div key={t.title} className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-gold-dark ring-1 ring-gold/30">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d={TRUST_PATHS[t.icon]} />
+              </svg>
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-ink">{t.title}</p>
+              <p className="mt-0.5 text-xs text-ink-soft">{t.sub}</p>
+            </div>
           </div>
         ))}
       </Container>

@@ -37,6 +37,12 @@ export default function CategoriesPage() {
     setReload((n) => n + 1);
   }
 
+  const items = data?.items ?? [];
+  const nameById = new Map(items.map((c) => [c.id, c.name]));
+  // Eligible parents = top-level categories, minus the one being edited.
+  const editingId = panel?.mode === 'edit' ? panel.category.id : null;
+  const parents = items.filter((c) => c.parentId == null && c.id !== editingId);
+
   function onDelete(id: string) {
     if (!window.confirm('Delete this category? Products may reference it.')) return;
     setRowError(null);
@@ -73,6 +79,7 @@ export default function CategoriesPage() {
         <div className="mb-6">
           <CategoryForm
             initial={panel.mode === 'edit' ? panel.category : undefined}
+            parents={parents}
             onSubmit={
               panel.mode === 'edit'
                 ? (input) => updateCategory(panel.category.id, input)
@@ -98,6 +105,7 @@ export default function CategoriesPage() {
             <thead className="border-b border-line text-xs uppercase tracking-wide text-ink-faint">
               <tr>
                 <th className="px-5 py-3 font-medium">Name</th>
+                <th className="px-5 py-3 font-medium">Parent</th>
                 <th className="px-5 py-3 font-medium">Slug</th>
                 <th className="px-5 py-3 font-medium">Status</th>
                 <th className="px-5 py-3 text-right font-medium">Sort</th>
@@ -107,7 +115,13 @@ export default function CategoriesPage() {
             <tbody>
               {data.items.map((c) => (
                 <tr key={c.id} className="border-b border-line/60 last:border-0 hover:bg-mist/40">
-                  <td className="px-5 py-3 font-medium text-ink">{c.name}</td>
+                  <td className="px-5 py-3 font-medium text-ink">
+                    {c.parentId != null && <span className="text-ink-faint">↳ </span>}
+                    {c.name}
+                  </td>
+                  <td className="px-5 py-3 text-ink-soft">
+                    {c.parentId != null ? (nameById.get(c.parentId) ?? '—') : '—'}
+                  </td>
                   <td className="px-5 py-3 text-ink-soft">{c.slug}</td>
                   <td className="px-5 py-3">
                     <ActiveBadge status={c.status} />

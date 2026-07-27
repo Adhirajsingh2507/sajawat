@@ -26,6 +26,10 @@ interface CartContextValue {
   removeCoupon: () => Promise<void>;
   /** Replace cart state directly (e.g. emptied after a successful checkout). */
   setCart: (cart: PublicCart) => void;
+  /** Slide-in cart drawer visibility (UI-only). */
+  isCartOpen: boolean;
+  openCart: () => void;
+  closeCart: () => void;
 }
 
 interface WishlistContextValue {
@@ -37,6 +41,10 @@ interface WishlistContextValue {
   add: (productId: string) => Promise<void>;
   remove: (productId: string) => Promise<void>;
   toggle: (productId: string) => Promise<void>;
+  /** Slide-in wishlist drawer visibility (UI-only). */
+  isWishlistOpen: boolean;
+  openWishlist: () => void;
+  closeWishlist: () => void;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -48,10 +56,12 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
   const [cart, setCartState] = useState<PublicCart | null>(null);
   const [cartLoading, setCartLoading] = useState(true);
   const [cartMutating, setCartMutating] = useState(false);
+  const [isCartOpen, setCartOpen] = useState(false);
 
   const [wishlist, setWishlistState] = useState<PublicWishlist | null>(null);
   const [wishLoading, setWishLoading] = useState(true);
   const [wishMutating, setWishMutating] = useState(false);
+  const [isWishlistOpen, setWishlistOpen] = useState(false);
 
   // Bootstrap (and tear down) commerce state alongside the auth session. State is
   // set only after awaited network calls; the sign-out teardown is a legitimate
@@ -124,6 +134,12 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
   const setCart = useCallback((next: PublicCart) => {
     setCartState(next);
   }, []);
+  const openCart = useCallback(() => {
+    setCartOpen(true);
+  }, []);
+  const closeCart = useCallback(() => {
+    setCartOpen(false);
+  }, []);
 
   const cartValue = useMemo<CartContextValue>(
     () => ({
@@ -137,6 +153,9 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       applyCoupon,
       removeCoupon,
       setCart,
+      isCartOpen,
+      openCart,
+      closeCart,
     }),
     [
       cart,
@@ -148,6 +167,9 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       applyCoupon,
       removeCoupon,
       setCart,
+      isCartOpen,
+      openCart,
+      closeCart,
     ],
   );
 
@@ -179,6 +201,12 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
         : runWish(() => commerce.addWishlistItem(productId)),
     [runWish, wishIds],
   );
+  const openWishlist = useCallback(() => {
+    setWishlistOpen(true);
+  }, []);
+  const closeWishlist = useCallback(() => {
+    setWishlistOpen(false);
+  }, []);
 
   const wishlistValue = useMemo<WishlistContextValue>(
     () => ({
@@ -190,8 +218,22 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       add,
       remove,
       toggle,
+      isWishlistOpen,
+      openWishlist,
+      closeWishlist,
     }),
-    [wishlist, wishLoading, wishMutating, has, add, remove, toggle],
+    [
+      wishlist,
+      wishLoading,
+      wishMutating,
+      has,
+      add,
+      remove,
+      toggle,
+      isWishlistOpen,
+      openWishlist,
+      closeWishlist,
+    ],
   );
 
   return (

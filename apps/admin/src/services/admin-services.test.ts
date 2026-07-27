@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as orders from './orders';
 import * as products from './products';
 import * as inventory from './inventory';
+import * as media from './media';
+import * as settings from './settings';
 
 const BASE = 'http://localhost:4000/api/v1';
 
@@ -44,6 +46,41 @@ describe('admin services', () => {
     const fetchMock = mockFetch({ items: [], total: 0, page: 1, limit: 20, pages: 0 });
     await orders.listOrders({ status: undefined, paymentStatus: undefined });
     expect(lastCall(fetchMock).url).toBe(`${BASE}/admin/orders`);
+  });
+
+  it('uploads media as multipart FormData without a JSON content-type', async () => {
+    const fetchMock = mockFetch({
+      url: 'https://cdn.example/products/x.webp',
+      kind: 'image',
+      contentType: 'image/webp',
+      bytes: 42,
+    });
+    const file = new File([new Uint8Array([1, 2, 3])], 'x.png', { type: 'image/png' });
+    const res = await media.uploadMedia(file);
+    expect(res.url).toBe('https://cdn.example/products/x.webp');
+    const [url, init] = fetchMock.mock.calls.at(-1) as [string, RequestInit];
+    expect(url).toBe(`${BASE}/admin/media`);
+    expect(init.method).toBe('POST');
+    expect(init.body).toBeInstanceOf(FormData);
+    expect((init.headers as Record<string, string>)['Content-Type']).toBeUndefined();
+    expect((init.headers as Record<string, string>)['x-csrf-token']).toBe('tkn');
+  });
+
+  it('updates settings including storefront contact fields', async () => {
+    const fetchMock = mockFetch({ businessName: 'Sajawat', instagramUrl: 'https://ig/x' });
+    await settings.updateSettings({
+      businessName: 'Sajawat',
+      instagramUrl: 'https://ig/x',
+      addressText: 'Jaipur',
+      businessHours: 'Mon–Sat',
+    });
+    const call = lastCall(fetchMock);
+    expect(call).toMatchObject({ url: `${BASE}/admin/settings`, method: 'PATCH' });
+    expect(call.body).toMatchObject({
+      instagramUrl: 'https://ig/x',
+      addressText: 'Jaipur',
+      businessHours: 'Mon–Sat',
+    });
   });
 
   it('patches order status', async () => {

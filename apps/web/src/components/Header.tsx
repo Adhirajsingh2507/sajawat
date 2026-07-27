@@ -1,19 +1,57 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import type { PublicCategory } from '@sajawat/types';
 import { useAuth } from '@/features/auth/auth-context';
 import { useCart, useWishlist } from '@/features/commerce/commerce-context';
+import { useAsync } from '@/lib/use-async';
+import { getCategories } from '@/services/catalog';
+import { SearchBox } from '@/components/SearchBox';
 
-/** Sticky storefront header — brand, shop nav, search, wishlist, cart, account, mobile menu. */
+/**
+ * Luxury storefront header (PR-1 homepage redesign). Two tiers: the centered
+ * Sajawat brand logo with account/search/wishlist/cart to the right, and a
+ * centered nav below (a thin gold hairline between them). Sticky + blurred.
+ * Mobile collapses the nav into a slide-down panel behind the hamburger.
+ *
+ * The nav lists each catalog category inline (between the lead and tail links).
+ * Each category is a hover-ready host (NavCategory) so the planned subcategory
+ * dropdown can mount inside its `group` container with no structural change.
+ */
+const LEAD_NAV: { href: string; label: string }[] = [
+  { href: '/', label: 'Home' },
+  { href: '/products', label: 'Shop All' },
+];
+const TAIL_NAV: { href: string; label: string }[] = [
+  { href: '/wholesale', label: 'Wholesale' },
+  { href: '/contact', label: 'Contact' },
+];
+
 export function Header() {
   const { user, logout } = useAuth();
-  const { itemCount } = useCart();
-  const { count: wishCount } = useWishlist();
+  const { itemCount, openCart } = useCart();
+  const { count: wishCount, openWishlist } = useWishlist();
+  const { data: categoryData } = useAsync(() => getCategories(), []);
+  const categories = categoryData?.items ?? [];
+  // Only top-level categories go in the bar; each carries its subcategories,
+  // shown in a hover dropdown (desktop) / indented (mobile).
+  const topCategories = categories.filter((c) => c.parentId == null);
+  const childrenByParent = new Map<string, PublicCategory[]>();
+  for (const c of categories) {
+    if (c.parentId != null) {
+      const list = childrenByParent.get(c.parentId) ?? [];
+      list.push(c);
+      childrenByParent.set(c.parentId, list);
+    }
+  }
   const router = useRouter();
-  const [q, setQ] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  // Which category's dropdown is open. Controlled (not CSS :hover) so only one is
+  // ever open — moving the cursor onto another category closes the previous.
+  const [openCat, setOpenCat] = useState<string | null>(null);
 
   function onLogout() {
     void (async () => {
@@ -22,120 +60,176 @@ export function Header() {
     })();
   }
 
-  function onSearch(e: React.FormEvent) {
-    e.preventDefault();
-    const term = q.trim();
-    if (term.length > 0) {
-      setMenuOpen(false);
-      router.push(`/search?q=${encodeURIComponent(term)}`);
-    }
-  }
-
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-cream/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-5 sm:gap-6 sm:px-8">
-        <button
-          type="button"
-          onClick={() => {
-            setMenuOpen((v) => !v);
-          }}
-          aria-label="Menu"
-          aria-expanded={menuOpen}
-          className="text-ink-soft transition-colors hover:text-purple sm:hidden"
-        >
-          <MenuIcon open={menuOpen} />
-        </button>
+      {/* Tier 1 — actions left/right, logo centered */}
+      <div className="mx-auto grid h-[92px] max-w-[1600px] grid-cols-[1fr_auto_1fr] items-center px-5 sm:h-[116px] sm:px-8">
+        {/* Left: mobile menu toggle */}
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={() => {
+              setMenuOpen((v) => !v);
+            }}
+            aria-label="Menu"
+            aria-expanded={menuOpen}
+            className="text-ink-soft transition-colors hover:text-purple lg:hidden"
+          >
+            <MenuIcon open={menuOpen} />
+          </button>
+        </div>
 
+        {/* Center: brand logo */}
         <Link
           href="/"
           onClick={() => {
             setMenuOpen(false);
           }}
-          className="font-serif text-xl font-semibold tracking-tight text-purple"
+          className="flex items-center justify-center transition-opacity hover:opacity-90"
+          aria-label="Sajawat Jewellery — home"
         >
-          Sajawat
+          <Image
+            src="/brand/sajawat-logo.png"
+            alt="Sajawat Jewellery"
+            width={439}
+            height={640}
+            priority
+            sizes="(min-width: 1024px) 104px, 84px"
+            className="h-[68px] w-auto sm:h-[88px] lg:h-[104px]"
+          />
         </Link>
-        <nav className="hidden items-center gap-5 text-sm text-ink-soft sm:flex">
-          <Link href="/products" className="hover:text-purple">
-            Shop all
-          </Link>
-          <Link href="/wholesale" className="hover:text-purple">
-            Wholesale
-          </Link>
-        </nav>
-        <div className="ml-auto flex items-center gap-3 sm:gap-4">
-          <form onSubmit={onSearch} className="hidden sm:block">
-            <input
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
-              }}
-              placeholder="Search jewellery…"
-              aria-label="Search"
-              className="h-9 w-44 rounded-full border border-line bg-white px-4 text-sm text-ink placeholder:text-ink-faint focus:border-purple focus:outline-none lg:w-56"
-            />
-          </form>
+
+        {/* Right: search + account actions */}
+        <div className="flex items-center justify-end gap-3 sm:gap-4">
+          <SearchBox className="hidden w-40 xl:block xl:w-56" />
 
           <Link
-            href="/wishlist"
+            href="/account"
+            aria-label={user !== null ? `Account — ${user.firstName}` : 'Account'}
+            className="text-ink-soft transition-colors hover:text-purple"
+          >
+            <UserIcon />
+          </Link>
+
+          <button
+            type="button"
+            onClick={openWishlist}
             aria-label={`Wishlist${wishCount > 0 ? ` (${String(wishCount)} items)` : ''}`}
             className="relative text-ink-soft transition-colors hover:text-purple"
           >
             <HeartIcon />
             {wishCount > 0 && <CountBadge value={wishCount} />}
-          </Link>
+          </button>
 
-          <Link
-            href="/cart"
+          <button
+            type="button"
+            onClick={openCart}
             aria-label={`Cart${itemCount > 0 ? ` (${String(itemCount)} items)` : ''}`}
             className="relative text-ink-soft transition-colors hover:text-purple"
           >
             <BagIcon />
             {itemCount > 0 && <CountBadge value={itemCount} />}
-          </Link>
-
-          <Link
-            href="/account"
-            className="hidden text-sm text-ink-soft transition-colors hover:text-purple md:inline"
-          >
-            {user !== null ? `Hi, ${user.firstName}` : 'Account'}
-          </Link>
+          </button>
 
           <button
             type="button"
             onClick={onLogout}
-            className="hidden text-sm font-medium text-purple hover:underline sm:inline"
+            className="hidden text-xs font-medium text-purple hover:underline xl:inline"
           >
             Sign out
           </button>
         </div>
       </div>
 
+      {/* Tier 2 — centered collection nav (desktop) */}
+      <div className="hidden border-t border-gold/25 lg:block">
+        <nav
+          onMouseLeave={() => {
+            setOpenCat(null);
+          }}
+          className="mx-auto flex h-11 max-w-[1600px] flex-wrap items-center justify-center gap-x-6 gap-y-1 px-8 text-[13px] font-medium uppercase tracking-[0.12em] text-ink-soft"
+        >
+          {LEAD_NAV.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              onMouseEnter={() => {
+                setOpenCat(null);
+              }}
+              className="whitespace-nowrap transition-colors hover:text-purple"
+            >
+              {item.label}
+            </Link>
+          ))}
+          {topCategories.map((cat) => (
+            <NavCategory
+              key={cat.id}
+              category={cat}
+              subcategories={childrenByParent.get(cat.id) ?? []}
+              open={openCat === cat.id}
+              onOpen={() => {
+                setOpenCat(cat.id);
+              }}
+              onClose={() => {
+                setOpenCat(null);
+              }}
+            />
+          ))}
+          {TAIL_NAV.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              onMouseEnter={() => {
+                setOpenCat(null);
+              }}
+              className="whitespace-nowrap transition-colors hover:text-purple"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
+
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="border-t border-line bg-cream sm:hidden">
-          <div className="mx-auto max-w-7xl px-5 py-4">
-            <form onSubmit={onSearch} className="mb-4">
-              <input
-                value={q}
-                onChange={(e) => {
-                  setQ(e.target.value);
-                }}
-                placeholder="Search jewellery…"
-                aria-label="Search"
-                className="h-10 w-full rounded-full border border-line bg-white px-4 text-sm text-ink placeholder:text-ink-faint focus:border-purple focus:outline-none"
-              />
-            </form>
+        <div className="border-t border-line bg-cream lg:hidden">
+          <div className="mx-auto max-w-[1600px] px-5 py-4">
+            <SearchBox
+              className="mb-4"
+              onNavigate={() => {
+                setMenuOpen(false);
+              }}
+            />
             <nav className="flex flex-col text-sm">
-              <MobileLink href="/products" onNavigate={() => setMenuOpen(false)}>
-                Shop all
-              </MobileLink>
-              <MobileLink href="/wholesale" onNavigate={() => setMenuOpen(false)}>
-                Wholesale
-              </MobileLink>
-              <MobileLink href="/account" onNavigate={() => setMenuOpen(false)}>
-                {user !== null ? `Hi, ${user.firstName}` : 'Account'}
-              </MobileLink>
+              {LEAD_NAV.map((item) => (
+                <MobileLink key={item.label} href={item.href} onNavigate={() => setMenuOpen(false)}>
+                  {item.label}
+                </MobileLink>
+              ))}
+              {topCategories.map((cat) => (
+                <div key={cat.id}>
+                  <MobileLink
+                    href={`/categories/${cat.slug}`}
+                    onNavigate={() => setMenuOpen(false)}
+                  >
+                    {cat.name}
+                  </MobileLink>
+                  {(childrenByParent.get(cat.id) ?? []).map((sub) => (
+                    <MobileLink
+                      key={sub.id}
+                      href={`/categories/${sub.slug}`}
+                      onNavigate={() => setMenuOpen(false)}
+                    >
+                      <span className="pl-4 text-ink-faint">{sub.name}</span>
+                    </MobileLink>
+                  ))}
+                </div>
+              ))}
+              {TAIL_NAV.map((item) => (
+                <MobileLink key={item.label} href={item.href} onNavigate={() => setMenuOpen(false)}>
+                  {item.label}
+                </MobileLink>
+              ))}
               <MobileLink href="/account/orders" onNavigate={() => setMenuOpen(false)}>
                 My orders
               </MobileLink>
@@ -154,6 +248,64 @@ export function Header() {
         </div>
       )}
     </header>
+  );
+}
+
+/**
+ * A single top-level category in the desktop nav bar. When it has subcategories,
+ * pointing at it (or focusing it) opens a dropdown of them — open/close is driven
+ * by the parent's shared `openCat` state, so only one dropdown is ever open and
+ * moving the cursor onto another category closes this one immediately. The panel
+ * sits directly under the trigger (no gap to cross). No children = plain link.
+ */
+function NavCategory({
+  category,
+  subcategories,
+  open,
+  onOpen,
+  onClose,
+}: {
+  category: PublicCategory;
+  subcategories: PublicCategory[];
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+}) {
+  const hasChildren = subcategories.length > 0;
+  return (
+    <div
+      className="relative flex h-11 items-center"
+      onMouseEnter={hasChildren ? onOpen : onClose}
+      onFocus={hasChildren ? onOpen : onClose}
+    >
+      <Link
+        href={`/categories/${category.slug}`}
+        aria-expanded={hasChildren ? open : undefined}
+        className="whitespace-nowrap transition-colors hover:text-purple"
+      >
+        {category.name}
+      </Link>
+      {hasChildren && (
+        <div
+          className={`absolute left-1/2 top-full z-50 -translate-x-1/2 pt-2 transition-all duration-200 ${
+            open ? 'visible opacity-100' : 'invisible opacity-0'
+          }`}
+        >
+          <ul className="min-w-[200px] rounded-xl border border-line bg-cream py-2 shadow-lg">
+            {subcategories.map((sub) => (
+              <li key={sub.id}>
+                <Link
+                  href={`/categories/${sub.slug}`}
+                  className="block px-4 py-2 text-[12px] normal-case tracking-normal text-ink-soft transition-colors hover:bg-mist/60 hover:text-purple"
+                >
+                  {sub.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -214,11 +366,30 @@ function MenuIcon({ open }: { open: boolean }) {
   );
 }
 
+function UserIcon() {
+  return (
+    <svg
+      width="21"
+      height="21"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </svg>
+  );
+}
+
 function BagIcon() {
   return (
     <svg
-      width="22"
-      height="22"
+      width="21"
+      height="21"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -237,8 +408,8 @@ function BagIcon() {
 function HeartIcon() {
   return (
     <svg
-      width="22"
-      height="22"
+      width="21"
+      height="21"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

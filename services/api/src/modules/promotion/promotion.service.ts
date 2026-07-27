@@ -5,7 +5,7 @@
  * Usage-limit enforcement happens at order placement (1.6).
  */
 import type { HydratedDocument } from 'mongoose';
-import type { Paginated } from '@sajawat/types';
+import type { Paginated, PublicOffer } from '@sajawat/types';
 import { BadRequestError, ConflictError, NotFoundError } from '../../errors/app-error.js';
 import type { PaginatedResult } from '../../db/base-repository.js';
 import { normalizeCode, promotionRepository } from './promotion.repository.js';
@@ -199,6 +199,32 @@ async function listAdmin(query: PromotionListQuery): Promise<Paginated<AdminProm
   };
 }
 
+/** Public, advertisable projection of an active promotion (no usage limits). */
+function toPublicOffer(doc: PromotionDoc): PublicOffer {
+  return {
+    id: String(doc._id),
+    name: doc.name,
+    trigger: doc.trigger,
+    code: doc.code,
+    rewardType: doc.rewardType,
+    value: doc.value,
+    minCartValue: doc.minCartValue,
+    maxDiscount: doc.maxDiscount,
+    endDate: doc.endDate == null ? null : doc.endDate.toISOString(),
+  };
+}
+
+/** Active offers currently within their date window (for storefront display). */
+async function listActivePublic(): Promise<PublicOffer[]> {
+  const now = new Date();
+  const docs = await promotionRepository.findActive();
+  return docs
+    .filter(
+      (d) => (d.startDate == null || now >= d.startDate) && (d.endDate == null || now <= d.endDate),
+    )
+    .map(toPublicOffer);
+}
+
 async function getByIdAdmin(id: string): Promise<AdminPromotion> {
   const doc = await promotionRepository.findById(id);
   if (doc === null) {
@@ -222,4 +248,5 @@ export const promotionService = {
   listAdmin,
   getByIdAdmin,
   remove,
+  listActivePublic,
 };

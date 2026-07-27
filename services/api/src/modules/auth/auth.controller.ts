@@ -15,7 +15,7 @@ import { issueCsrfToken } from '../../middleware/csrf.js';
 import { UnauthorizedError } from '../../errors/app-error.js';
 import type { SessionContext } from '../session/session.service.js';
 import { authService } from './auth.service.js';
-import type { GoogleBody, LoginBody, RegisterBody } from './auth.validation.js';
+import type { GoogleBody, LoginBody, RegisterBody, UpdateProfileBody } from './auth.validation.js';
 
 function contextOf(req: Request): SessionContext {
   return { ip: req.ip, userAgent: req.get('user-agent') ?? undefined };
@@ -74,4 +74,13 @@ export const me: RequestHandler = asyncHandler(async (req, res) => {
   }
   const user = await authService.getMe(userId);
   sendSuccess(res, { user });
+});
+
+export const updateMe: RequestHandler = asyncHandler(async (req, res) => {
+  const userId = req.user?.id;
+  if (userId === undefined) {
+    throw new UnauthorizedError();
+  }
+  const body = req.validatedData?.body as UpdateProfileBody;
+  sendSuccess(res, { user: await authService.updateProfile(userId, body) });
 });

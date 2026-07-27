@@ -19,6 +19,7 @@ import type {
   PublicOrder,
 } from '@sajawat/types';
 import { BadRequestError, NotFoundError, NotImplementedError } from '../../errors/app-error.js';
+import { EVENTS, logEvent, logEventFailure } from '../../observability/events.js';
 import type { PaginatedResult } from '../../db/base-repository.js';
 import { cartService } from '../cart/cart.service.js';
 import { inventoryService } from '../inventory/inventory.service.js';
@@ -26,6 +27,8 @@ import { promotionRepository } from '../promotion/promotion.repository.js';
 import { paymentRepository } from '../payment/payment.repository.js';
 import type { IPayment } from '../payment/payment.types.js';
 import { razorpayProvider } from '../../payments/razorpay-provider.js';
+import { notificationService } from '../../notifications/notification.service.js';
+import { logger } from '../../config/logger.js';
 import { orderRepository } from './order.repository.js';
 import type { IOrder, IOrderItem, IOrderPromotion } from './order.types.js';
 
@@ -212,6 +215,23 @@ async function placeCodOrder(userId: string, input: CheckoutInput): Promise<Publ
   });
 
   await cartService.clear(userId);
+  logEvent(EVENTS.ORDER_PLACED, {
+    orderId: String(order._id),
+    orderNumber: order.orderNumber,
+    userId,
+    total: order.total,
+    paymentMethod: 'cod',
+  });
+  void notificationService
+    .sendSaleAlert({
+      orderNumber: order.orderNumber,
+      total: order.total,
+      paymentMethod: 'cod',
+      itemCount: order.items.length,
+    })
+    .catch((err: unknown) => {
+      logger.warn({ err }, 'sale alert failed');
+    });
   return toPublicOrder(order);
 }
 
@@ -239,6 +259,29 @@ async function fulfillPaidOrder(
     $set: { status: 'captured', transactionId: paymentId, signature },
   });
   await cartService.clear(String(order.userId));
+  logEvent(EVENTS.PAYMENT_SUCCEEDED, {
+    orderId: String(order._id),
+    orderNumber: order.orderNumber,
+    paymentId,
+    amount: order.total,
+  });
+  logEvent(EVENTS.ORDER_PLACED, {
+    orderId: String(order._id),
+    orderNumber: order.orderNumber,
+    userId: String(order.userId),
+    total: order.total,
+    paymentMethod: 'online',
+  });
+  void notificationService
+    .sendSaleAlert({
+      orderNumber: order.orderNumber,
+      total: order.total,
+      paymentMethod: 'online',
+      itemCount: order.items.length,
+    })
+    .catch((err: unknown) => {
+      logger.warn({ err }, 'sale alert failed');
+    });
 }
 
 async function initiateOnline(userId: string, input: CheckoutInput): Promise<OnlineCheckoutResult> {
@@ -331,6 +374,10 @@ async function verifyOnlinePayment(
       input.signature,
     )
   ) {
+    logEventFailure(EVENTS.PAYMENT_FAILED, {
+      razorpayOrderId: input.razorpayOrderId,
+      reason: 'signature_verification_failed',
+    });
     throw new BadRequestError('Payment verification failed');
   }
   const payment = await paymentRepository.findByProviderOrderId(input.razorpayOrderId);
@@ -423,6 +470,11 @@ async function cancelMine(userId: string, id: string): Promise<PublicOrder> {
   await restockOrderInventory(order, userId);
   order.status = 'cancelled';
   await order.save();
+  logEvent(EVENTS.ORDER_CANCELLED, {
+    orderId: String(order._id),
+    orderNumber: order.orderNumber,
+    userId,
+  });
   return toPublicOrder(order);
 }
 

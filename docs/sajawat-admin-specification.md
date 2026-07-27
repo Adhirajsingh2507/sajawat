@@ -205,6 +205,11 @@ Enable
 
 Disable
 
+Assign parent (subcategories) — the form has a "Parent category" selector
+("None (top-level)" or a top-level category). One level deep only. The list
+shows a Parent column and indents children. Deleting a category is blocked while
+it still has subcategories.
+
 ---
 
 # COLLECTION MANAGEMENT
@@ -684,3 +689,27 @@ must be:
 Auditable
 Permission Controlled
 Recoverable
+
+---
+
+# ADDENDUM — Barcode & scan-to-receive stock (2026-07-05)
+
+## Product barcode
+- The Product create/edit form has an optional **Barcode** field (staff type it
+  or scan it in — scanners emulate a keyboard). Distinct from SKU; unique if set.
+- Admin-only; not shown on the customer storefront.
+
+## Receive stock by scan (`/inventory/scan`, INVENTORY_WRITE)
+Nav item **"Receive stock"**. Workflow (as specified by the owner):
+1. Staff repeatedly **scan product barcodes**. Each scan looks the product up by
+   barcode (`GET /api/v1/admin/products/barcode/:code`) and adds it to a running
+   intake list; re-scanning the same product **increments** its count.
+   (e.g. 3 products × 10 scans each → three rows of qty 10.)
+2. Quantities are editable per row; unknown barcodes surface an inline error.
+3. **Submit** applies each row as a `stock_added` inventory movement (the same
+   server-authoritative path as the manual adjust) — stock rises and the change
+   is **immediately live on the storefront** (availability/in-stock derive from
+   inventory).
+
+Permission: `INVENTORY_WRITE`. Immutable movements are recorded per adjustment
+(auditable, recoverable), consistent with the existing inventory adjust.

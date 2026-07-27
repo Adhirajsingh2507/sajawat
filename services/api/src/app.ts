@@ -27,13 +27,14 @@ import { categoryRouter, categoryAdminRouter } from './modules/category/category
 import { collectionRouter, collectionAdminRouter } from './modules/collection/collection.routes.js';
 import { productRouter, productAdminRouter } from './modules/product/product.routes.js';
 import { inventoryAdminRouter } from './modules/inventory/inventory.routes.js';
-import { promotionAdminRouter } from './modules/promotion/promotion.routes.js';
+import { promotionRouter, promotionAdminRouter } from './modules/promotion/promotion.routes.js';
 import { cartRouter } from './modules/cart/cart.routes.js';
 import { wishlistRouter } from './modules/wishlist/wishlist.routes.js';
 import { checkoutRouter, orderAdminRouter, ordersRouter } from './modules/order/order.routes.js';
 import { webhookRouter } from './modules/payment/payment.routes.js';
-import { enquiryRouter, crmAdminRouter } from './modules/crm/crm.routes.js';
-import { settingsAdminRouter } from './modules/settings/settings.routes.js';
+import { enquiryRouter, contactRouter, crmAdminRouter } from './modules/crm/crm.routes.js';
+import { settingsAdminRouter, settingsPublicRouter } from './modules/settings/settings.routes.js';
+import { mediaAdminRouter } from './modules/media/media.routes.js';
 import { notFoundHandler } from './middleware/not-found.js';
 import { errorHandler } from './middleware/error-handler.js';
 
@@ -83,16 +84,20 @@ export function createApp(): Application {
   app.use('/api/v1/categories', categoryRouter);
   app.use('/api/v1/collections', collectionRouter);
   app.use('/api/v1/products', productRouter);
+  app.use('/api/v1/offers', promotionRouter);
   app.use('/api/v1/cart', cartRouter);
   app.use('/api/v1/wishlist', wishlistRouter);
   app.use('/api/v1/checkout', checkoutRouter);
   app.use('/api/v1/orders', ordersRouter);
   app.use('/api/v1/enquiries', enquiryRouter);
+  app.use('/api/v1/contact', contactRouter);
+  app.use('/api/v1/settings', settingsPublicRouter);
   app.use('/api/v1/webhooks', webhookRouter);
   app.use('/api/v1/admin/categories', categoryAdminRouter);
   app.use('/api/v1/admin/collections', collectionAdminRouter);
   app.use('/api/v1/admin/products', productAdminRouter);
   app.use('/api/v1/admin/inventory', inventoryAdminRouter);
+  app.use('/api/v1/admin/media', mediaAdminRouter);
   app.use('/api/v1/admin/promotions', promotionAdminRouter);
   app.use('/api/v1/admin/orders', orderAdminRouter);
   app.use('/api/v1/admin/crm', crmAdminRouter);

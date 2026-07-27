@@ -52,6 +52,44 @@ async function sendLeadAlert(lead: LeadAlert): Promise<NotificationResult> {
   return result;
 }
 
+export interface SaleAlert {
+  orderNumber: string;
+  total: number;
+  paymentMethod: 'cod' | 'online';
+  itemCount: number;
+}
+
+function formatSaleMessage(sale: SaleAlert): string {
+  return [
+    '🛒 New sale',
+    `Order: ${sale.orderNumber}`,
+    `Amount: ₹${sale.total.toLocaleString('en-IN')}`,
+    `Items: ${String(sale.itemCount)}`,
+    `Payment: ${sale.paymentMethod === 'cod' ? 'Cash on delivery' : 'Paid online'}`,
+  ].join('\n');
+}
+
+/**
+ * Fire the instant admin WhatsApp alert for a new sale. Same best-effort contract
+ * as sendLeadAlert: skips when no admin number is set (removable in Settings), and
+ * never throws so a notification failure can't roll back a persisted order.
+ */
+async function sendSaleAlert(sale: SaleAlert): Promise<NotificationResult> {
+  const adminNumber = await settingsService.getAdminWhatsappNumber();
+  if (adminNumber === null) {
+    logger.info({ reason: 'no_admin_number' }, 'sale alert skipped');
+    return { delivered: false, skipped: true, reason: 'no_admin_number' };
+  }
+  const result = await whatsappProvider.sendText(adminNumber, formatSaleMessage(sale));
+  if (result.delivered) {
+    logger.info({ channel: 'whatsapp' }, 'sale alert sent');
+  } else {
+    logger.info({ channel: 'whatsapp', reason: result.reason }, 'sale alert not delivered');
+  }
+  return result;
+}
+
 export const notificationService = {
   sendLeadAlert,
+  sendSaleAlert,
 };

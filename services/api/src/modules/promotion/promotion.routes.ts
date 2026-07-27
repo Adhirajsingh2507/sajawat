@@ -19,7 +19,12 @@ import {
   adminList,
   adminRemove,
   adminUpdate,
+  publicOffers,
 } from './promotion.controller.js';
+
+/** Public offers read — mounted at /api/v1/offers (no auth). */
+export const promotionRouter: Router = express.Router();
+promotionRouter.get('/', publicOffers);
 
 export const promotionAdminRouter: Router = express.Router();
 promotionAdminRouter.use(requireAuth, requirePermission(PERMISSIONS.COUPON_WRITE));

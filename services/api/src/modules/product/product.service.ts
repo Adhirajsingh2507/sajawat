@@ -68,6 +68,7 @@ function toAdminProduct(doc: ProductDoc): AdminProduct {
     shortDescription: doc.shortDescription,
     description: doc.description,
     sku: doc.sku,
+    barcode: doc.barcode,
     price: doc.price,
     salePrice: doc.salePrice,
     categoryId: String(doc.categoryId),
@@ -123,6 +124,23 @@ async function listPublic(query: ProductListQuery): Promise<Paginated<PublicProd
   }
   if (query.featured !== undefined) filter.isFeatured = query.featured;
   if (query.bestSeller !== undefined) filter.isBestSeller = query.bestSeller;
+
+  // Price range on the base list price. Operators are developer-constructed →
+  // trusted so the global sanitizeFilter (AD-9) does not neutralize them.
+  if (query.minPrice !== undefined || query.maxPrice !== undefined) {
+    const range: Record<string, number> = {};
+    if (query.minPrice !== undefined) range.$gte = query.minPrice;
+    if (query.maxPrice !== undefined) range.$lte = query.maxPrice;
+    filter.price = mongoose.trusted(range);
+  }
+
+  // In-stock filter: restrict to purchasable products (inventory join).
+  if (query.inStock === true) {
+    const inStockIds = await inventoryService.getInStockProductIds();
+    if (inStockIds.length === 0) return emptyPage(query);
+    filter._id = mongoose.trusted({ $in: inStockIds });
+  }
+
   return paginatePublic(filter, query);
 }
 
@@ -181,6 +199,9 @@ async function create(input: CreateProductBody, performedBy: string): Promise<Ad
   if (await productRepository.existsBySku(input.sku)) {
     throw new ConflictError('SKU already in use');
   }
+  if (input.barcode !== undefined && (await productRepository.existsByBarcode(input.barcode))) {
+    throw new ConflictError('Barcode already in use');
+  }
 
   const doc = await productRepository.create({
     name: input.name,
@@ -188,6 +209,7 @@ async function create(input: CreateProductBody, performedBy: string): Promise<Ad
     shortDescription: input.shortDescription,
     description: input.description,
     sku: input.sku,
+    barcode: input.barcode,
     price: input.price,
     salePrice: input.salePrice,
     categoryId: input.categoryId,
@@ -226,8 +248,15 @@ async function update(id: string, input: UpdateProductBody): Promise<AdminProduc
     throw new BadRequestError('salePrice must be less than price');
   }
 
+  if (input.barcode !== undefined && input.barcode !== existing.barcode) {
+    if (await productRepository.existsByBarcode(input.barcode)) {
+      throw new ConflictError('Barcode already in use');
+    }
+  }
+
   const patch: Partial<IProduct> = {};
   if (input.name !== undefined) patch.name = input.name;
+  if (input.barcode !== undefined) patch.barcode = input.barcode;
   if (input.shortDescription !== undefined) patch.shortDescription = input.shortDescription;
   if (input.description !== undefined) patch.description = input.description;
   if (input.price !== undefined) patch.price = input.price;
@@ -303,6 +332,14 @@ async function getByIdAdmin(id: string): Promise<AdminProduct> {
   return toAdminProduct(doc);
 }
 
+async function getByBarcodeAdmin(barcode: string): Promise<AdminProduct> {
+  const doc = await productRepository.findByBarcode(barcode);
+  if (doc === null) {
+    throw new NotFoundError('No product found for this barcode');
+  }
+  return toAdminProduct(doc);
+}
+
 async function remove(id: string): Promise<void> {
   const deleted = await productRepository.softDeleteById(id);
   if (deleted === null) {
@@ -322,5 +359,6 @@ export const productService = {
   update,
   listAdmin,
   getByIdAdmin,
+  getByBarcodeAdmin,
   remove,
 };

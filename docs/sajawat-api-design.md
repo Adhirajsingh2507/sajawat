@@ -161,6 +161,8 @@ GET
 GET
 
 /api/v1/categories
+  (returns active categories incl. `parentId`; storefront groups top-level +
+   subcategories client-side for the nav dropdown and in-category switcher)
 
 GET
 
@@ -375,6 +377,10 @@ DELETE
 CRUD
 
 /api/v1/admin/categories
+  Create/Update accept optional `parentId` ('' / null = top-level). Validation:
+  parent must exist and be top-level (one level deep), no self-parent, and a
+  category that already has children cannot become a subcategory (400). Delete is
+  blocked while a category still has subcategories (409 — reassign/remove first).
 
 ---
 
@@ -661,3 +667,60 @@ Before adding any endpoint:
 5. Performance Review
 
 Only then implement.
+
+---
+
+# ADDENDUM — Storefront experience layer (2026-07-04)
+
+Public, read-only additions made during the client-showcase storefront redesign
+(develop, PRs #3–#10). No auth; consumed by `apps/web`.
+
+## Public offers
+
+`GET /api/v1/offers`
+
+- **Purpose:** advertisable, store-wide promotions for the PDP "Available offers"
+  box. Promotions are **not per-product** — they apply to any SKU gated by
+  `minCartValue` — so the storefront lists the active offers a product qualifies
+  for.
+- **Auth:** none.
+- **Output:** `{ "data": { "items": PublicOffer[] } }`, where `PublicOffer` =
+  `{ id, name, trigger: 'automatic'|'coupon', code?, rewardType: 'percentage'|'fixed', value, minCartValue, maxDiscount?, endDate? }`.
+- **Security:** usage limits (`usageLimit`, `perCustomerLimit`) and internal
+  fields are **never** exposed. Only `status:'active'` promotions within their
+  date window are returned (`promotionService.listActivePublic`).
+
+## Product listing filters (extends `GET /api/v1/products`)
+
+New optional query params (validated in `product.validation.ts`, applied in
+`product.service.listPublic`):
+
+- `minPrice` / `maxPrice` — numeric range on the **base list price** (`price`);
+  operators marked `mongoose.trusted` per AD-9. Not the discounted `salePrice`
+  (deliberate, predictable behaviour).
+- `inStock=true` — restricts to purchasable products via an inventory join
+  (`inventoryService.getInStockProductIds` → `_id $in`).
+
+Existing params unchanged: `page, limit, sort, category, collection, featured,
+bestSeller`.
+
+---
+
+# ADDENDUM — Product barcode (2026-07-05)
+
+## Barcode on products (admin)
+- Admin create/update product accepts optional **`barcode`** (string, ≤64);
+  unique if set (409 `Barcode already in use` on clash). Returned on
+  `AdminProduct`; **not** on `PublicProduct` (admin-only).
+
+## Barcode lookup (admin scan)
+`GET /api/v1/admin/products/barcode/:code`
+
+- **Purpose:** resolve a scanned physical barcode to its product for the
+  "Receive stock by scan" flow.
+- **Auth/RBAC:** staff session + `product:read`. Registered **before** `/:id`
+  (static-first routing rule).
+- **Output:** `AdminProduct`; `404` if no product carries that barcode.
+- **Stock intake** reuses the existing `POST /api/v1/admin/inventory/:productId`
+  (`type:'stock_added'`) per scanned product on submit — no new inventory
+  endpoint.

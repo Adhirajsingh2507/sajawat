@@ -46,11 +46,11 @@ export default function LeadDetailPage() {
         <Link href="/crm" className="hover:text-purple">
           CRM leads
         </Link>{' '}
-        / {lead.company}
+        / {lead.company ?? lead.name}
       </nav>
       <PageHeader
-        title={lead.company}
-        description={`Enquiry from ${lead.name} · ${formatDateTime(lead.createdAt)}`}
+        title={lead.company ?? lead.name}
+        description={`${lead.type === 'b2c' ? 'Contact message' : 'Enquiry'} from ${lead.name} · ${formatDateTime(lead.createdAt)}`}
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
@@ -61,7 +61,7 @@ export default function LeadDetailPage() {
               <Field label="Name" value={lead.name} />
               <Field label="Phone" value={lead.phone} />
               <Field label="Email" value={lead.email} />
-              <Field label="City" value={lead.city} />
+              {lead.city !== undefined && <Field label="City" value={lead.city} />}
               {lead.gst !== undefined && <Field label="GST" value={lead.gst} />}
               {lead.quantity != null && <Field label="Quantity" value={String(lead.quantity)} />}
               {lead.productInterest !== undefined && (

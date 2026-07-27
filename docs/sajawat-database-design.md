@@ -267,7 +267,10 @@ isBestSeller
 
 Purpose:
 
-Product grouping.
+Product grouping. Supports one level of nesting (parent → subcategory) via a
+self-reference; the service enforces the two-level ceiling (a parent must itself
+be top-level, no self-parenting, and a category with children cannot become a
+child).
 
 Fields:
 
@@ -285,6 +288,8 @@ status
 
 sortOrder
 
+parentId  (ObjectId ref → Category; null = top-level, else the parent category)
+
 createdAt
 
 updatedAt
@@ -294,6 +299,10 @@ Indexes:
 slug
 
 status
+
+sortOrder
+
+parentId
 
 ---
 
@@ -1061,3 +1070,21 @@ Review:
 5. Reporting Requirements
 
 No collection should be implemented without index analysis.
+
+---
+
+# ADDENDUM — Product `barcode` (2026-07-05)
+
+`products` gains an optional **`barcode`** field (string, ≤64) — the physical,
+scannable code on the product tag (EAN/UPC/Code‑128), **distinct from `sku`**
+(internal identifier).
+
+- **Index:** `{ barcode: 1 }` **unique + sparse** — many products may have none,
+  but no two share a code. Powers O(log n) admin scan lookups.
+- **Uniqueness:** enforced at the app layer too (create/update 409 on clash),
+  spanning soft-deleted rows (like `sku`).
+- **Exposure:** admin-only. `barcode` is on `AdminProduct`, **never** on
+  `PublicProduct` (customers don't scan retail jewellery online).
+- **Use:** admin "Receive stock by scan" — scanning a barcode looks the product
+  up and adds to a stock-intake count; submitting applies `stock_added`
+  inventory movements. No change to the inventory schema.

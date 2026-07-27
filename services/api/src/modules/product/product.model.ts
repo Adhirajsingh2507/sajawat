@@ -40,6 +40,7 @@ const productSchema = new Schema<IProduct>({
   shortDescription: { type: String, trim: true, maxlength: 500 },
   description: { type: String, trim: true, maxlength: 8000 },
   sku: { type: String, required: true, trim: true, maxlength: 64 },
+  barcode: { type: String, trim: true, maxlength: 64 },
   price: { type: Number, required: true, min: 0 },
   salePrice: { type: Number, min: 0 },
   categoryId: { type: Schema.Types.ObjectId, ref: 'Category', required: true },
@@ -58,6 +59,7 @@ productSchema.plugin(baseSchemaPlugin);
 
 productSchema.index({ slug: 1 }, { unique: true });
 productSchema.index({ sku: 1 }, { unique: true });
+productSchema.index({ barcode: 1 }, { unique: true, sparse: true });
 productSchema.index({ categoryId: 1 });
 productSchema.index({ status: 1 });
 productSchema.index({ isFeatured: 1 });

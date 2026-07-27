@@ -26,6 +26,15 @@ export default function AccountPage() {
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <AccountTile
+          href="/account/profile"
+          title="Profile & address"
+          subtitle={
+            user?.address?.line1 !== undefined && user.address.line1.length > 0
+              ? `${user.address.line1}${user.address.city !== undefined ? `, ${user.address.city}` : ''}`
+              : 'Add your details & delivery address'
+          }
+        />
+        <AccountTile
           href="/account/orders"
           title="Orders"
           subtitle="Track and review your orders"

@@ -20,6 +20,8 @@ export interface PublicCategory {
   description?: string | undefined;
   image?: string | undefined;
   sortOrder: number;
+  /** Null/undefined = top-level; otherwise the id of the parent category. */
+  parentId?: string | null;
 }
 
 export interface PublicCollection {
@@ -44,6 +46,24 @@ export interface ProductSeo {
   title?: string | undefined;
   description?: string | undefined;
   keywords: string[];
+}
+
+/**
+ * Advertisable store-wide offer (Milestone: showcase deals). Promotions are not
+ * per-product — they apply to any SKU gated by `minCartValue` — so the PDP shows
+ * the active offers a product qualifies for. Sensitive fields (usage limits) are
+ * never exposed.
+ */
+export interface PublicOffer {
+  id: string;
+  name: string;
+  trigger: 'automatic' | 'coupon';
+  code?: string | undefined;
+  rewardType: 'percentage' | 'fixed';
+  value: number;
+  minCartValue: number;
+  maxDiscount?: number | null | undefined;
+  endDate?: string | null | undefined;
 }
 
 export interface PublicProduct {

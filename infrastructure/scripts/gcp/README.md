@@ -44,6 +44,7 @@ config.production.sh    NON-SECRET identifiers/names for production (committed)
 03-secrets.sh           create empty secret containers (+ prints value-injection cmds)
 04-service-accounts.sh  create SAs + least-privilege IAM
 05-workload-identity.sh WIF pool/provider + env-scoped deployer binding (+ prints GitHub vars)
+06-media-bucket.sh      public media bucket for product images/video (1.3-media); api-run gets objectAdmin
 provision.sh <env>      orchestrator: confirmation + steps 01..05
 verify.sh <env>         read-only assertions; exits non-zero on any gap
 ```

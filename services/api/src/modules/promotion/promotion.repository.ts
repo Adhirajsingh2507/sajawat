@@ -28,6 +28,11 @@ export class PromotionRepository extends BaseRepository<IPromotion> {
   findActiveAutomatic(): Promise<HydratedDocument<IPromotion>[]> {
     return this.find({ trigger: 'automatic', status: 'active' });
   }
+
+  /** All active promotions (automatic + coupon) for storefront offer display. */
+  findActive(): Promise<HydratedDocument<IPromotion>[]> {
+    return this.find({ status: 'active' });
+  }
 }
 
 export const promotionRepository = new PromotionRepository();

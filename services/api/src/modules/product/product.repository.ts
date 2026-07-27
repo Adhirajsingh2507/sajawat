@@ -26,6 +26,18 @@ export class ProductRepository extends BaseRepository<IProduct> {
     return this.exists({ sku }, { includeDeleted: true });
   }
 
+  existsByBarcode(barcode: string): Promise<boolean> {
+    return this.exists({ barcode }, { includeDeleted: true });
+  }
+
+  /** Active product by scannable barcode (storefront/admin scan lookup). */
+  findByBarcode(
+    barcode: string,
+    opts: ReadOptions = {},
+  ): Promise<HydratedDocument<IProduct> | null> {
+    return this.findOne({ barcode }, opts);
+  }
+
   /** Active products by id (trusted $in; for cart/wishlist hydration). */
   findActiveByIds(ids: string[]): Promise<HydratedDocument<IProduct>[]> {
     return this.find({ _id: mongoose.trusted({ $in: ids }), status: 'active' });

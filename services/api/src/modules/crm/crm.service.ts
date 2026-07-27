@@ -6,11 +6,12 @@
 import type { HydratedDocument } from 'mongoose';
 import type { AdminLead, EnquiryAck, Paginated } from '@sajawat/types';
 import { NotFoundError } from '../../errors/app-error.js';
+import { EVENTS, logEvent } from '../../observability/events.js';
 import type { PaginatedResult } from '../../db/base-repository.js';
 import { notificationService } from '../../notifications/notification.service.js';
 import { crmLeadRepository } from './crm.repository.js';
 import type { ICrmLead } from './crm.types.js';
-import type { EnquiryBody, LeadListQuery, UpdateLeadBody } from './crm.validation.js';
+import type { ContactBody, EnquiryBody, LeadListQuery, UpdateLeadBody } from './crm.validation.js';
 
 type LeadDoc = HydratedDocument<ICrmLead>;
 
@@ -59,14 +60,51 @@ async function createLead(input: EnquiryBody, submittedBy: string | null): Promi
     notes: [],
   });
 
+  logEvent(EVENTS.CRM_LEAD_CREATED, {
+    leadId: String(doc._id),
+    type: doc.type,
+    source: doc.source,
+  });
+
   // Best-effort instant admin alert; failure must not affect the saved lead.
+  // company/city come from the (required) enquiry input, not the now-optional doc.
   await notificationService.sendLeadAlert({
     name: doc.name,
-    company: doc.company,
+    company: input.company,
     phone: doc.phone,
-    city: doc.city,
+    city: input.city,
     quantity: doc.quantity,
     productInterest: doc.productInterest,
+  });
+
+  return { id: String(doc._id), stage: doc.stage };
+}
+
+/**
+ * Storefront Contact-page message → a `b2c` / `source=contact` lead in the same
+ * pipeline. No company/city (not collected) and NO wholesale WhatsApp alert
+ * (that channel is for B2B leads); the message still surfaces in the admin CRM.
+ */
+async function createContactLead(
+  input: ContactBody,
+  submittedBy: string | null,
+): Promise<EnquiryAck> {
+  const doc = await crmLeadRepository.create({
+    name: input.name,
+    phone: input.phone,
+    email: input.email,
+    message: input.message,
+    type: 'b2c',
+    source: 'contact',
+    stage: 'new',
+    submittedBy: submittedBy ?? null,
+    notes: [],
+  });
+
+  logEvent(EVENTS.CRM_LEAD_CREATED, {
+    leadId: String(doc._id),
+    type: doc.type,
+    source: doc.source,
   });
 
   return { id: String(doc._id), stage: doc.stage };
@@ -119,6 +157,7 @@ async function updateAdmin(id: string, input: UpdateLeadBody, actorId: string): 
 
 export const crmService = {
   createLead,
+  createContactLead,
   listAdmin,
   getByIdAdmin,
   updateAdmin,
